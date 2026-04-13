@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useStore } from './store/useStore';
 import Layout from './components/Layout';
 import LoginScreen from './components/LoginScreen';
@@ -26,7 +26,7 @@ function DirectionRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/login" element={<LoginScreen />} />
         <Route
@@ -57,6 +57,6 @@ export default function App() {
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
