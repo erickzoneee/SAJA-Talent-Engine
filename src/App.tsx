@@ -11,6 +11,7 @@ import ExitModule from './modules/exit/ExitModule';
 import SupervisorModule from './modules/supervisor/SupervisorModule';
 import AnalyticsModule from './modules/analytics/AnalyticsModule';
 import SettingsModule from './modules/settings/SettingsModule';
+import TrainingModule from './modules/training/TrainingModule';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useStore((s) => s.isAuthenticated);
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="interview" element={<InterviewModule />} />
           <Route path="hiring" element={<HiringModule />} />
           <Route path="onboarding" element={<OnboardingModule />} />
+          <Route path="training" element={<TrainingModule />} />
           <Route path="performance" element={<PerformanceModule />} />
           <Route path="exit" element={<ExitModule />} />
           <Route path="analytics" element={<AnalyticsModule />} />
