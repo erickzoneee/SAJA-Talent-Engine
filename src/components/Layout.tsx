@@ -17,6 +17,7 @@ import {
   Calendar,
   Shield,
   Power,
+  Database,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
@@ -30,7 +31,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard' },
-  { id: 'recruitment', label: 'Reclutamiento', icon: UserPlus, route: '/recruitment' },
+  { id: 'recruitment', label: 'Recepcion', icon: UserPlus, route: '/recruitment' },
   { id: 'interview', label: 'Entrevistas', icon: ClipboardList, route: '/interview' },
   { id: 'hiring', label: 'Contratacion', icon: FileCheck, route: '/hiring' },
   { id: 'onboarding', label: 'Onboarding', icon: GraduationCap, route: '/onboarding' },
@@ -38,12 +39,13 @@ const navItems: NavItem[] = [
   { id: 'performance', label: 'Desempeno', icon: TrendingUp, route: '/performance' },
   { id: 'exit', label: 'Egreso', icon: LogOut, route: '/exit' },
   { id: 'analytics', label: 'Analisis', icon: BarChart3, route: '/analytics' },
+  { id: 'questions', label: 'Banco de Preguntas', icon: Database, route: '/questions', directionOnly: true },
   { id: 'settings', label: 'Configuracion', icon: Settings, route: '/settings', directionOnly: true },
 ];
 
 const moduleLabels: Record<string, string> = {
   '/dashboard': 'Dashboard',
-  '/recruitment': 'Reclutamiento',
+  '/recruitment': 'Recepcion',
   '/interview': 'Entrevistas',
   '/hiring': 'Contratacion',
   '/onboarding': 'Onboarding',
@@ -51,6 +53,7 @@ const moduleLabels: Record<string, string> = {
   '/performance': 'Desempeno',
   '/exit': 'Egreso',
   '/analytics': 'Analisis',
+  '/questions': 'Banco de Preguntas',
   '/settings': 'Configuracion',
 };
 

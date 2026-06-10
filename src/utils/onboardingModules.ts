@@ -1,6 +1,88 @@
 import type { OnboardingModule } from '../types';
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.0 — VIDEOS GENERALES DE CAPACITACION — SEMANA 1 (BRD seccion 7)
+// 10 videos. Los criticos llevan mini evaluacion con minimo 70%.
+// Si no aprueba: repite el video COMPLETO antes de volver a contestar.
+// Maximo 3 intentos → alerta inmediata a Direccion + bloqueo.
+// Boton 'Tengo dudas' → alerta inmediata a RH y jefe directo.
+// Orden secuencial obligatorio. Sin firmas: solo confirmacion digital
+// (el colaborador firma unicamente los 5 documentos fisicos).
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export const VIDEO_PASS_PERCENT = 70; // confirmado por Direccion
+export const VIDEO_MAX_ATTEMPTS = 3;
+
+export function videoPassThreshold(questionCount: number): number {
+  return Math.ceil((VIDEO_PASS_PERCENT / 100) * questionCount);
+}
+
 export function getDefaultOnboardingModules(): OnboardingModule[] {
+  const base = { deliveredBy: 'Video en tablet', requiresSignature: false, completed: false, isVideo: true };
+  return [
+    { id: 1, name: 'Bienvenida e historia de la empresa', duration: '3 min', durationMin: 3, critical: false, ...base },
+    { id: 2, name: 'Horario, checado y pago', duration: '2 min', durationMin: 2, critical: false, ...base },
+    { id: 3, name: 'Uniforme y equipo de proteccion personal', duration: '2 min', durationMin: 2, critical: true, questionsCount: 4, ...base },
+    { id: 4, name: 'Buenas Practicas de Manufactura basicas', duration: '2 min', durationMin: 2, critical: true, questionsCount: 5, ...base },
+    { id: 5, name: 'Orden y limpieza', duration: '2 min', durationMin: 2, critical: true, questionsCount: 3, ...base },
+    { id: 6, name: 'Seguridad basica en planta', duration: '2 min', durationMin: 2, critical: true, questionsCount: 4, ...base },
+    { id: 7, name: 'Comedor, lockers y areas comunes', duration: '1.5 min', durationMin: 1.5, critical: false, ...base },
+    { id: 8, name: 'Uso de celular y confidencialidad', duration: '2 min', durationMin: 2, critical: true, questionsCount: 3, ...base },
+    { id: 9, name: 'Videovigilancia y camaras de seguridad', duration: '1.5 min', durationMin: 1.5, critical: true, questionsCount: 3, ...base },
+    { id: 10, name: 'Que hacer en caso de accidente', duration: '2 min', durationMin: 2, critical: true, questionsCount: 4, ...base },
+  ];
+}
+
+// Mini evaluaciones de los videos criticos v2.0
+export function getVideoQuizQuestions(moduleId: number): { question: string; options: string[]; correct: number }[] {
+  const quizzes: Record<number, { question: string; options: string[]; correct: number }[]> = {
+    3: [
+      { question: 'El uniforme completo se usa:', options: ['Solo cuando hay visitas', 'Durante toda la jornada de trabajo', 'Solo en invierno', 'Solo el primer dia'], correct: 1 },
+      { question: '¿Para que sirve la cofia?', options: ['Para verse uniformado', 'Para evitar que caiga cabello al producto', 'Para el frio', 'Es opcional'], correct: 1 },
+      { question: 'Si tu uniforme se dana, debes:', options: ['Seguir usandolo roto', 'Reportarlo de inmediato a RH', 'Tirarlo a la basura', 'Comprar otro por tu cuenta'], correct: 1 },
+      { question: 'El equipo de proteccion personal (EPP) se usa:', options: ['Solo si tu quieres', 'Siempre que tu area lo requiera', 'Solo en auditorias', 'Nunca'], correct: 1 },
+    ],
+    4: [
+      { question: '¿Que significa BPM?', options: ['Buenas Practicas de Manufactura', 'Base de Produccion Manual', 'Bono Por Mes', 'Bienes Para Manufactura'], correct: 0 },
+      { question: 'Antes de entrar a produccion es obligatorio:', options: ['Comer algo', 'Lavarse las manos', 'Revisar el celular', 'Quitarse la cofia'], correct: 1 },
+      { question: 'El uso de joyeria en produccion esta:', options: ['Permitido solo anillos', 'Prohibido', 'Permitido con reloj', 'A criterio de cada quien'], correct: 1 },
+      { question: 'Si encuentras producto contaminado debes:', options: ['Ignorarlo', 'Limpiarlo tu mismo y empacarlo', 'Reportarlo de inmediato', 'Tirarlo sin avisar'], correct: 2 },
+      { question: 'Las BPM aplican a:', options: ['Solo produccion', 'Solo supervisores', 'Todos los colaboradores en planta', 'Solo calidad'], correct: 2 },
+    ],
+    5: [
+      { question: 'Al terminar de usar una herramienta debes:', options: ['Dejarla donde sea', 'Regresarla a su lugar asignado', 'Guardarla en tu locker', 'Prestarla'], correct: 1 },
+      { question: 'Tu area de trabajo debe quedar limpia:', options: ['Una vez por semana', 'Todos los dias, al terminar el turno', 'Solo cuando hay visitas', 'Eso le toca a otro'], correct: 1 },
+      { question: 'Si ves basura o material fuera de lugar:', options: ['Lo recoges o avisas, aunque no sea tuyo', 'Lo ignoras', 'Esperas a que otro lo vea', 'Lo escondes'], correct: 0 },
+    ],
+    6: [
+      { question: 'Si ves un derrame en el piso:', options: ['Lo brincas', 'Avisas y ayudas a senalizarlo', 'Sigues trabajando', 'No es tu problema'], correct: 1 },
+      { question: 'En un simulacro de evacuacion debes:', options: ['Quedarte en tu lugar', 'Seguir la ruta de evacuacion al punto de reunion', 'Correr por donde sea', 'Esconderte'], correct: 1 },
+      { question: '¿Que NO debes hacer sin autorizacion y capacitacion?', options: ['Lavarte las manos', 'Operar una maquina que no conoces', 'Barrer tu area', 'Avisar de un riesgo'], correct: 1 },
+      { question: 'Si detectas una condicion peligrosa:', options: ['La reportas de inmediato a tu jefe', 'La arreglas tu solo', 'No dices nada', 'Esperas al dia siguiente'], correct: 0 },
+    ],
+    8: [
+      { question: 'El celular durante la jornada de trabajo:', options: ['Se usa libremente', 'Se guarda; se usa solo en descansos y areas permitidas', 'Se usa escondido', 'Se entrega a RH para siempre'], correct: 1 },
+      { question: 'La informacion de formulas, procesos y clientes es:', options: ['Publica', 'Confidencial — no se comparte ni se fotografia', 'Para redes sociales', 'Del colaborador'], correct: 1 },
+      { question: 'Tomar fotos o videos dentro de la planta:', options: ['Esta permitido siempre', 'Solo con autorizacion expresa', 'Solo los viernes', 'Es obligatorio'], correct: 1 },
+    ],
+    9: [
+      { question: 'Las camaras de videovigilancia estan para:', options: ['Espiar conversaciones personales', 'Seguridad y proteccion de personas y bienes', 'Decoracion', 'Contar la produccion'], correct: 1 },
+      { question: '¿Como se te informa de la videovigilancia?', options: ['No se informa', 'Mediante video y acuse firmado — sin excepcion', 'Por rumores', 'Solo de palabra'], correct: 1 },
+      { question: 'Si una camara esta danada o tapada:', options: ['No es tu asunto', 'Lo reportas a tu jefe o RH', 'La destapas tu mismo', 'La ignoras'], correct: 1 },
+    ],
+    10: [
+      { question: 'Si ocurre un accidente de trabajo, lo PRIMERO es:', options: ['Seguir trabajando', 'Avisar de inmediato al jefe o encargado', 'Esperar al final del turno', 'Tomar fotos'], correct: 1 },
+      { question: 'Si el accidentado esta grave:', options: ['Lo mueves rapido', 'No lo mueves y pides ayuda de inmediato', 'Le das agua', 'Lo llevas caminando'], correct: 1 },
+      { question: 'Todo accidente, aunque parezca leve:', options: ['Se reporta siempre', 'Se oculta para no causar problemas', 'Se reporta solo si hay sangre', 'Se anota al fin de mes'], correct: 0 },
+      { question: 'El botiquin y el extintor:', options: ['Debes saber donde estan en tu area', 'Son solo para el supervisor', 'No existen', 'Se usan como adorno'], correct: 0 },
+    ],
+  };
+  return quizzes[moduleId] || [];
+}
+
+// ─── v1 (legacy) — se conserva para expedientes creados antes de v2.0 ────────
+
+export function getLegacyOnboardingModules(): OnboardingModule[] {
   return [
     { id: 1, name: 'Bienvenida — Mensaje del Director', deliveredBy: 'Solo (lee en tableta)', duration: '5 min', requiresSignature: false, completed: false },
     { id: 2, name: 'Historia de la empresa (desde 1989)', deliveredBy: 'Solo (lee en tableta)', duration: '5 min', requiresSignature: false, completed: false },

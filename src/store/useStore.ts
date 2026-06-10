@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Candidate, Employee, AppSettings } from '../types';
+import type { Candidate, Employee, AppSettings, SystemAlert } from '../types';
+import { generateId } from '../utils/helpers';
 
 interface AppState {
   candidates: Candidate[];
   employees: Employee[];
+  alerts: SystemAlert[];
   settings: AppSettings;
   isAuthenticated: boolean;
   authRole: 'supervisor' | 'direction' | null;
@@ -22,6 +24,10 @@ interface AppState {
   // Employees
   addEmployee: (employee: Employee) => void;
   updateEmployee: (id: string, data: Partial<Employee>) => void;
+
+  // Alerts (v2.0)
+  addAlert: (alert: Omit<SystemAlert, 'id' | 'fecha' | 'atendida'>) => void;
+  markAlertAttended: (id: string) => void;
 
   // Settings
   updateSettings: (settings: Partial<AppSettings>) => void;
@@ -51,6 +57,7 @@ export const useStore = create<AppState>()(
     (set, get) => ({
       candidates: [],
       employees: [],
+      alerts: [],
       settings: defaultSettings,
       isAuthenticated: false,
       authRole: null,
@@ -94,6 +101,19 @@ export const useStore = create<AppState>()(
           employees: state.employees.map((e) =>
             e.id === id ? { ...e, ...data } : e
           ),
+        })),
+
+      addAlert: (alert) =>
+        set((state) => ({
+          alerts: [
+            { ...alert, id: generateId(), fecha: new Date().toISOString(), atendida: false },
+            ...state.alerts,
+          ],
+        })),
+
+      markAlertAttended: (id) =>
+        set((state) => ({
+          alerts: state.alerts.map((a) => (a.id === id ? { ...a, atendida: true } : a)),
         })),
 
       updateSettings: (newSettings) =>

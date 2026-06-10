@@ -150,7 +150,7 @@ function DashboardView({
 }: {
   onSelectEmployee: (id: string) => void;
 }) {
-  const { employees, candidates } = useStore();
+  const { employees, candidates, alerts: systemAlerts } = useStore();
   const [searchGrid, setSearchGrid] = useState('');
 
   // ── Stats ────────────────────────────────────────────────────────────────
@@ -194,14 +194,25 @@ function DashboardView({
 
     const active = employees.filter((e) => e.status !== 'inactive');
 
-    // Trial periods expiring in 7 days
+    // v2.0: alertas del sistema (tengo dudas, video reprobado 3 veces, seguimiento especial)
+    systemAlerts
+      .filter((a) => !a.atendida)
+      .forEach((a) => {
+        items.push({
+          type: a.tipo === 'video_reprobado_3' ? 'danger' : a.tipo === 'tengo_dudas' ? 'warning' : 'info',
+          message: `${a.mensaje} (para: ${a.destinatarios.join(', ')})`,
+          employeeId: a.empleadoId,
+        });
+      });
+
+    // v2.0: el contrato de prueba genera alerta automatica 5 dias antes de vencer
     active.forEach((e) => {
       if (e.status === 'trial' && e.trialEndDate) {
         const days = daysUntil(e.trialEndDate);
-        if (days >= 0 && days <= 7) {
+        if (days >= 0 && days <= 5) {
           items.push({
             type: 'danger',
-            message: `Periodo de prueba de ${e.fullName} vence en ${days} dia${days !== 1 ? 's' : ''}`,
+            message: `Contrato de prueba de ${e.fullName} vence en ${days} dia${days !== 1 ? 's' : ''}`,
             employeeId: e.id,
           });
         }
@@ -253,7 +264,7 @@ function DashboardView({
     });
 
     return items;
-  }, [employees]);
+  }, [employees, systemAlerts]);
 
   // ── Recent Interviews ────────────────────────────────────────────────────
 

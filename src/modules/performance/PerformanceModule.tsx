@@ -35,15 +35,18 @@ import Modal from '../../components/Modal';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
+// v2.0 (BRD): evaluaciones del periodo de prueba SOLO dia 15 y dia 30 — no hay dia 7.
+const EVAL_DIA_15 = 'Dia 15 — periodo de prueba';
+const EVAL_DIA_30 = 'Dia 30 — periodo de prueba';
+
 const EVALUATION_TYPES = [
-  'Periodo de Prueba',
-  '30 dias',
-  '60 dias',
-  '90 dias',
+  EVAL_DIA_15,
+  EVAL_DIA_30,
   'Semestral',
   'Anual',
 ] as const;
 
+// v2.0: 10 rubros, escala 1-5 (mismos rubros en dia 15 y dia 30 para comparar)
 const CRITERIA_LABELS: Record<string, string> = {
   punctuality: 'Puntualidad y asistencia',
   instructions: 'Cumplimiento de instrucciones',
@@ -51,6 +54,10 @@ const CRITERIA_LABELS: Record<string, string> = {
   attitude: 'Actitud y disposicion',
   relationships: 'Relacion con companeros',
   bpmCompliance: 'Respeto a BPM y reglamento',
+  initiative: 'Iniciativa y disposicion a aprender',
+  cleanliness: 'Orden y limpieza de su area',
+  productivity: 'Productividad y ritmo de trabajo',
+  safety: 'Seguridad y uso de EPP',
 };
 
 const INCIDENT_TYPES: IncidentType[] = [
@@ -62,7 +69,10 @@ const INCIDENT_TYPES: IncidentType[] = [
   'acta_administrativa',
 ];
 
-const DECISION_OPTIONS = ['Confirmar', 'Extender prueba', 'Rescindir'] as const;
+// v2.0: dia 15 → renueva o no (RH propone, Direccion aprueba).
+// Dia 30 → decision final: indefinido, baja o seguimiento especial.
+const DECISION_OPTIONS_15 = ['Renovar contrato', 'No renovar'] as const;
+const DECISION_OPTIONS_30 = ['Contrato indefinido', 'Baja', 'Seguimiento especial'] as const;
 
 const AVATAR_GRADIENTS = [
   'from-blue-500 to-purple-600',
@@ -651,6 +661,10 @@ interface EvalFormData {
     attitude: number;
     relationships: number;
     bpmCompliance: number;
+    initiative: number;
+    cleanliness: number;
+    productivity: number;
+    safety: number;
   };
   observations: string;
   decision: string;
@@ -665,13 +679,17 @@ const INITIAL_EVAL_FORM: EvalFormData = {
     attitude: 0,
     relationships: 0,
     bpmCompliance: 0,
+    initiative: 0,
+    cleanliness: 0,
+    productivity: 0,
+    safety: 0,
   },
   observations: '',
   decision: '',
 };
 
 function EvaluacionesTab({ employee }: { employee: Employee }) {
-  const { updateEmployee } = useStore();
+  const { updateEmployee, addAlert } = useStore();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<EvalFormData>({ ...INITIAL_EVAL_FORM });
 
@@ -682,6 +700,9 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
 
   const allRated = Object.values(form.ratings).every((r) => r > 0);
 
+  const isTrialEval = form.type === EVAL_DIA_15 || form.type === EVAL_DIA_30;
+  const eval15 = employee.evaluations.find((e) => e.type === EVAL_DIA_15 || e.type.includes('15'));
+
   const handleSave = useCallback(() => {
     if (!allRated) return;
 
@@ -691,17 +712,36 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
       type: form.type,
       ratings: { ...form.ratings },
       observations: form.observations,
-      decision: form.type === 'Periodo de Prueba' ? form.decision : undefined,
+      decision: isTrialEval ? form.decision : undefined,
       averageScore: parseFloat(average.toFixed(2)),
     };
 
+    const extra: Partial<Employee> = {};
+    // v2.0: efectos de la decision final del dia 30
+    if (form.type === EVAL_DIA_30) {
+      if (form.decision === 'Contrato indefinido') {
+        extra.contractType = 'indefinido';
+        extra.status = 'active';
+      }
+      if (form.decision === 'Seguimiento especial') {
+        extra.seguimientoEspecial = true;
+        addAlert({
+          tipo: 'seguimiento_especial',
+          mensaje: `Evaluacion dia 30 de ${employee.fullName}: decision 'Seguimiento especial'.`,
+          empleadoId: employee.id,
+          destinatarios: ['RH', 'Jefe directo', 'Direccion'],
+        });
+      }
+    }
+
     updateEmployee(employee.id, {
       evaluations: [newEval, ...employee.evaluations],
+      ...extra,
     });
 
     setForm({ ...INITIAL_EVAL_FORM });
     setShowForm(false);
-  }, [allRated, form, average, employee, updateEmployee]);
+  }, [allRated, form, average, employee, updateEmployee, isTrialEval, addAlert]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -740,9 +780,11 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
                 {ev.decision && (
                   <span
                     className={`badge text-[10px] ${
-                      ev.decision === 'Confirmar'
+                      ev.decision === 'Confirmar' ||
+                      ev.decision === 'Renovar contrato' ||
+                      ev.decision === 'Contrato indefinido'
                         ? 'badge-green'
-                        : ev.decision === 'Extender prueba'
+                        : ev.decision === 'Extender prueba' || ev.decision === 'Seguimiento especial'
                           ? 'badge-yellow'
                           : 'badge-red'
                     }`}
@@ -921,23 +963,57 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
             />
           </div>
 
-          {/* Decision (trial only) */}
-          {form.type === 'Periodo de Prueba' && (
+          {/* v2.0: comparativo dia 30 vs dia 15 (mismos rubros) */}
+          {form.type === EVAL_DIA_30 && eval15 && (
+            <div className="rounded-lg px-3 py-2.5 bg-primary-500/10 border border-primary-500/20">
+              <p className="text-xs text-primary-300 font-semibold mb-1.5">
+                Comparativo vs dia 15 (promedio {eval15.averageScore.toFixed(2)})
+              </p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                {Object.entries(form.ratings)
+                  .filter(([, val]) => val > 0)
+                  .map(([key, val]) => {
+                    const prev = (eval15.ratings as Record<string, number | undefined>)[key];
+                    if (prev === undefined) return null;
+                    const delta = val - prev;
+                    return (
+                      <div key={key} className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] text-surface-400 truncate">
+                          {CRITERIA_LABELS[key] ?? key}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold shrink-0 ${
+                            delta > 0 ? 'text-emerald-400' : delta < 0 ? 'text-rose-400' : 'text-surface-400'
+                          }`}
+                        >
+                          {prev} → {val} {delta > 0 ? `(+${delta})` : delta < 0 ? `(${delta})` : '(=)'}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* v2.0: decision dia 15 / dia 30 */}
+          {isTrialEval && (
             <div>
               <label className="text-xs text-surface-300 font-medium mb-1 block">
-                Decision
+                {form.type === EVAL_DIA_15
+                  ? 'Decision — renueva o no (RH propone, Direccion aprueba)'
+                  : 'Decision final (RH + Jefe + Direccion)'}
               </label>
               <div className="flex gap-2 flex-wrap">
-                {DECISION_OPTIONS.map((d) => (
+                {(form.type === EVAL_DIA_15 ? DECISION_OPTIONS_15 : DECISION_OPTIONS_30).map((d) => (
                   <button
                     key={d}
                     type="button"
                     onClick={() => setForm({ ...form, decision: d })}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer border ${
                       form.decision === d
-                        ? d === 'Confirmar'
+                        ? d === 'Renovar contrato' || d === 'Contrato indefinido'
                           ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                          : d === 'Extender prueba'
+                          : d === 'Seguimiento especial'
                             ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
                             : 'bg-rose-500/20 text-rose-400 border-rose-500/40'
                         : 'bg-surface-800/50 text-surface-400 border-surface-600/30 hover:border-surface-500/40'
@@ -964,10 +1040,7 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
             <button
               className="btn-success text-sm flex items-center gap-2"
               onClick={handleSave}
-              disabled={
-                !allRated ||
-                (form.type === 'Periodo de Prueba' && !form.decision)
-              }
+              disabled={!allRated || (isTrialEval && !form.decision)}
             >
               <CheckCircle size={16} />
               Guardar Evaluacion

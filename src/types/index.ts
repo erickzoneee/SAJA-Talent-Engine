@@ -19,9 +19,9 @@ export interface Candidate {
   fullName: string;
   applicationDate: string;
   position: JobPosition;
-  age: number;
+  age?: number;
   phone: string;
-  neighborhood: string;
+  neighborhood?: string;
   source: string;
   photoUrl?: string;
   applicationPhotoUrl?: string;
@@ -34,6 +34,155 @@ export interface Candidate {
   verdict?: Verdict;
   hired: boolean;
   createdAt: string;
+  // ─── v2.0 (BRD Junio 2026) ───
+  reception?: ReceptionData;
+  interviewV2?: InterviewV2Data;
+  admissionExam?: AdmissionExamResult;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.0 — ETAPA 0: RECEPCION Y FILTRO PREVIO
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export const ESCOLARIDAD_OPTIONS = ['Primaria', 'Secundaria', 'Preparatoria', 'Tecnico', 'Licenciatura'] as const;
+export const TIEMPO_EMPLEO_OPTIONS = ['Menos de 6 meses', '6 meses a 1 ano', '1 a 2 anos', 'Mas de 2 anos'] as const;
+export const DISPONIBILIDAD_OPTIONS = ['Lunes a sabado completo', 'Solo lunes a viernes', 'Otro'] as const;
+export const FUENTE_OPTIONS = ['Recomendado', 'Bolsa de trabajo', 'Cartel en puerta', 'Otro'] as const;
+
+export type VideoDecision = 'interesado' | 'lo_pensara';
+
+export interface ReceptionData {
+  escolaridad: string;
+  ultimoTrabajo: string;
+  tiempoUltimoEmpleo: string;
+  motivoSalida: string;
+  disponibilidad: string;
+  disponibilidadOtro?: string;
+  videoCompleto: boolean;
+  videoDecision?: VideoDecision;
+  videoTimestamp?: string;
+  cita?: {
+    fecha: string;
+    hora: string;
+    agendadaPor: string;
+    agendadaEn: string;
+  };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.0 — GUIA DE ENTREVISTA INTERACTIVA (5 secciones, 13 rubros, max 39 pts)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export type RubricScore = 0 | 1 | 2 | 3;
+
+export interface InterviewV2Data {
+  entrevistador: string;
+  fecha: string;
+  puntualidadEntrevista: string;
+  comoLlego: string;
+  scores: Record<string, RubricScore>;
+  observacionesSeccion: Record<string, string>;
+  observacionesFinales: string;
+  total: number;
+  porcentaje: number;
+  diagnostico: Verdict;
+  alertas: string[];
+  decision?: 'agendar_inicio' | 'no_continuar';
+  decisionRegistro?: {
+    fecha: string;
+    usuario: string;
+  };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.0 — EXAMEN DE ADMISION POR PUESTO (10 comunes + 15 especificas = 25)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export type OptionKey = 'a' | 'b' | 'c' | 'd';
+export type ExamOutcome = 'aprobado' | 'con_reserva' | 'no_aprobado';
+export type QuestionType = 'comun' | 'especifica';
+
+export interface BankQuestion {
+  id: string;
+  tipo: QuestionType;
+  puesto: JobPosition | null;
+  categoria: string;
+  texto: string;
+  imagenUrl?: string;
+  opciones: Record<OptionKey, string>;
+  correcta: OptionKey;
+  explicacion?: string;
+  activa: boolean;
+  ordenSugerido: number;
+  creadaPor: string;
+  creadaEn: string;
+  modificadaPor?: string;
+  modificadaEn?: string;
+  historial: { fecha: string; usuario: string; accion: string }[];
+}
+
+export interface ExamQuestionSnapshot {
+  idPregunta: string;
+  tipo: QuestionType;
+  categoria: string;
+  texto: string;
+  opciones: Record<OptionKey, string>;
+  correcta: OptionKey;
+  respuesta?: OptionKey;
+}
+
+export interface AdmissionExamResult {
+  fecha: string;
+  puesto: JobPosition;
+  aciertosComunes: number;
+  aciertosEspecificas: number;
+  aciertosTotales: number;
+  totalPreguntas: number;
+  resultado: ExamOutcome;
+  duracionSegundos: number;
+  preguntas: ExamQuestionSnapshot[];
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.0 — DOCUMENTOS OBLIGATORIOS (5 documentos fisicos con firma)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export type SignedDocKey = 'contrato' | 'acuseGeneral' | 'avisoISR' | 'convenioVacaciones' | 'cartaUniforme';
+
+export interface SignedDocStatus {
+  generado: boolean;
+  fechaGenerado?: string;
+  firmadoUrl?: string;
+  fechaFirmado?: string;
+}
+
+export type SignedDocsV2 = Record<SignedDocKey, SignedDocStatus>;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.0 — RECORRIDO POR INSTALACIONES (checklist estandarizado)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export interface TourRecord {
+  items: { id: string; label: string; done: boolean }[];
+  guia: string;
+  completadoEn?: string;
+  firmaUrl?: string;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.0 — ALERTAS DEL SISTEMA
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export type AlertType = 'video_reprobado_3' | 'tengo_dudas' | 'contrato_por_vencer' | 'banco_preguntas' | 'seguimiento_especial';
+
+export interface SystemAlert {
+  id: string;
+  tipo: AlertType;
+  mensaje: string;
+  fecha: string;
+  empleadoId?: string;
+  destinatarios: string[];
+  atendida: boolean;
 }
 
 export interface MathQuestion {
@@ -116,6 +265,12 @@ export interface Employee {
   exitData?: ExitData;
   photoUrl?: string;
   createdAt: string;
+  // ─── v2.0 (BRD Junio 2026) ───
+  signedDocsV2?: SignedDocsV2;
+  seguimientoEspecial?: boolean;
+  contratacionAutorizada?: { por: string; fecha: string; motivo: string };
+  recorrido?: TourRecord;
+  welcomeVideoSeen?: { fecha: string };
 }
 
 export interface DocumentChecklist {
@@ -141,6 +296,15 @@ export interface OnboardingModule {
   completedDate?: string;
   quizScore?: number;
   signatureUrl?: string;
+  // ─── v2.0: videos de capacitacion semana 1 ───
+  isVideo?: boolean;
+  durationMin?: number;
+  critical?: boolean;
+  questionsCount?: number;
+  attempts?: number;
+  blocked?: boolean;
+  dudas?: boolean;
+  viewedAt?: string;
 }
 
 export interface OnboardingProgress {
@@ -161,6 +325,11 @@ export interface Evaluation {
     attitude: number;
     relationships: number;
     bpmCompliance: number;
+    // v2.0: 10 rubros escala 1-5 (opcionales para evaluaciones v1)
+    initiative?: number;
+    cleanliness?: number;
+    productivity?: number;
+    safety?: number;
   };
   observations: string;
   decision?: string;

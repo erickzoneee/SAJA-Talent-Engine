@@ -12,6 +12,7 @@ import SupervisorModule from './modules/supervisor/SupervisorModule';
 import AnalyticsModule from './modules/analytics/AnalyticsModule';
 import SettingsModule from './modules/settings/SettingsModule';
 import TrainingModule from './modules/training/TrainingModule';
+import QuestionBankModule from './modules/questionbank/QuestionBankModule';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useStore((s) => s.isAuthenticated);
@@ -48,6 +49,14 @@ export default function App() {
           <Route path="performance" element={<PerformanceModule />} />
           <Route path="exit" element={<ExitModule />} />
           <Route path="analytics" element={<AnalyticsModule />} />
+          <Route
+            path="questions"
+            element={
+              <DirectionRoute>
+                <QuestionBankModule />
+              </DirectionRoute>
+            }
+          />
           <Route
             path="settings"
             element={
