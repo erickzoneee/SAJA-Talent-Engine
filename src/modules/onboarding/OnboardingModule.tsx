@@ -10,6 +10,7 @@ import {
   Award,
   PenTool,
   Play,
+  Pause,
   ChevronRight,
   RotateCcw,
   ArrowLeft,
@@ -19,11 +20,26 @@ import {
   Briefcase,
   FileText,
   AlertTriangle,
+  Video,
+  Lock,
+  HelpCircle,
+  Captions,
+  FastForward,
+  MapPin,
+  Ban,
 } from 'lucide-react';
-import type { Employee } from '../../types';
+import type { Employee, OnboardingModule as OnboardingModuleType } from '../../types';
 import { JOB_POSITIONS } from '../../types';
 import { useStore } from '../../store/useStore';
-import { QUIZ_MODULES, getQuizQuestions } from '../../utils/onboardingModules';
+import {
+  QUIZ_MODULES,
+  getQuizQuestions,
+  getVideoQuizQuestions,
+  videoPassThreshold,
+  VIDEO_MAX_ATTEMPTS,
+  VIDEO_PASS_PERCENT,
+} from '../../utils/onboardingModules';
+import { createEmptyTour } from '../../utils/tourChecklist';
 import { formatDate } from '../../utils/helpers';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -341,6 +357,19 @@ function OnboardingDashboard({
   const percent = Math.round((completedCount / total) * 100);
   const allCompleted = completedCount === total;
 
+  // ─── v2.0: candados de cierre del onboarding (BRD reglas 11-13) ───
+  const isV2 = modules.some((m) => m.isVideo);
+  const recorridoDone = !!employee.recorrido?.completadoEn && !!employee.recorrido?.firmaUrl;
+  const docsV2 = employee.signedDocsV2;
+  const docsDone = docsV2
+    ? (['contrato', 'acuseGeneral', 'avisoISR', 'convenioVacaciones', 'cartaUniforme'] as const).every(
+        (k) => !!docsV2[k]?.firmadoUrl,
+      )
+    : true; // expedientes v1 sin documentos v2
+  const hasEval15 = employee.evaluations.some((e) => e.type.includes('15'));
+  const hasEval30 = employee.evaluations.some((e) => e.type.includes('30'));
+  const cierreReady = allCompleted && (!isV2 || recorridoDone) && docsDone && hasEval15 && hasEval30;
+
   return (
     <div className="flex flex-col gap-5 overflow-hidden h-full">
       {/* Back + Header */}
@@ -405,30 +434,70 @@ function OnboardingDashboard({
           />
         </div>
 
+        {/* v2.0: Cierre del onboarding con candados */}
         {allCompleted && !employee.onboardingProgress.certificateGenerated && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-4 flex items-center justify-between p-3 rounded-xl bg-success-500/10 border border-success-500/20"
+            className={`mt-4 p-3 rounded-xl border ${
+              cierreReady
+                ? 'bg-success-500/10 border-success-500/20'
+                : 'bg-warning-500/10 border-warning-500/20'
+            }`}
           >
-            <div className="flex items-center gap-2 text-sm text-green-400">
-              <Award size={18} />
-              <span>Todos los modulos completados. Genera la constancia.</span>
+            <div className="flex items-center justify-between">
+              <div className={`flex items-center gap-2 text-sm ${cierreReady ? 'text-green-400' : 'text-yellow-400'}`}>
+                <Award size={18} />
+                <span>
+                  {cierreReady
+                    ? 'Todos los requisitos cumplidos. Genera la constancia.'
+                    : 'Videos completados — faltan requisitos para cerrar el onboarding.'}
+                </span>
+              </div>
+              <button
+                onClick={onCompleted}
+                disabled={!cierreReady}
+                className="btn-success text-xs py-2 px-4 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Generar Constancia
+              </button>
             </div>
-            <button onClick={onCompleted} className="btn-success text-xs py-2 px-4">
-              Generar Constancia
-            </button>
+            {!cierreReady && (
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+                {isV2 && (
+                  <span className={recorridoDone ? 'text-green-400' : 'text-surface-400'}>
+                    {recorridoDone ? '✓' : '✗'} Recorrido firmado
+                  </span>
+                )}
+                <span className={docsDone ? 'text-green-400' : 'text-surface-400'}>
+                  {docsDone ? '✓' : '✗'} 5 documentos firmados subidos
+                </span>
+                <span className={hasEval15 ? 'text-green-400' : 'text-surface-400'}>
+                  {hasEval15 ? '✓' : '✗'} Evaluacion dia 15
+                </span>
+                <span className={hasEval30 ? 'text-green-400' : 'text-surface-400'}>
+                  {hasEval30 ? '✓' : '✗'} Evaluacion dia 30
+                </span>
+              </div>
+            )}
           </motion.div>
         )}
       </motion.div>
 
       {/* Module Grid */}
-      <div className="flex-1 overflow-y-auto pr-1">
+      <div className="flex-1 overflow-y-auto pr-1 space-y-4">
+        {/* v2.0: recorrido por instalaciones (Carmen, checklist estandarizado) */}
+        {isV2 && <RecorridoSection employee={employee} />}
+
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {modules.map((mod, i) => {
-            const hasQuiz = QUIZ_MODULES.includes(mod.id);
-            const quizPassed = hasQuiz && mod.quizScore !== undefined && mod.quizScore >= PASS_THRESHOLD;
-            const quizFailed = hasQuiz && mod.quizScore !== undefined && mod.quizScore < PASS_THRESHOLD;
+            const hasQuiz = mod.isVideo ? !!mod.critical : QUIZ_MODULES.includes(mod.id);
+            const quizTotal = mod.isVideo ? (mod.questionsCount ?? 5) : 5;
+            const passMin = mod.isVideo ? videoPassThreshold(quizTotal) : PASS_THRESHOLD;
+            const quizPassed = hasQuiz && mod.quizScore !== undefined && mod.quizScore >= passMin;
+            const quizFailed = hasQuiz && mod.quizScore !== undefined && mod.quizScore < passMin;
+            // v2.0: orden secuencial obligatorio — no puede avanzar sin aprobar el anterior
+            const locked = !!mod.isVideo && !mod.completed && modules.slice(0, i).some((m) => !m.completed);
 
             return (
               <motion.div
@@ -437,10 +506,12 @@ function OnboardingDashboard({
                 variants={listItem}
                 initial="initial"
                 animate="animate"
-                className={`glass-card p-4 cursor-pointer group relative overflow-hidden ${
+                className={`glass-card p-4 group relative overflow-hidden ${
                   mod.completed ? 'border-green-500/20' : ''
-                }`}
-                onClick={() => onSelectModule(mod.id)}
+                } ${locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                onClick={() => {
+                  if (!locked) onSelectModule(mod.id);
+                }}
               >
                 {/* Completed overlay shimmer */}
                 {mod.completed && (
@@ -453,10 +524,12 @@ function OnboardingDashboard({
                     className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 ${
                       mod.completed
                         ? 'bg-green-500/20 text-green-400'
-                        : 'bg-surface-700/50 text-surface-400'
+                        : locked
+                          ? 'bg-surface-800/60 text-surface-600'
+                          : 'bg-surface-700/50 text-surface-400'
                     }`}
                   >
-                    {mod.completed ? <CheckCircle size={18} /> : mod.id}
+                    {mod.completed ? <CheckCircle size={18} /> : locked ? <Lock size={15} /> : mod.id}
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -467,7 +540,7 @@ function OnboardingDashboard({
                     <div className="flex flex-wrap items-center gap-2 mt-2">
                       {/* Delivered by */}
                       <span className="text-[10px] text-surface-500 flex items-center gap-1">
-                        <User size={10} />
+                        {mod.isVideo ? <Video size={10} /> : <User size={10} />}
                         {mod.deliveredBy.length > 20
                           ? mod.deliveredBy.slice(0, 20) + '...'
                           : mod.deliveredBy}
@@ -482,6 +555,11 @@ function OnboardingDashboard({
 
                     {/* Badges */}
                     <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      {mod.isVideo && mod.critical && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold badge-red">
+                          CRITICO
+                        </span>
+                      )}
                       {hasQuiz && (
                         <span
                           className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
@@ -493,8 +571,23 @@ function OnboardingDashboard({
                           }`}
                         >
                           {mod.quizScore !== undefined
-                            ? `Quiz: ${mod.quizScore}/5`
-                            : 'Quiz pendiente'}
+                            ? `Eval: ${mod.quizScore}/${quizTotal}`
+                            : `Eval ${quizTotal} preguntas`}
+                        </span>
+                      )}
+                      {mod.isVideo && !mod.critical && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold badge-blue">
+                          Solo confirmacion
+                        </span>
+                      )}
+                      {mod.blocked && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold badge-red flex items-center gap-1">
+                          <Ban size={8} /> Bloqueado
+                        </span>
+                      )}
+                      {mod.dudas && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold badge-yellow flex items-center gap-1">
+                          <HelpCircle size={8} /> Tiene dudas
                         </span>
                       )}
 
@@ -533,6 +626,141 @@ function OnboardingDashboard({
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.0 — RECORRIDO POR INSTALACIONES (BRD etapa 9)
+// Carmen guia con checklist estandarizado: mismos puntos para todos, en el
+// mismo orden. Firma al terminar. El sistema lo registra como completado.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function RecorridoSection({ employee }: { employee: Employee }) {
+  const { updateEmployee } = useStore();
+  const [expanded, setExpanded] = useState(false);
+  const [signing, setSigning] = useState(false);
+
+  const tour = employee.recorrido ?? createEmptyTour();
+  const doneCount = tour.items.filter((i) => i.done).length;
+  const allItemsDone = doneCount === tour.items.length;
+  const completed = !!tour.completadoEn && !!tour.firmaUrl;
+
+  const toggleItem = (id: string) => {
+    if (completed) return;
+    // Leer el estado mas reciente del store: varios taps rapidos en la tablet
+    // no deben perderse entre renders.
+    const fresh = useStore.getState().employees.find((e) => e.id === employee.id)?.recorrido ?? tour;
+    updateEmployee(employee.id, {
+      recorrido: {
+        ...fresh,
+        items: fresh.items.map((i) => (i.id === id ? { ...i, done: !i.done } : i)),
+      },
+    });
+  };
+
+  const handleSignature = (dataUrl: string) => {
+    updateEmployee(employee.id, {
+      recorrido: {
+        ...tour,
+        firmaUrl: dataUrl,
+        completadoEn: new Date().toISOString(),
+      },
+    });
+    setSigning(false);
+  };
+
+  return (
+    <motion.div {...fadeUp} className="glass-card p-5">
+      <div
+        className="flex items-center gap-3 cursor-pointer"
+        onClick={() => setExpanded((e) => !e)}
+      >
+        <div
+          className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+            completed ? 'bg-green-500/20 text-green-400' : 'bg-accent-500/20 text-accent-400'
+          }`}
+        >
+          {completed ? <CheckCircle size={18} /> : <MapPin size={18} />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-semibold text-surface-200">
+            Recorrido por instalaciones — checklist estandarizado
+          </h3>
+          <p className="text-xs text-surface-400">
+            Guia: {tour.guia} · mismos puntos para todos, en el mismo orden
+            {completed && tour.completadoEn ? ` · completado ${formatDate(tour.completadoEn)}` : ''}
+          </p>
+        </div>
+        <span className={`badge ${completed ? 'badge-green' : allItemsDone ? 'badge-yellow' : 'badge-blue'}`}>
+          {completed ? 'Completado y firmado' : `${doneCount}/${tour.items.length}`}
+        </span>
+        <ChevronRight
+          size={16}
+          className={`text-surface-500 transition-transform ${expanded ? 'rotate-90' : ''}`}
+        />
+      </div>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-4 space-y-1.5">
+              {tour.items.map((item, idx) => (
+                <button
+                  key={item.id}
+                  onClick={() => toggleItem(item.id)}
+                  disabled={completed}
+                  className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all ${
+                    item.done
+                      ? 'bg-success-500/10 text-surface-200'
+                      : 'bg-surface-800/30 text-surface-400 hover:bg-surface-700/30'
+                  } ${completed ? 'cursor-default' : 'cursor-pointer'}`}
+                >
+                  {item.done ? (
+                    <CheckCircle size={16} className="text-success-500 shrink-0" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border-2 border-surface-600 shrink-0" />
+                  )}
+                  <span className="text-sm">
+                    {idx + 1}. {item.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {!completed && allItemsDone && !signing && (
+              <button
+                className="btn-success mt-4 flex items-center gap-2 text-sm"
+                onClick={() => setSigning(true)}
+              >
+                <PenTool size={15} />
+                Firmar recorrido completado ({tour.guia.split(' ')[0]})
+              </button>
+            )}
+            {!completed && !allItemsDone && (
+              <p className="text-xs text-surface-500 mt-3">
+                Marca todos los puntos del recorrido para habilitar la firma.
+              </p>
+            )}
+            {signing && (
+              <div className="mt-4">
+                <InlineSignaturePad onSave={handleSignature} onCancel={() => setSigning(false)} />
+              </div>
+            )}
+            {completed && tour.firmaUrl && (
+              <div className="mt-4 bg-surface-900/60 rounded-xl p-3 inline-block border border-surface-700/30">
+                <img src={tour.firmaUrl} alt="Firma del recorrido" className="max-h-20 object-contain" />
+                <p className="text-[10px] text-surface-500 text-center mt-1">{tour.guia}</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // VIEW 3: Module Detail / Quiz / Signature
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -552,6 +780,12 @@ function ModuleDetailView({
 
   const mod = employee.onboardingProgress.modules.find((m) => m.id === moduleId);
   if (!mod) return null;
+
+  // v2.0: los modulos de video de la semana 1 tienen su propio flujo
+  // (reproductor + confirmacion digital o mini evaluacion 70% / 3 intentos)
+  if (mod.isVideo) {
+    return <VideoModuleView employee={employee} mod={mod} onBack={onBack} />;
+  }
 
   const hasQuiz = QUIZ_MODULES.includes(moduleId);
 
@@ -662,6 +896,468 @@ function ModuleDetailView({
             onCompleted={onBack}
           />
         )}
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.0 — VISTA DE MODULO DE VIDEO (BRD seccion 7)
+// Reproductor con evidencia de visualizacion (timestamp). No criticos: solo
+// confirmacion digital. Criticos: mini evaluacion con minimo 70%; si reprueba
+// repite el video COMPLETO; maximo 3 intentos → alerta a Direccion + bloqueo.
+// Boton 'Tengo dudas' → alerta inmediata a RH y jefe directo.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function VideoModuleView({
+  employee,
+  mod,
+  onBack,
+}: {
+  employee: Employee;
+  mod: OnboardingModuleType;
+  onBack: () => void;
+}) {
+  const { updateEmployee, addAlert, authRole } = useStore();
+
+  const durationSec = Math.round((mod.durationMin ?? 2) * 60);
+  const questions = mod.critical ? getVideoQuizQuestions(mod.id) : [];
+  const passMin = videoPassThreshold(questions.length);
+  const attempts = mod.attempts ?? 0;
+
+  // Reproductor
+  const [progress, setProgress] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const [speed, setSpeed] = useState(1);
+  const [watchedThisSession, setWatchedThisSession] = useState(false);
+  const viewedRecorded = useRef(false);
+
+  // Mini evaluacion
+  const [quizStarted, setQuizStarted] = useState(false);
+  const [currentQ, setCurrentQ] = useState(0);
+  const [answers, setAnswers] = useState<(number | null)[]>(() => new Array(questions.length).fill(null));
+  const [selected, setSelected] = useState<number | null>(null);
+  const [lastScore, setLastScore] = useState<number | null>(null);
+  const [dudasSent, setDudasSent] = useState(!!mod.dudas);
+
+  const videoComplete = progress >= durationSec;
+
+  const updateModule = (partial: Partial<OnboardingModuleType>) => {
+    const updatedModules = employee.onboardingProgress.modules.map((m) =>
+      m.id === mod.id ? { ...m, ...partial } : m,
+    );
+    updateEmployee(employee.id, {
+      onboardingProgress: { ...employee.onboardingProgress, modules: updatedModules },
+    });
+  };
+
+  // Avance del reproductor simulado
+  useEffect(() => {
+    if (!playing || videoComplete || mod.blocked) return;
+    const interval = setInterval(() => {
+      setProgress((p) => Math.min(p + 0.1 * speed, durationSec));
+    }, 100);
+    return () => clearInterval(interval);
+  }, [playing, speed, videoComplete, durationSec, mod.blocked]);
+
+  // Evidencia de visualizacion con timestamp (regla de negocio 4)
+  useEffect(() => {
+    if (videoComplete && !viewedRecorded.current) {
+      viewedRecorded.current = true;
+      setWatchedThisSession(true);
+      updateModule({ viewedAt: new Date().toISOString() });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoComplete]);
+
+  const handleDudas = () => {
+    if (dudasSent) return;
+    setDudasSent(true);
+    updateModule({ dudas: true });
+    addAlert({
+      tipo: 'tengo_dudas',
+      mensaje: `${employee.fullName} presiono 'Tengo dudas' en el video '${mod.name}'.`,
+      empleadoId: employee.id,
+      destinatarios: ['RH', employee.supervisor || 'Jefe directo'],
+    });
+  };
+
+  const handleConfirmViewed = () => {
+    updateModule({
+      completed: true,
+      completedDate: new Date().toISOString(),
+      viewedAt: mod.viewedAt ?? new Date().toISOString(),
+    });
+    onBack();
+  };
+
+  const restartVideo = () => {
+    viewedRecorded.current = false;
+    setProgress(0);
+    setWatchedThisSession(false);
+    setPlaying(true);
+  };
+
+  const handleQuizAnswer = () => {
+    if (selected === null) return;
+    const newAnswers = [...answers];
+    newAnswers[currentQ] = selected;
+    setAnswers(newAnswers);
+    setSelected(null);
+
+    if (currentQ < questions.length - 1) {
+      setCurrentQ(currentQ + 1);
+      return;
+    }
+
+    // Calificar
+    let correct = 0;
+    for (let i = 0; i < questions.length; i++) {
+      if (newAnswers[i] === questions[i].correct) correct++;
+    }
+    setLastScore(correct);
+    setQuizStarted(false);
+
+    if (correct >= passMin) {
+      // Aprobado → modulo completado
+      updateModule({
+        quizScore: correct,
+        completed: true,
+        completedDate: new Date().toISOString(),
+      });
+    } else {
+      const newAttempts = attempts + 1;
+      if (newAttempts >= VIDEO_MAX_ATTEMPTS) {
+        // Tercer intento fallido: alerta inmediata a Direccion + bloqueo
+        updateModule({ quizScore: correct, attempts: newAttempts, blocked: true });
+        addAlert({
+          tipo: 'video_reprobado_3',
+          mensaje: `${employee.fullName} reprobo 3 veces la evaluacion del video '${mod.name}'. Modulo bloqueado.`,
+          empleadoId: employee.id,
+          destinatarios: ['Direccion'],
+        });
+      } else {
+        updateModule({ quizScore: correct, attempts: newAttempts });
+      }
+      // Debe repetir el video COMPLETO antes de volver a contestar
+      setWatchedThisSession(false);
+      viewedRecorded.current = false;
+      setProgress(0);
+      setPlaying(false);
+    }
+  };
+
+  const startQuiz = () => {
+    setAnswers(new Array(questions.length).fill(null));
+    setCurrentQ(0);
+    setSelected(null);
+    setLastScore(null);
+    setQuizStarted(true);
+  };
+
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
+  const pct = (progress / durationSec) * 100;
+  const passed = mod.quizScore !== undefined && mod.quizScore >= passMin;
+
+  return (
+    <div className="flex flex-col gap-5 overflow-hidden h-full">
+      {/* Back + Header */}
+      <div className="flex items-center gap-3 shrink-0">
+        <button
+          onClick={onBack}
+          className="w-9 h-9 rounded-xl glass-light flex items-center justify-center text-surface-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg font-bold text-surface-100 truncate">
+            Video {mod.id}: {mod.name}
+          </h1>
+          <p className="text-xs text-surface-400">
+            {employee.fullName} · {mod.duration}
+            {mod.critical ? ` · CRITICO — evaluacion ${questions.length} preguntas, minimo ${VIDEO_PASS_PERCENT}%` : ' · solo confirmacion'}
+          </p>
+        </div>
+        {mod.completed && <span className="badge badge-green text-xs">Completado</span>}
+        {mod.blocked && (
+          <span className="badge badge-red text-xs">
+            <Ban size={11} /> Bloqueado
+          </span>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto pr-1 space-y-4">
+        {/* Bloqueado: 3 intentos fallidos */}
+        {mod.blocked && (
+          <motion.div {...fadeUp} className="glass-card p-5 border-2 border-danger-500/50 bg-danger-500/5">
+            <div className="flex items-start gap-3">
+              <Ban size={20} className="text-danger-500 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-danger-400 font-semibold text-sm">
+                  Modulo bloqueado — 3 intentos fallidos
+                </p>
+                <p className="text-surface-400 text-xs mt-1">
+                  Se envio una alerta inmediata a Direccion. El colaborador no puede continuar hasta
+                  que Direccion revise el caso y desbloquee el modulo.
+                </p>
+                {authRole === 'direction' ? (
+                  <button
+                    className="btn-danger text-xs py-2 px-4 mt-3"
+                    onClick={() => updateModule({ blocked: false, attempts: 0 })}
+                  >
+                    Desbloquear modulo (Direccion)
+                  </button>
+                ) : (
+                  <p className="text-xs text-danger-400 mt-2 font-medium">
+                    Solo Direccion puede desbloquear este modulo.
+                  </p>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Resultado si ya esta completado */}
+        {mod.completed && (
+          <motion.div {...fadeUp} className="glass-card p-5">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-green-500/20 text-green-400 flex items-center justify-center">
+                <CheckCircle size={26} />
+              </div>
+              <div>
+                <p className="text-sm text-surface-200 font-semibold">
+                  {mod.critical
+                    ? `Evaluacion aprobada: ${mod.quizScore}/${questions.length} (minimo ${passMin})`
+                    : 'Visualizacion confirmada digitalmente'}
+                </p>
+                <p className="text-xs text-surface-400 mt-1">
+                  {mod.viewedAt && `Video visto completo: ${formatDate(mod.viewedAt)} ${new Date(mod.viewedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`}
+                  {mod.completedDate && ` · Completado: ${formatDate(mod.completedDate)}`}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Reproductor */}
+        {!mod.completed && !mod.blocked && !quizStarted && (
+          <motion.div {...fadeUp} className="glass-card overflow-hidden">
+            <div className="aspect-video bg-gradient-to-br from-surface-950 via-primary-950 to-surface-950 relative flex flex-col items-center justify-center">
+              <Video size={40} className="text-primary-400 mb-3 opacity-60" />
+              <h2 className="text-lg font-bold text-surface-100 px-8 text-center">{mod.name}</h2>
+              <div className="absolute bottom-3 left-3 right-3">
+                <div className="bg-black/70 rounded-lg px-4 py-2 flex items-start gap-2">
+                  <Captions size={16} className="text-primary-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-white leading-snug">
+                    {videoComplete
+                      ? 'Video completo. Gracias por tu atencion.'
+                      : `Reproduciendo '${mod.name}' — subtitulos activados.`}
+                  </p>
+                </div>
+              </div>
+              {videoComplete && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center">
+                  <CheckCircle size={44} className="text-success-500 mb-2" />
+                  <p className="text-surface-100 font-semibold">Video visto completo</p>
+                  <p className="text-xs text-surface-400">Evidencia registrada con fecha y hora</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="h-1.5 bg-surface-800 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full bg-gradient-to-r from-primary-500 to-accent-500"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <button
+                    className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
+                    onClick={() => setPlaying((p) => !p)}
+                    disabled={videoComplete}
+                  >
+                    {playing && !videoComplete ? <Pause size={16} /> : <Play size={16} />}
+                  </button>
+                  <button
+                    className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
+                    onClick={restartVideo}
+                  >
+                    <RotateCcw size={16} />
+                  </button>
+                  <span className="text-xs font-mono text-surface-400">
+                    {fmt(progress)} / {fmt(durationSec)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <FastForward size={14} className="text-surface-500" />
+                  {[1, 5, 10].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setSpeed(s)}
+                      className={`px-2 py-1 rounded-lg text-xs font-bold transition-all ${
+                        speed === s
+                          ? 'bg-primary-500/20 text-primary-300 ring-1 ring-primary-500/40'
+                          : 'text-surface-500 hover:text-surface-300'
+                      }`}
+                    >
+                      x{s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-[11px] text-surface-500">
+                Reproductor de demostracion — en produccion aqui se reproduce el video real. El sistema
+                guarda evidencia de visualizacion con timestamp.
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Resultado del ultimo intento fallido */}
+        {!mod.completed && !mod.blocked && lastScore !== null && lastScore < passMin && (
+          <motion.div {...fadeUp} className="glass-card p-4 border border-danger-500/30 bg-danger-500/5">
+            <p className="text-sm text-danger-400 font-semibold flex items-center gap-2">
+              <XCircle size={16} />
+              No aprobado: {lastScore}/{questions.length} (minimo {passMin} = {VIDEO_PASS_PERCENT}%)
+            </p>
+            <p className="text-xs text-surface-400 mt-1">
+              Intento {attempts} de {VIDEO_MAX_ATTEMPTS}. Debe repetir el video COMPLETO antes de
+              volver a contestar.
+            </p>
+          </motion.div>
+        )}
+
+        {/* Accion segun tipo de video */}
+        {!mod.completed && !mod.blocked && !quizStarted && (
+          <motion.div {...fadeUp} className="glass-card p-5 space-y-3">
+            {mod.critical ? (
+              <>
+                <h3 className="text-sm font-semibold text-surface-200 flex items-center gap-2">
+                  <BookOpen size={16} className="text-accent-400" />
+                  Mini evaluacion ({questions.length} preguntas · minimo {passMin} correctas = {VIDEO_PASS_PERCENT}%)
+                </h3>
+                <p className="text-xs text-surface-400">
+                  La evaluacion se habilita al terminar de ver el video completo.
+                  {attempts > 0 && ` Intentos usados: ${attempts}/${VIDEO_MAX_ATTEMPTS}.`}
+                </p>
+                <button
+                  className="btn-primary flex items-center gap-2 text-sm"
+                  disabled={!watchedThisSession}
+                  onClick={startQuiz}
+                >
+                  <Play size={15} />
+                  {attempts > 0 ? 'Volver a contestar' : 'Iniciar evaluacion'}
+                </button>
+                {!watchedThisSession && (
+                  <p className="text-[11px] text-warning-500">
+                    Primero ve el video completo{attempts > 0 ? ' (otra vez, despues de reprobar)' : ''}.
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <h3 className="text-sm font-semibold text-surface-200 flex items-center gap-2">
+                  <CheckCircle size={16} className="text-success-500" />
+                  Confirmacion de visualizacion
+                </h3>
+                <p className="text-xs text-surface-400">
+                  Este video no lleva evaluacion — solo confirmacion digital de que se vio completo.
+                </p>
+                <button
+                  className="btn-success flex items-center gap-2 text-sm"
+                  disabled={!videoComplete}
+                  onClick={handleConfirmViewed}
+                >
+                  <CheckCircle size={15} />
+                  Confirmo que vi el video completo
+                </button>
+              </>
+            )}
+          </motion.div>
+        )}
+
+        {/* Mini evaluacion en curso */}
+        {quizStarted && !mod.blocked && (
+          <motion.div {...scaleIn} className="glass-card p-5 space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-surface-200 flex items-center gap-2">
+                <BookOpen size={16} className="text-accent-400" />
+                Mini evaluacion — {mod.name}
+              </h3>
+              <span className="text-xs text-surface-400">
+                Pregunta {currentQ + 1} de {questions.length}
+              </span>
+            </div>
+            <div className="h-1.5 bg-surface-800/60 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-accent-500 to-primary-500 rounded-full"
+                animate={{ width: `${((currentQ + 1) / questions.length) * 100}%` }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentQ}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-4"
+              >
+                <p className="text-sm text-surface-200 font-medium leading-relaxed">
+                  {questions[currentQ].question}
+                </p>
+                <div className="space-y-2">
+                  {questions[currentQ].options.map((option, optIdx) => (
+                    <button
+                      key={optIdx}
+                      onClick={() => setSelected(optIdx)}
+                      className={`w-full text-left p-3.5 rounded-xl text-sm transition-all duration-200 cursor-pointer ${
+                        selected === optIdx
+                          ? 'bg-primary-500/20 border border-primary-500/40 text-primary-300'
+                          : 'bg-surface-800/40 border border-surface-700/30 text-surface-300 hover:bg-surface-700/40'
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            </AnimatePresence>
+            <div className="flex justify-end">
+              <button
+                onClick={handleQuizAnswer}
+                disabled={selected === null}
+                className="btn-primary flex items-center gap-2 text-sm"
+              >
+                {currentQ < questions.length - 1 ? 'Siguiente' : 'Finalizar'}
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Boton 'Tengo dudas' — siempre disponible (regla de negocio 7) */}
+        <motion.div {...fadeUp} className="glass-card p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <HelpCircle size={18} className="text-warning-500" />
+            <p className="text-xs text-surface-400">
+              ¿El colaborador tiene dudas sobre este tema? Se genera alerta inmediata a RH y jefe directo.
+            </p>
+          </div>
+          <button
+            className={`text-xs py-2 px-4 rounded-xl font-semibold transition-all ${
+              dudasSent
+                ? 'bg-warning-500/15 text-warning-500 cursor-default'
+                : 'btn-secondary'
+            }`}
+            onClick={handleDudas}
+            disabled={dudasSent}
+          >
+            {dudasSent ? 'Alerta enviada a RH y jefe directo' : 'Tengo dudas'}
+          </button>
+        </motion.div>
       </div>
     </div>
   );
@@ -1385,7 +2081,9 @@ function CompletionScreen({
   if (!employee) return null;
 
   const modules = employee.onboardingProgress.modules;
-  const quizModules = modules.filter((m) => QUIZ_MODULES.includes(m.id) && m.quizScore !== undefined);
+  const quizModules = modules.filter(
+    (m) => (m.isVideo ? m.critical : QUIZ_MODULES.includes(m.id)) && m.quizScore !== undefined,
+  );
 
   function handleGenerate() {
     updateEmployee(employeeId, {
@@ -1540,7 +2238,9 @@ function CompletionScreen({
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {quizModules.map((mod) => {
-                const passed = (mod.quizScore ?? 0) >= PASS_THRESHOLD;
+                const quizTotal = mod.isVideo ? (mod.questionsCount ?? 5) : 5;
+                const passMin = mod.isVideo ? videoPassThreshold(quizTotal) : PASS_THRESHOLD;
+                const passed = (mod.quizScore ?? 0) >= passMin;
                 return (
                   <div
                     key={mod.id}
@@ -1557,7 +2257,7 @@ function CompletionScreen({
                       <span
                         className={`text-sm font-bold ${passed ? 'text-green-400' : 'text-yellow-400'}`}
                       >
-                        {mod.quizScore}/5
+                        {mod.quizScore}/{quizTotal}
                       </span>
                     </div>
                   </div>
@@ -1586,8 +2286,14 @@ function CompletionScreen({
                   <p className="text-xs text-surface-200 font-medium truncate">{mod.name}</p>
                 </div>
                 {mod.quizScore !== undefined && (
-                  <span className={`text-xs font-semibold ${mod.quizScore >= PASS_THRESHOLD ? 'text-green-400' : 'text-yellow-400'}`}>
-                    Quiz: {mod.quizScore}/5
+                  <span
+                    className={`text-xs font-semibold ${
+                      mod.quizScore >= (mod.isVideo ? videoPassThreshold(mod.questionsCount ?? 5) : PASS_THRESHOLD)
+                        ? 'text-green-400'
+                        : 'text-yellow-400'
+                    }`}
+                  >
+                    Eval: {mod.quizScore}/{mod.isVideo ? (mod.questionsCount ?? 5) : 5}
                   </span>
                 )}
                 {mod.signatureUrl && (

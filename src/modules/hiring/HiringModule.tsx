@@ -25,11 +25,11 @@ import {
 } from 'lucide-react';
 import type {
   Employee,
-  Candidate,
   DocumentChecklist,
   ContractType,
-  JobPosition,
+  SignedDocKey,
 } from '../../types';
+import type { JobPosition } from '../../types';
 import { JOB_POSITIONS } from '../../types';
 import { useStore } from '../../store/useStore';
 import {
@@ -42,6 +42,9 @@ import {
 } from '../../utils/helpers';
 import { getVerdictLabel, getVerdictColor } from '../../utils/scoring';
 import { getDefaultOnboardingModules } from '../../utils/onboardingModules';
+import { buildDocuments, createEmptySignedDocs, DOC_ORDER } from '../../utils/documentsV2';
+import type { DocTemplate } from '../../utils/documentsV2';
+import { EXAM_OUTCOME_LABELS } from '../../utils/examBank';
 
 // ── Animation Variants ──────────────────────────────────────────────────────
 
@@ -204,12 +207,16 @@ interface CandidatesReadyViewProps {
 function CandidatesReadyView({ onHire, onViewEmployees }: CandidatesReadyViewProps) {
   const { candidates, employees } = useStore();
   const [search, setSearch] = useState('');
-  const [filterVerdict, setFilterVerdict] = useState<'all' | 'recommended' | 'reservations'>('all');
+  const [filterVerdict, setFilterVerdict] = useState<'all' | 'recommended' | 'reservations' | 'not_recommended'>('all');
 
   const hirableCandidates = useMemo(() => {
     return candidates.filter((c) => {
       if (c.hired) return false;
-      if (c.verdict !== 'recommended' && c.verdict !== 'reservations') return false;
+      // v2.0: pasan los candidatos cuya entrevista termino en 'Agendar inicio de labores'.
+      // 'No recomendable' tambien aparece, pero requiere autorizacion expresa de Direccion.
+      const v2Pass = c.interviewV2?.decision === 'agendar_inicio';
+      const v1Pass = !c.interviewV2 && (c.verdict === 'recommended' || c.verdict === 'reservations');
+      if (!v2Pass && !v1Pass) return false;
       const matchSearch = c.fullName.toLowerCase().includes(search.toLowerCase());
       const matchVerdict = filterVerdict === 'all' || c.verdict === filterVerdict;
       return matchSearch && matchVerdict;
@@ -260,6 +267,7 @@ function CandidatesReadyView({ onHire, onViewEmployees }: CandidatesReadyViewPro
           <option value="all">Todos los veredictos</option>
           <option value="recommended">Recomendados</option>
           <option value="reservations">Con reservas</option>
+          <option value="not_recommended">No recomendables (requieren autorizacion)</option>
         </select>
       </div>
 
@@ -313,11 +321,21 @@ function CandidatesReadyView({ onHire, onViewEmployees }: CandidatesReadyViewPro
                 </span>
               )}
 
+              {/* Examen de admision (orientativo) */}
+              {candidate.admissionExam && (
+                <span
+                  className={`badge ${EXAM_OUTCOME_LABELS[candidate.admissionExam.resultado].badge}`}
+                  title="Examen de admision — orientativo, Direccion decide"
+                >
+                  Examen {candidate.admissionExam.aciertosTotales}/{candidate.admissionExam.totalPreguntas}
+                </span>
+              )}
+
               {/* Interview score */}
               {candidate.interviewScore !== undefined && (
                 <div className="text-right">
                   <p className="text-xs text-surface-500">Entrevista</p>
-                  <p className="text-lg font-bold text-primary-400">{candidate.interviewScore}<span className="text-xs text-surface-500">/100</span></p>
+                  <p className="text-lg font-bold text-primary-400">{candidate.interviewScore}<span className="text-xs text-surface-500">%</span></p>
                 </div>
               )}
 
@@ -353,7 +371,7 @@ interface HiringFormViewProps {
 }
 
 function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps) {
-  const { candidates, addEmployee, updateCandidate, getNextExpedientNumber, settings } = useStore();
+  const { candidates, addEmployee, updateCandidate, getNextExpedientNumber, settings, authRole, addAlert } = useStore();
   const candidate = candidates.find((c) => c.id === candidateId);
 
   const [documents, setDocuments] = useState<DocumentChecklist>(createEmptyDocuments);
@@ -367,6 +385,12 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
   const [supervisorOverride, setSupervisorOverride] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // v2.0: 'No recomendable' requiere autorizacion expresa de Direccion
+  const isNotRecommended = candidate?.verdict === 'not_recommended';
+  const isReservations = candidate?.verdict === 'reservations';
+  const [authMotivo, setAuthMotivo] = useState('');
+  const [authConfirmed, setAuthConfirmed] = useState(false);
+
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const { completed: mandatoryCompleted, total: mandatoryTotal } = useMemo(
@@ -379,7 +403,8 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
   }, [documents]);
 
   const allMandatoryDone = mandatoryCompleted === mandatoryTotal;
-  const canSubmit = (allMandatoryDone || supervisorOverride) && salary && schedule && hireDate;
+  const authOk = !isNotRecommended || (authConfirmed && authMotivo.trim() !== '');
+  const canSubmit = (allMandatoryDone || supervisorOverride) && salary && schedule && hireDate && authOk;
 
   const handleDocToggle = useCallback((key: keyof DocumentChecklist) => {
     setDocuments((prev) => ({
@@ -400,12 +425,15 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
     if (!candidate || !canSubmit || saving) return;
     setSaving(true);
 
+    // v2.0: contrato de prueba de 15 dias (evaluaciones dia 15 y dia 30)
     const hireDateObj = new Date(hireDate);
-    const trialEnd = addBusinessDays(hireDateObj, 21);
+    const trialEnd = new Date(hireDateObj);
+    trialEnd.setDate(trialEnd.getDate() + (contractType === 'eventual' ? 15 : 30));
     const expedientNumber = getNextExpedientNumber();
+    const employeeId = generateId();
 
     const newEmployee: Employee = {
-      id: generateId(),
+      id: employeeId,
       candidateId: candidate.id,
       expedientNumber,
       fullName: candidate.fullName,
@@ -432,16 +460,32 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
       trialExtended: false,
       photoUrl: candidate.photoUrl,
       createdAt: new Date().toISOString(),
+      // v2.0
+      signedDocsV2: createEmptySignedDocs(),
+      seguimientoEspecial: isReservations ? true : undefined,
+      contratacionAutorizada: isNotRecommended
+        ? { por: `${settings.directorName} (Direccion)`, fecha: new Date().toISOString(), motivo: authMotivo.trim() }
+        : undefined,
     };
 
     addEmployee(newEmployee);
     updateCandidate(candidate.id, { hired: true });
 
+    // Candidato 'con reserva' contratado → seguimiento especial automatico (BRD regla 14)
+    if (isReservations) {
+      addAlert({
+        tipo: 'seguimiento_especial',
+        mensaje: `${candidate.fullName} fue contratado 'con reserva' — seguimiento especial activado automaticamente.`,
+        empleadoId: employeeId,
+        destinatarios: ['RH', 'Jefe directo', 'Direccion'],
+      });
+    }
+
     setTimeout(() => {
       setSaving(false);
       onComplete();
     }, 500);
-  }, [candidate, canSubmit, saving, hireDate, salary, schedule, contractType, area, supervisor, imssNumber, documents, addEmployee, updateCandidate, getNextExpedientNumber, onComplete]);
+  }, [candidate, canSubmit, saving, hireDate, salary, schedule, contractType, area, supervisor, imssNumber, documents, addEmployee, updateCandidate, getNextExpedientNumber, onComplete, isReservations, isNotRecommended, authMotivo, settings.directorName, addAlert]);
 
   if (!candidate) {
     return (
@@ -614,7 +658,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
                 value={contractType}
                 onChange={(e) => setContractType(e.target.value as ContractType)}
               >
-                <option value="eventual">Eventual 21 dias prueba</option>
+                <option value="eventual">Contrato de prueba — 15 dias</option>
                 <option value="indefinido">Indefinido</option>
               </select>
             </div>
@@ -662,6 +706,13 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
                 value={imssNumber}
                 onChange={(e) => setImssNumber(e.target.value)}
               />
+              <p className="text-xs text-surface-500 mt-1.5 flex items-start gap-1.5">
+                <Info size={13} className="mt-0.5 shrink-0 text-primary-400" />
+                Alta en IMSS: al terminar el dia 30 si el colaborador pasa el periodo de prueba.
+                Excepcion: si el puesto implica operar maquinaria
+                {candidate.position === 'AM' ? ' (como este puesto de Mantenimiento)' : ''}, el alta es
+                desde el primer dia.
+              </p>
             </div>
           </div>
 
@@ -670,12 +721,79 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
             <div className="mt-4 p-3 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center gap-3">
               <Info size={16} className="text-primary-400 shrink-0" />
               <p className="text-primary-300 text-sm">
-                Periodo de prueba: {formatDate(hireDate)} al{' '}
-                {formatDate(addBusinessDays(new Date(hireDate), 21))} (21 dias habiles)
+                Contrato de prueba: {formatDate(hireDate)} al{' '}
+                {formatDate(new Date(new Date(hireDate).getTime() + 15 * 24 * 60 * 60 * 1000))} (15
+                dias). Evaluaciones obligatorias en dia 15 y dia 30. Alerta automatica 5 dias antes de
+                vencer.
               </p>
             </div>
           )}
         </motion.section>
+
+        {/* v2.0: Avisos por veredicto de entrevista */}
+        {isReservations && (
+          <motion.section {...fadeUp} className="glass-card p-5 border border-warning-500/40 bg-warning-500/5">
+            <div className="flex items-start gap-3">
+              <Eye size={20} className="text-warning-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-warning-500 font-semibold text-sm">Candidato 'Con reserva'</p>
+                <p className="text-surface-400 text-xs mt-1">
+                  Al completar la contratacion, el sistema activara el seguimiento especial automatico
+                  y notificara a RH, jefe directo y Direccion.
+                </p>
+              </div>
+            </div>
+          </motion.section>
+        )}
+
+        {isNotRecommended && (
+          <motion.section {...fadeUp} className="glass-card p-5 border-2 border-danger-500/50 bg-danger-500/5 space-y-3">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={20} className="text-danger-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-danger-400 font-semibold text-sm">
+                  Candidato 'No recomendable' — requiere autorizacion expresa de Direccion
+                </p>
+                <p className="text-surface-400 text-xs mt-1">
+                  El diagnostico de la entrevista fue NO RECOMENDABLE
+                  {candidate.interviewV2 && candidate.interviewV2.alertas.length > 0
+                    ? ` (alertas: ${candidate.interviewV2.alertas.join(', ')})`
+                    : ''}
+                  . No puede contratarse sin autorizacion expresa. La autorizacion queda registrada con
+                  usuario, fecha, hora y motivo.
+                </p>
+              </div>
+            </div>
+            {authRole === 'direction' ? (
+              <>
+                <div>
+                  <label className="block text-sm text-surface-400 mb-1">Motivo de la autorizacion *</label>
+                  <textarea
+                    className="input-field min-h-[60px] resize-y"
+                    placeholder="Por que Direccion autoriza esta contratacion a pesar del diagnostico"
+                    value={authMotivo}
+                    onChange={(e) => setAuthMotivo(e.target.value)}
+                  />
+                </div>
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={authConfirmed}
+                    onChange={(e) => setAuthConfirmed(e.target.checked)}
+                    className="w-5 h-5 rounded border-surface-600 bg-surface-800 text-danger-500 focus:ring-danger-500/30 focus:ring-2 cursor-pointer"
+                  />
+                  <span className="text-sm text-surface-300 group-hover:text-white transition-colors">
+                    Yo, {settings.directorName} (Direccion), autorizo expresamente esta contratacion.
+                  </span>
+                </label>
+              </>
+            ) : (
+              <p className="text-xs text-danger-400 font-medium">
+                Inicia sesion con el PIN de Direccion para autorizar esta contratacion.
+              </p>
+            )}
+          </motion.section>
+        )}
 
         {/* Supervisor Override + Submit */}
         <motion.section {...fadeUp} className="glass-card p-6">
@@ -731,7 +849,8 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
               {!salary ? 'Ingrese el sueldo acordado. ' : ''}
               {!schedule ? 'Ingrese el horario. ' : ''}
               {!hireDate ? 'Seleccione la fecha de ingreso. ' : ''}
-              {!allMandatoryDone && !supervisorOverride ? 'Complete los documentos obligatorios o active la omision de supervisor.' : ''}
+              {!allMandatoryDone && !supervisorOverride ? 'Complete los documentos obligatorios o active la omision de supervisor. ' : ''}
+              {!authOk ? 'Se requiere autorizacion expresa de Direccion (motivo + confirmacion).' : ''}
             </p>
           )}
         </motion.section>
@@ -1155,7 +1274,7 @@ function DossierView({ employeeId, onBack }: DossierViewProps) {
 // ── Dossier Info Tab ────────────────────────────────────────────────────────
 
 function DossierInfoTab({ employee }: { employee: Employee }) {
-  const contractLabel = employee.contractType === 'eventual' ? 'Eventual 21 dias prueba' : 'Indefinido';
+  const contractLabel = employee.contractType === 'eventual' ? 'Contrato de prueba 15 dias' : 'Indefinido';
 
   const fields = [
     { label: 'Fecha de ingreso', value: formatDate(employee.hireDate), icon: Calendar },
@@ -1169,26 +1288,54 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
   ];
 
   return (
-    <div className="glass-card p-6 space-y-1">
-      {fields.map((field, i) => {
-        const FieldIcon = field.icon;
-        return (
-          <div
-            key={i}
-            className={`flex items-center gap-3 py-3 ${
-              i < fields.length - 1 ? 'border-b border-surface-700/20' : ''
-            }`}
-          >
-            <div className="w-8 h-8 rounded-lg bg-surface-700/30 flex items-center justify-center shrink-0">
-              <FieldIcon size={15} className="text-surface-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-surface-500 uppercase tracking-wide">{field.label}</p>
-              <p className="text-sm text-surface-200 font-medium truncate">{field.value}</p>
-            </div>
+    <div className="space-y-4">
+      {/* v2.0: avisos del expediente */}
+      {employee.seguimientoEspecial && (
+        <div className="glass-card p-4 border border-warning-500/40 bg-warning-500/5 flex items-start gap-3">
+          <Eye size={18} className="text-warning-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-warning-500 text-sm font-semibold">Seguimiento especial activo</p>
+            <p className="text-surface-400 text-xs mt-0.5">
+              Contratado 'con reserva' — el sistema activo seguimiento especial automatico.
+            </p>
           </div>
-        );
-      })}
+        </div>
+      )}
+      {employee.contratacionAutorizada && (
+        <div className="glass-card p-4 border border-danger-500/40 bg-danger-500/5 flex items-start gap-3">
+          <Shield size={18} className="text-danger-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-danger-400 text-sm font-semibold">Contratacion con autorizacion expresa</p>
+            <p className="text-surface-400 text-xs mt-0.5">
+              Autorizada por {employee.contratacionAutorizada.por} el{' '}
+              {formatDate(employee.contratacionAutorizada.fecha)}. Motivo:{' '}
+              {employee.contratacionAutorizada.motivo}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="glass-card p-6 space-y-1">
+        {fields.map((field, i) => {
+          const FieldIcon = field.icon;
+          return (
+            <div
+              key={i}
+              className={`flex items-center gap-3 py-3 ${
+                i < fields.length - 1 ? 'border-b border-surface-700/20' : ''
+              }`}
+            >
+              <div className="w-8 h-8 rounded-lg bg-surface-700/30 flex items-center justify-center shrink-0">
+                <FieldIcon size={15} className="text-surface-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-surface-500 uppercase tracking-wide">{field.label}</p>
+                <p className="text-sm text-surface-200 font-medium truncate">{field.value}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1201,6 +1348,9 @@ function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee:
 
   return (
     <div className="space-y-4">
+      {/* v2.0: 5 documentos fisicos para firma */}
+      <SignedDocsSection employee={employee} />
+
       {/* Progress */}
       <div className="glass-card p-4">
         <div className="flex items-center justify-between mb-2">
@@ -1370,6 +1520,218 @@ function DossierOnboardingTab({ employee, completed, total }: { employee: Employ
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.0 — 5 DOCUMENTOS FISICOS CON FIRMA (BRD seccion 6)
+// Generar con variables → imprimir → RH explica en voz alta → firma →
+// RH sube el escaneado al expediente digital.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function printDocumentV2(doc: DocTemplate, companyName: string) {
+  const w = window.open('', '_blank', 'width=820,height=950');
+  if (!w) return;
+  const parrafosHtml = doc.parrafos.map((p) => `<p>${p}</p>`).join('');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${doc.titulo}</title>
+  <style>
+    body { font-family: Georgia, 'Times New Roman', serif; margin: 56px; color: #111; }
+    .empresa { text-align: center; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #444; }
+    h1 { font-size: 19px; text-align: center; text-transform: uppercase; margin: 8px 0 4px; }
+    .meta { text-align: center; font-size: 11px; color: #666; margin-bottom: 28px; }
+    p { font-size: 13px; line-height: 1.75; text-align: justify; margin: 10px 0; }
+    .firmas { display: flex; justify-content: space-between; gap: 60px; margin-top: 100px; }
+    .firma { flex: 1; text-align: center; font-size: 12px; border-top: 1px solid #111; padding-top: 8px; }
+  </style></head><body>
+    <div class="empresa">${companyName}</div>
+    <h1>${doc.titulo}</h1>
+    <div class="meta">${doc.cuando} · ${doc.tantos}</div>
+    ${parrafosHtml}
+    <div class="firmas">
+      <div class="firma">${doc.firmaIzquierda}<br/>Nombre y firma</div>
+      <div class="firma">${doc.firmaDerecha}<br/>Nombre y firma</div>
+    </div>
+  </body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 300);
+}
+
+function SignedDocsSection({ employee }: { employee: Employee }) {
+  const { settings, updateEmployee } = useStore();
+  const [previewDoc, setPreviewDoc] = useState<DocTemplate | null>(null);
+  const scanRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const docs = useMemo(() => buildDocuments(employee, settings), [employee, settings]);
+  const status = employee.signedDocsV2 ?? createEmptySignedDocs();
+
+  const setDocStatus = (key: SignedDocKey, partial: Partial<(typeof status)[SignedDocKey]>) => {
+    updateEmployee(employee.id, {
+      signedDocsV2: {
+        ...status,
+        [key]: { ...status[key], ...partial },
+      },
+    });
+  };
+
+  const handleGenerate = (doc: DocTemplate) => {
+    if (!status[doc.key].generado) {
+      setDocStatus(doc.key, { generado: true, fechaGenerado: new Date().toISOString() });
+    }
+    setPreviewDoc(doc);
+  };
+
+  const handleScanUpload = async (key: SignedDocKey, file: File) => {
+    const base64 = await fileToBase64(file);
+    setDocStatus(key, { firmadoUrl: base64, fechaFirmado: new Date().toISOString() });
+  };
+
+  const signedCount = DOC_ORDER.filter((k) => status[k].firmadoUrl).length;
+
+  return (
+    <div className="glass-card p-5">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-base font-semibold text-white flex items-center gap-2">
+          <FileText size={18} className="text-accent-400" />
+          Documentos para Firma (v2.0)
+        </h3>
+        <span className={`badge ${signedCount === DOC_ORDER.length ? 'badge-green' : 'badge-blue'}`}>
+          {signedCount}/{DOC_ORDER.length} firmados
+        </span>
+      </div>
+      <p className="text-xs text-surface-500 mb-4">
+        Regla de oro: el colaborador firma SOLO estos 5 documentos fisicos. Todo lo demas se cubre con
+        video + confirmacion digital. RH imprime, explica cada documento en voz alta, recaba la firma y
+        sube el escaneado.
+      </p>
+
+      <div className="space-y-2">
+        {docs.map((doc, i) => {
+          const st = status[doc.key];
+          return (
+            <div key={doc.key} className="p-3 rounded-xl bg-surface-800/30 space-y-2">
+              <div className="flex items-center gap-3">
+                {st.firmadoUrl ? (
+                  <CheckCircle size={18} className="text-success-500 shrink-0" />
+                ) : st.generado ? (
+                  <Clock size={18} className="text-warning-500 shrink-0" />
+                ) : (
+                  <XCircle size={18} className="text-surface-600 shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-surface-200 font-medium">
+                    {i + 1}. {doc.titulo}
+                  </p>
+                  <p className="text-[11px] text-surface-500">
+                    {doc.cuando} · {doc.tantos}
+                    {st.fechaGenerado && ` · generado ${formatDate(st.fechaGenerado)}`}
+                    {st.fechaFirmado && ` · firmado subido ${formatDate(st.fechaFirmado)}`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5"
+                    onClick={() => handleGenerate(doc)}
+                  >
+                    <Eye size={13} />
+                    {st.generado ? 'Ver / Imprimir' : 'Generar'}
+                  </button>
+                  <button
+                    className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5"
+                    onClick={() => scanRefs.current[doc.key]?.click()}
+                    title="Subir documento firmado escaneado"
+                  >
+                    <Upload size={13} />
+                    {st.firmadoUrl ? 'Reemplazar' : 'Subir firmado'}
+                  </button>
+                  <input
+                    ref={(el) => {
+                      scanRefs.current[doc.key] = el;
+                    }}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleScanUpload(doc.key, f);
+                    }}
+                  />
+                </div>
+              </div>
+              {st.firmadoUrl && (
+                <img
+                  src={st.firmadoUrl}
+                  alt={`${doc.titulo} firmado`}
+                  className="h-16 rounded-lg border border-surface-600/30 object-cover"
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Modal de vista del documento */}
+      <AnimatePresence>
+        {previewDoc && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6"
+            onClick={() => setPreviewDoc(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="glass-card w-full max-w-2xl max-h-[85vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 border-b border-white/[0.06] flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-white">{previewDoc.titulo}</h3>
+                  <p className="text-xs text-surface-500">
+                    {previewDoc.cuando} · {previewDoc.tantos} · autollenado con variables del expediente
+                  </p>
+                </div>
+                <button
+                  className="btn-primary text-sm flex items-center gap-2"
+                  onClick={() => printDocumentV2(previewDoc, settings.companyName)}
+                >
+                  <FileCheck size={15} />
+                  Imprimir
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6 bg-white/[0.02]">
+                <div className="bg-surface-50 text-surface-900 rounded-xl p-8 font-serif">
+                  <p className="text-center text-[10px] uppercase tracking-widest text-surface-500 mb-1">
+                    {settings.companyName}
+                  </p>
+                  <h4 className="text-center font-bold uppercase text-base mb-6">{previewDoc.titulo}</h4>
+                  {previewDoc.parrafos.map((p, idx) => (
+                    <p key={idx} className="text-[13px] leading-relaxed text-justify mb-3">
+                      {p}
+                    </p>
+                  ))}
+                  <div className="flex gap-10 mt-16">
+                    <div className="flex-1 text-center border-t border-surface-900 pt-2 text-xs">
+                      {previewDoc.firmaIzquierda}
+                      <br />
+                      Nombre y firma
+                    </div>
+                    <div className="flex-1 text-center border-t border-surface-900 pt-2 text-xs">
+                      {previewDoc.firmaDerecha}
+                      <br />
+                      Nombre y firma
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
