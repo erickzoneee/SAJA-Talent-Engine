@@ -389,4 +389,12 @@ export interface AppSettings {
   mathPassScore: number;
   supervisorPin: string;
   directionPin: string;
+  // ─── v2.1: URLs de videos reales (si vacio, se usa el reproductor de demostracion) ───
+  // Recepcion: 1 video informativo. Onboarding: 10 videos de la semana 1 por id de modulo.
+  receptionVideoUrl?: string;
+  onboardingVideoUrls?: Record<number, string>;
+  // ─── v2.1: URLs de narracion (audio TTS). Modo "narrado": audio + laminas y
+  // subtitulos sincronizados. Se usa cuando no hay video real. ───
+  receptionNarrationUrl?: string;
+  onboardingNarrationUrls?: Record<number, string>;
 }

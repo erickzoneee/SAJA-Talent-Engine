@@ -39,6 +39,25 @@ interface AppState {
   getNextExpedientNumber: () => number;
 }
 
+// Narraciones (audio TTS) incluidas en el repo. Se alojan localmente para que
+// funcionen aunque la tablet tenga conexion inestable (preocupacion del BRD).
+const NARRATION_BASE = `${import.meta.env.BASE_URL}media/narration/`;
+
+const defaultReceptionNarrationUrl = `${NARRATION_BASE}recepcion.mp3`;
+
+const defaultOnboardingNarrationUrls: Record<number, string> = {
+  1: `${NARRATION_BASE}onboarding-1.mp3`,
+  2: `${NARRATION_BASE}onboarding-2.mp3`,
+  3: `${NARRATION_BASE}onboarding-3.mp3`,
+  4: `${NARRATION_BASE}onboarding-4.mp3`,
+  5: `${NARRATION_BASE}onboarding-5.mp3`,
+  6: `${NARRATION_BASE}onboarding-6.mp3`,
+  7: `${NARRATION_BASE}onboarding-7.mp3`,
+  8: `${NARRATION_BASE}onboarding-8.mp3`,
+  9: `${NARRATION_BASE}onboarding-9.mp3`,
+  10: `${NARRATION_BASE}onboarding-10.mp3`,
+};
+
 const defaultSettings: AppSettings = {
   companyName: 'Jabones y Amenidades de Calidad, S.A. de C.V.',
   companyAddress: 'Ciudad de Mexico',
@@ -50,6 +69,10 @@ const defaultSettings: AppSettings = {
   mathPassScore: 12,
   supervisorPin: '123456',
   directionPin: '567890',
+  receptionVideoUrl: '',
+  onboardingVideoUrls: {},
+  receptionNarrationUrl: defaultReceptionNarrationUrl,
+  onboardingNarrationUrls: { ...defaultOnboardingNarrationUrls },
 };
 
 export const useStore = create<AppState>()(
@@ -131,7 +154,25 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'saja-talent-engine-storage',
-      version: 1,
+      version: 2,
+      // v2 → inyecta las narraciones por defecto en expedientes ya guardados
+      // (sin pisar lo que Direccion haya configurado a mano).
+      migrate: (persisted: unknown, version: number) => {
+        const state = persisted as { settings?: AppSettings } | null;
+        if (state?.settings && version < 2) {
+          state.settings = { ...defaultSettings, ...state.settings };
+          if (!state.settings.receptionNarrationUrl) {
+            state.settings.receptionNarrationUrl = defaultReceptionNarrationUrl;
+          }
+          if (
+            !state.settings.onboardingNarrationUrls ||
+            Object.keys(state.settings.onboardingNarrationUrls).length === 0
+          ) {
+            state.settings.onboardingNarrationUrls = { ...defaultOnboardingNarrationUrls };
+          }
+        }
+        return state as AppState;
+      },
     }
   )
 );

@@ -33,6 +33,81 @@ export function getDefaultOnboardingModules(): OnboardingModule[] {
   ];
 }
 
+// ─── Guiones de narracion (modo "narrado": audio TTS + subtitulos) ──────────
+// Texto exacto que se narra en cada video. Los subtitulos avanzan con el audio.
+export interface OnboardingNarrationCaption {
+  titulo: string;
+  texto: string;
+}
+
+export function getOnboardingVideoScript(moduleId: number): OnboardingNarrationCaption[] {
+  const scripts: Record<number, OnboardingNarrationCaption[]> = {
+    1: [
+      { titulo: 'Bienvenida', texto: 'Bienvenido a Jabones y Amenidades de Calidad. Nos da mucho gusto que formes parte del equipo.' },
+      { titulo: 'Quienes somos', texto: 'Somos una empresa mexicana que fabrica productos de higiene y amenidades desde hace mas de tres decadas.' },
+      { titulo: 'Nuestro compromiso', texto: 'Cuidamos la calidad en cada detalle, porque nuestros productos llegan a muchas personas.' },
+      { titulo: 'Tu papel', texto: 'Tu trabajo es importante para lograrlo. En este primer dia veras videos cortos que te explican como trabajamos aqui.' },
+    ],
+    2: [
+      { titulo: 'Horario', texto: 'Trabajamos de lunes a sabado en jornada completa. La puntualidad es indispensable todos los dias.' },
+      { titulo: 'Checado', texto: 'Al llegar y al salir debes checar tu asistencia. Si vas a faltar o llegar tarde, avisa a tu supervisor con anticipacion.' },
+      { titulo: 'Dia de pago', texto: 'El pago es semanal: recibes tu pago cada sabado.' },
+    ],
+    3: [
+      { titulo: 'Uniforme completo', texto: 'El uniforme completo se usa durante toda la jornada de trabajo, no solo cuando hay visitas.' },
+      { titulo: 'La cofia', texto: 'La cofia sirve para evitar que caiga cabello al producto. Por eso es obligatoria en produccion.' },
+      { titulo: 'Equipo de proteccion', texto: 'El equipo de proteccion personal, o EPP, se usa siempre que tu area lo requiera.' },
+      { titulo: 'Si se dana', texto: 'Si tu uniforme se dana, reportalo de inmediato a Recursos Humanos.' },
+    ],
+    4: [
+      { titulo: 'Que son las BPM', texto: 'BPM significa Buenas Practicas de Manufactura. Aplican a todos los colaboradores en planta.' },
+      { titulo: 'Lavado de manos', texto: 'Antes de entrar a produccion es obligatorio lavarse las manos.' },
+      { titulo: 'Sin joyeria', texto: 'El uso de joyeria en produccion esta prohibido, porque puede contaminar el producto.' },
+      { titulo: 'Producto contaminado', texto: 'Si encuentras un producto contaminado, reportalo de inmediato. No lo empaques ni lo tires sin avisar.' },
+    ],
+    5: [
+      { titulo: 'Cada cosa en su lugar', texto: 'Al terminar de usar una herramienta, regresala a su lugar asignado.' },
+      { titulo: 'Area limpia', texto: 'Tu area de trabajo debe quedar limpia todos los dias, al terminar tu turno.' },
+      { titulo: 'Todos ayudamos', texto: 'Si ves basura o material fuera de lugar, lo recoges o avisas, aunque no sea tuyo.' },
+    ],
+    6: [
+      { titulo: 'Derrames', texto: 'Si ves un derrame en el piso, avisa y ayuda a senalizarlo para evitar accidentes.' },
+      { titulo: 'Evacuacion', texto: 'En un simulacro de evacuacion, sigue la ruta hasta el punto de reunion. No corras por donde sea.' },
+      { titulo: 'Maquinas', texto: 'Nunca operes una maquina que no conoces sin autorizacion y capacitacion.' },
+      { titulo: 'Reporta riesgos', texto: 'Si detectas una condicion peligrosa, reportala de inmediato a tu jefe.' },
+    ],
+    7: [
+      { titulo: 'Comedor', texto: 'El comedor es para tus alimentos en los horarios de descanso. Mantenlo limpio.' },
+      { titulo: 'Lockers', texto: 'Tienes un locker para tus cosas personales. Cuida tus pertenencias y las de tus companeros.' },
+      { titulo: 'Areas comunes', texto: 'Las areas comunes son de todos. Dejalas como te gustaria encontrarlas.' },
+    ],
+    8: [
+      { titulo: 'El celular', texto: 'Durante la jornada, el celular se guarda. Se usa solo en descansos y en areas permitidas.' },
+      { titulo: 'Informacion confidencial', texto: 'Las formulas, procesos y datos de clientes son confidenciales. No se comparten ni se fotografian.' },
+      { titulo: 'Fotos y videos', texto: 'Tomar fotos o videos dentro de la planta solo se permite con autorizacion expresa.' },
+    ],
+    9: [
+      { titulo: 'Para que sirven', texto: 'Las camaras de videovigilancia estan para la seguridad y proteccion de las personas y los bienes.' },
+      { titulo: 'Se te informa', texto: 'Se te informa de la videovigilancia mediante este video y un acuse que firmas, sin excepcion.' },
+      { titulo: 'Camara danada', texto: 'Si una camara esta danada o tapada, reportalo a tu jefe o a Recursos Humanos.' },
+    ],
+    10: [
+      { titulo: 'Avisa primero', texto: 'Si ocurre un accidente de trabajo, lo primero es avisar de inmediato al jefe o encargado.' },
+      { titulo: 'No lo muevas', texto: 'Si el accidentado esta grave, no lo muevas y pide ayuda de inmediato.' },
+      { titulo: 'Reporta todo', texto: 'Todo accidente, aunque parezca leve, se reporta siempre.' },
+      { titulo: 'Botiquin y extintor', texto: 'Debes saber donde estan el botiquin y el extintor de tu area.' },
+    ],
+  };
+  return scripts[moduleId] || [];
+}
+
+/** Texto plano concatenado del guion, para generar la narracion TTS. */
+export function getOnboardingNarrationText(moduleId: number): string {
+  return getOnboardingVideoScript(moduleId)
+    .map((c) => c.texto)
+    .join(' ');
+}
+
 // Mini evaluaciones de los videos criticos v2.0
 export function getVideoQuizQuestions(moduleId: number): { question: string; options: string[]; correct: number }[] {
   const quizzes: Record<number, { question: string; options: string[]; correct: number }[]> = {

@@ -2,7 +2,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(() => ({
   plugins: [react(), tailwindcss()],
-  base: command === 'serve' ? '/' : '/SAJA-Talent-Engine/',
+  // Dominio propio saja.click (GitHub Pages con CNAME) → base en la raiz.
+  base: '/',
 }))

@@ -35,12 +35,15 @@ import {
   QUIZ_MODULES,
   getQuizQuestions,
   getVideoQuizQuestions,
+  getOnboardingVideoScript,
   videoPassThreshold,
   VIDEO_MAX_ATTEMPTS,
   VIDEO_PASS_PERCENT,
 } from '../../utils/onboardingModules';
 import { createEmptyTour } from '../../utils/tourChecklist';
 import { formatDate } from '../../utils/helpers';
+import { parseVideoSource, RealVideoPlayer, NarratedVideoPlayer } from '../../components/VideoPlayer';
+import { getOnboardingNarrationBg } from '../../utils/narrationAssets';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -919,17 +922,26 @@ function VideoModuleView({
   onBack: () => void;
 }) {
   const { updateEmployee, addAlert, authRole } = useStore();
+  const onboardingVideoUrls = useStore((s) => s.settings.onboardingVideoUrls);
+  const onboardingNarrationUrls = useStore((s) => s.settings.onboardingNarrationUrls);
 
   const durationSec = Math.round((mod.durationMin ?? 2) * 60);
   const questions = mod.critical ? getVideoQuizQuestions(mod.id) : [];
   const passMin = videoPassThreshold(questions.length);
   const attempts = mod.attempts ?? 0;
 
+  const source = parseVideoSource(onboardingVideoUrls?.[mod.id]);
+  const usingReal = !!source;
+  const narrationUrl = onboardingNarrationUrls?.[mod.id];
+  const usingNarration = !usingReal && !!(narrationUrl ?? '').trim();
+
   // Reproductor
   const [progress, setProgress] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [watchedThisSession, setWatchedThisSession] = useState(false);
+  const [realEnded, setRealEnded] = useState(false);
+  const [realProgress, setRealProgress] = useState(0); // 0..1 para video real (archivo)
   const viewedRecorded = useRef(false);
 
   // Mini evaluacion
@@ -940,7 +952,7 @@ function VideoModuleView({
   const [lastScore, setLastScore] = useState<number | null>(null);
   const [dudasSent, setDudasSent] = useState(!!mod.dudas);
 
-  const videoComplete = progress >= durationSec;
+  const videoComplete = usingReal || usingNarration ? realEnded : progress >= durationSec;
 
   const updateModule = (partial: Partial<OnboardingModuleType>) => {
     const updatedModules = employee.onboardingProgress.modules.map((m) =>
@@ -951,14 +963,14 @@ function VideoModuleView({
     });
   };
 
-  // Avance del reproductor simulado
+  // Avance del reproductor simulado (solo cuando no hay video real ni narracion)
   useEffect(() => {
-    if (!playing || videoComplete || mod.blocked) return;
+    if (usingReal || usingNarration || !playing || videoComplete || mod.blocked) return;
     const interval = setInterval(() => {
       setProgress((p) => Math.min(p + 0.1 * speed, durationSec));
     }, 100);
     return () => clearInterval(interval);
-  }, [playing, speed, videoComplete, durationSec, mod.blocked]);
+  }, [playing, speed, videoComplete, durationSec, mod.blocked, usingReal, usingNarration]);
 
   // Evidencia de visualizacion con timestamp (regla de negocio 4)
   useEffect(() => {
@@ -995,6 +1007,7 @@ function VideoModuleView({
     viewedRecorded.current = false;
     setProgress(0);
     setWatchedThisSession(false);
+    setRealEnded(false);
     setPlaying(true);
   };
 
@@ -1043,6 +1056,7 @@ function VideoModuleView({
       setWatchedThisSession(false);
       viewedRecorded.current = false;
       setProgress(0);
+      setRealEnded(false);
       setPlaying(false);
     }
   };
@@ -1142,75 +1156,119 @@ function VideoModuleView({
         {/* Reproductor */}
         {!mod.completed && !mod.blocked && !quizStarted && (
           <motion.div {...fadeUp} className="glass-card overflow-hidden">
+            {usingNarration ? (
+              <NarratedVideoPlayer
+                audioUrl={(narrationUrl || '').trim()}
+                captions={getOnboardingVideoScript(mod.id)}
+                title={`Video ${mod.id}: ${mod.name}`}
+                backgroundVideoUrl={getOnboardingNarrationBg(mod.id)}
+                complete={videoComplete}
+                onEnded={() => setRealEnded(true)}
+                onProgress={setRealProgress}
+              />
+            ) : (
+              <>
             <div className="aspect-video bg-gradient-to-br from-surface-950 via-primary-950 to-surface-950 relative flex flex-col items-center justify-center">
-              <Video size={40} className="text-primary-400 mb-3 opacity-60" />
-              <h2 className="text-lg font-bold text-surface-100 px-8 text-center">{mod.name}</h2>
-              <div className="absolute bottom-3 left-3 right-3">
-                <div className="bg-black/70 rounded-lg px-4 py-2 flex items-start gap-2">
-                  <Captions size={16} className="text-primary-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-white leading-snug">
-                    {videoComplete
-                      ? 'Video completo. Gracias por tu atencion.'
-                      : `Reproduciendo '${mod.name}' — subtitulos activados.`}
-                  </p>
-                </div>
-              </div>
+              {usingReal ? (
+                <RealVideoPlayer
+                  source={source!}
+                  title={`Video ${mod.id}: ${mod.name}`}
+                  complete={videoComplete}
+                  onEnded={() => setRealEnded(true)}
+                  onProgress={setRealProgress}
+                />
+              ) : (
+                <>
+                  <Video size={40} className="text-primary-400 mb-3 opacity-60" />
+                  <h2 className="text-lg font-bold text-surface-100 px-8 text-center">{mod.name}</h2>
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <div className="bg-black/70 rounded-lg px-4 py-2 flex items-start gap-2">
+                      <Captions size={16} className="text-primary-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-white leading-snug">
+                        {videoComplete
+                          ? 'Video completo. Gracias por tu atencion.'
+                          : `Reproduciendo '${mod.name}' — subtitulos activados.`}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
               {videoComplete && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center">
+                <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center ${usingReal ? 'pointer-events-none' : ''}`}>
                   <CheckCircle size={44} className="text-success-500 mb-2" />
                   <p className="text-surface-100 font-semibold">Video visto completo</p>
                   <p className="text-xs text-surface-400">Evidencia registrada con fecha y hora</p>
                 </div>
               )}
             </div>
-            <div className="p-4 space-y-3">
-              <div className="h-1.5 bg-surface-800 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full bg-gradient-to-r from-primary-500 to-accent-500"
-                  style={{ width: `${pct}%` }}
-                />
+            {usingReal ? (
+              <div className="p-4 space-y-2">
+                {source!.kind === 'file' && (
+                  <div className="h-1.5 bg-surface-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-primary-500 to-accent-500"
+                      style={{ width: `${Math.round(realProgress * 100)}%` }}
+                    />
+                  </div>
+                )}
+                <p className="text-[11px] text-surface-500">
+                  Video real ({source!.kind === 'file' ? 'archivo' : source!.kind === 'youtube' ? 'YouTube' : 'Vimeo'}).
+                  El sistema guarda evidencia de visualizacion con timestamp al terminar el video.
+                </p>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <button
-                    className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
-                    onClick={() => setPlaying((p) => !p)}
-                    disabled={videoComplete}
-                  >
-                    {playing && !videoComplete ? <Pause size={16} /> : <Play size={16} />}
-                  </button>
-                  <button
-                    className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
-                    onClick={restartVideo}
-                  >
-                    <RotateCcw size={16} />
-                  </button>
-                  <span className="text-xs font-mono text-surface-400">
-                    {fmt(progress)} / {fmt(durationSec)}
-                  </span>
+            ) : (
+              <div className="p-4 space-y-3">
+                <div className="h-1.5 bg-surface-800 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-primary-500 to-accent-500"
+                    style={{ width: `${pct}%` }}
+                  />
                 </div>
-                <div className="flex items-center gap-1">
-                  <FastForward size={14} className="text-surface-500" />
-                  {[1, 5, 10].map((s) => (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
                     <button
-                      key={s}
-                      onClick={() => setSpeed(s)}
-                      className={`px-2 py-1 rounded-lg text-xs font-bold transition-all ${
-                        speed === s
-                          ? 'bg-primary-500/20 text-primary-300 ring-1 ring-primary-500/40'
-                          : 'text-surface-500 hover:text-surface-300'
-                      }`}
+                      className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
+                      onClick={() => setPlaying((p) => !p)}
+                      disabled={videoComplete}
                     >
-                      x{s}
+                      {playing && !videoComplete ? <Pause size={16} /> : <Play size={16} />}
                     </button>
-                  ))}
+                    <button
+                      className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
+                      onClick={restartVideo}
+                    >
+                      <RotateCcw size={16} />
+                    </button>
+                    <span className="text-xs font-mono text-surface-400">
+                      {fmt(progress)} / {fmt(durationSec)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <FastForward size={14} className="text-surface-500" />
+                    {[1, 5, 10].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setSpeed(s)}
+                        className={`px-2 py-1 rounded-lg text-xs font-bold transition-all ${
+                          speed === s
+                            ? 'bg-primary-500/20 text-primary-300 ring-1 ring-primary-500/40'
+                            : 'text-surface-500 hover:text-surface-300'
+                        }`}
+                      >
+                        x{s}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                <p className="text-[11px] text-surface-500">
+                  Reproductor de demostracion — cuando Direccion configure la URL del video real o la
+                  narracion (en Configuracion → Videos del sistema) se reproducira aqui, con evidencia
+                  de visualizacion.
+                </p>
               </div>
-              <p className="text-[11px] text-surface-500">
-                Reproductor de demostracion — en produccion aqui se reproduce el video real. El sistema
-                guarda evidencia de visualizacion con timestamp.
-              </p>
-            </div>
+            )}
+              </>
+            )}
           </motion.div>
         )}
 

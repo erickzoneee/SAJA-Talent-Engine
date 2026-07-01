@@ -48,6 +48,8 @@ import {
 } from '../../utils/examBank';
 import { DIAGNOSTIC_LABELS } from '../../utils/interviewGuide';
 import { generateId, formatDate, getInitials } from '../../utils/helpers';
+import { parseVideoSource, RealVideoPlayer, NarratedVideoPlayer } from '../../components/VideoPlayer';
+import { receptionNarrationBg } from '../../utils/narrationAssets';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -732,21 +734,28 @@ interface VideoInformativoViewProps {
 function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoInformativoViewProps) {
   const candidate = useStore((s) => s.candidates.find((c) => c.id === candidateId));
   const updateCandidate = useStore((s) => s.updateCandidate);
+  const receptionVideoUrl = useStore((s) => s.settings.receptionVideoUrl);
+  const receptionNarrationUrl = useStore((s) => s.settings.receptionNarrationUrl);
 
-  const [progress, setProgress] = useState(0); // segundos del video
+  const [progress, setProgress] = useState(0); // segundos del video (demostracion)
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
+  const [realEnded, setRealEnded] = useState(false);
+  const [realProgress, setRealProgress] = useState(0); // 0..1 para video real (archivo)
   const completedRef = useRef(false);
 
-  const complete = progress >= VIDEO_DURATION_SECONDS;
+  const source = parseVideoSource(receptionVideoUrl);
+  const usingReal = !!source;
+  const usingNarration = !usingReal && !!(receptionNarrationUrl ?? '').trim();
+  const complete = usingReal || usingNarration ? realEnded : progress >= VIDEO_DURATION_SECONDS;
 
   useEffect(() => {
-    if (!playing || complete) return;
+    if (usingReal || usingNarration || !playing || complete) return;
     const interval = setInterval(() => {
       setProgress((p) => Math.min(p + 0.1 * speed, VIDEO_DURATION_SECONDS));
     }, 100);
     return () => clearInterval(interval);
-  }, [playing, speed, complete]);
+  }, [playing, speed, complete, usingReal, usingNarration]);
 
   // Registrar visualizacion completa (una sola vez)
   useEffect(() => {
@@ -806,93 +815,136 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
 
       <div className="flex-1 overflow-y-auto px-6 pb-6">
         <motion.div {...fadeUp} className="max-w-2xl mx-auto space-y-4">
-          {/* Reproductor simulado */}
+          {/* Reproductor: narrado (audio TTS), video real, o demostracion */}
           <div className="glass-card overflow-hidden">
+            {usingNarration ? (
+              <NarratedVideoPlayer
+                audioUrl={(receptionNarrationUrl || '').trim()}
+                captions={VIDEO_CAPTIONS}
+                title="Video Informativo — asi trabajamos aqui"
+                backgroundVideoUrl={receptionNarrationBg}
+                complete={complete}
+                onEnded={() => setRealEnded(true)}
+                onProgress={setRealProgress}
+              />
+            ) : (
+              <>
             <div className="aspect-video bg-gradient-to-br from-surface-950 via-primary-950 to-surface-950 relative flex flex-col items-center justify-center">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={captionIdx}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.05 }}
-                  transition={{ duration: 0.4 }}
-                  className="text-center px-10"
-                >
-                  <Video size={40} className="text-primary-400 mx-auto mb-4 opacity-60" />
-                  <h2 className="text-xl font-bold text-surface-100 mb-2">{caption.titulo}</h2>
-                </motion.div>
-              </AnimatePresence>
+              {usingReal ? (
+                <RealVideoPlayer
+                  source={source!}
+                  title="Video Informativo — asi trabajamos aqui"
+                  complete={complete}
+                  onEnded={() => setRealEnded(true)}
+                  onProgress={setRealProgress}
+                />
+              ) : (
+                <>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={captionIdx}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 1.05 }}
+                      transition={{ duration: 0.4 }}
+                      className="text-center px-10"
+                    >
+                      <Video size={40} className="text-primary-400 mx-auto mb-4 opacity-60" />
+                      <h2 className="text-xl font-bold text-surface-100 mb-2">{caption.titulo}</h2>
+                    </motion.div>
+                  </AnimatePresence>
 
-              {/* Subtitulos — activados siempre (BRD) */}
-              <div className="absolute bottom-3 left-3 right-3">
-                <div className="bg-black/70 rounded-lg px-4 py-2 flex items-start gap-2">
-                  <Captions size={16} className="text-primary-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-white leading-snug">{caption.texto}</p>
-                </div>
-              </div>
+                  {/* Subtitulos — activados siempre (BRD) */}
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <div className="bg-black/70 rounded-lg px-4 py-2 flex items-start gap-2">
+                      <Captions size={16} className="text-primary-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-white leading-snug">{caption.texto}</p>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {complete && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center">
+                <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center ${usingReal ? 'pointer-events-none' : ''}`}>
                   <CheckCircle size={48} className="text-success-500 mb-2" />
                   <p className="text-surface-100 font-semibold">Video completo</p>
                 </div>
               )}
             </div>
 
-            {/* Controles */}
-            <div className="p-4 space-y-3">
-              <div className="h-1.5 bg-surface-800 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full bg-gradient-to-r from-primary-500 to-accent-500"
-                  style={{ width: `${pct}%` }}
-                />
+            {/* Controles (solo demostracion) */}
+            {usingReal ? (
+              <div className="p-4 space-y-2">
+                {source!.kind === 'file' && (
+                  <div className="h-1.5 bg-surface-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-primary-500 to-accent-500"
+                      style={{ width: `${Math.round(realProgress * 100)}%` }}
+                    />
+                  </div>
+                )}
+                <p className="text-[11px] text-surface-500">
+                  Video real ({source!.kind === 'file' ? 'archivo' : source!.kind === 'youtube' ? 'YouTube' : 'Vimeo'}).
+                  El sistema registra la visualizacion completa con fecha y hora.
+                </p>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <button
-                    className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
-                    onClick={() => setPlaying((p) => !p)}
-                    disabled={complete}
-                  >
-                    {playing && !complete ? <Pause size={16} /> : <Play size={16} />}
-                  </button>
-                  <button
-                    className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
-                    onClick={() => {
-                      completedRef.current = false;
-                      setProgress(0);
-                      setPlaying(true);
-                    }}
-                  >
-                    <RotateCcw size={16} />
-                  </button>
-                  <span className="text-xs font-mono text-surface-400">
-                    {fmt(progress)} / {fmt(VIDEO_DURATION_SECONDS)}
-                  </span>
+            ) : (
+              <div className="p-4 space-y-3">
+                <div className="h-1.5 bg-surface-800 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-primary-500 to-accent-500"
+                    style={{ width: `${pct}%` }}
+                  />
                 </div>
-                <div className="flex items-center gap-1">
-                  <FastForward size={14} className="text-surface-500" />
-                  {[1, 5, 10].map((s) => (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
                     <button
-                      key={s}
-                      onClick={() => setSpeed(s)}
-                      className={`px-2 py-1 rounded-lg text-xs font-bold transition-all ${
-                        speed === s
-                          ? 'bg-primary-500/20 text-primary-300 ring-1 ring-primary-500/40'
-                          : 'text-surface-500 hover:text-surface-300'
-                      }`}
+                      className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
+                      onClick={() => setPlaying((p) => !p)}
+                      disabled={complete}
                     >
-                      x{s}
+                      {playing && !complete ? <Pause size={16} /> : <Play size={16} />}
                     </button>
-                  ))}
+                    <button
+                      className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
+                      onClick={() => {
+                        completedRef.current = false;
+                        setProgress(0);
+                        setPlaying(true);
+                      }}
+                    >
+                      <RotateCcw size={16} />
+                    </button>
+                    <span className="text-xs font-mono text-surface-400">
+                      {fmt(progress)} / {fmt(VIDEO_DURATION_SECONDS)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <FastForward size={14} className="text-surface-500" />
+                    {[1, 5, 10].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setSpeed(s)}
+                        className={`px-2 py-1 rounded-lg text-xs font-bold transition-all ${
+                          speed === s
+                            ? 'bg-primary-500/20 text-primary-300 ring-1 ring-primary-500/40'
+                            : 'text-surface-500 hover:text-surface-300'
+                        }`}
+                      >
+                        x{s}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                <p className="text-[11px] text-surface-500">
+                  Reproductor de demostracion — cuando Direccion configure la URL del video real o la
+                  narracion (en Configuracion → Videos del sistema) se reproducira aqui. Subtitulos
+                  activados siempre.
+                </p>
               </div>
-              <p className="text-[11px] text-surface-500">
-                Reproductor de demostracion — en produccion aqui se reproduce el video real (HeyGen o
-                grabado internamente), alojado en servidor local o nube segun la conexion de la tablet.
-                Subtitulos activados siempre.
-              </p>
-            </div>
+            )}
+              </>
+            )}
           </div>
 
           {/* Decision — solo al terminar el video */}

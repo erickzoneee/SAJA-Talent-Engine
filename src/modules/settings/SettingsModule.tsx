@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Save, RotateCcw, Shield, Building, Sliders, CheckCircle } from 'lucide-react';
+import { Settings, Save, RotateCcw, Shield, Building, Sliders, CheckCircle, Video } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { AppSettings } from '../../types';
+import { getDefaultOnboardingModules } from '../../utils/onboardingModules';
+
+const ONBOARDING_VIDEO_MODULES = getDefaultOnboardingModules();
 
 export default function SettingsModule() {
   const { settings, updateSettings } = useStore();
@@ -21,6 +24,20 @@ export default function SettingsModule() {
 
   const updateField = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const updateOnboardingUrl = (id: number, value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      onboardingVideoUrls: { ...(prev.onboardingVideoUrls ?? {}), [id]: value },
+    }));
+  };
+
+  const updateOnboardingNarration = (id: number, value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      onboardingNarrationUrls: { ...(prev.onboardingNarrationUrls ?? {}), [id]: value },
+    }));
   };
 
   return (
@@ -190,6 +207,75 @@ export default function SettingsModule() {
             />
             <p className="text-xs text-surface-500 mt-1">4-6 digitos para acceso de direccion general</p>
           </div>
+        </div>
+      </motion.div>
+
+      {/* Videos del Sistema */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="glass-card p-6"
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <Video className="w-5 h-5 text-primary-400" />
+          <h2 className="text-lg font-semibold text-surface-100">Videos del Sistema</h2>
+        </div>
+        <p className="text-sm text-surface-400 mb-2">
+          Cada modulo puede reproducir un <strong className="text-surface-300">video real</strong> (URL de
+          archivo MP4/webm, YouTube o Vimeo) o una <strong className="text-surface-300">narracion</strong>
+          (URL de audio TTS con subtitulos y laminas sincronizadas). Si hay video real, tiene prioridad;
+          si solo hay narracion, se usa el modo narrado; si ambos quedan vacios, se usa el reproductor de
+          demostracion.
+        </p>
+        <p className="text-xs text-surface-500 mb-5">
+          Los videos de archivo y la narracion registran evidencia de visualizacion completa automaticamente.
+        </p>
+
+        {/* Recepcion */}
+        <div className="mb-6 space-y-2">
+          <label className="block text-sm text-surface-300 font-medium">
+            Recepcion — video informativo <span className="text-surface-500">(asi trabajamos aqui)</span>
+          </label>
+          <input
+            className="input-field"
+            placeholder="Video (URL MP4, YouTube o Vimeo)"
+            value={form.receptionVideoUrl ?? ''}
+            onChange={(e) => updateField('receptionVideoUrl', e.target.value)}
+          />
+          <input
+            className="input-field"
+            placeholder="Narracion (URL de audio TTS)"
+            value={form.receptionNarrationUrl ?? ''}
+            onChange={(e) => updateField('receptionNarrationUrl', e.target.value)}
+          />
+        </div>
+
+        {/* Onboarding — 10 videos */}
+        <p className="text-xs uppercase tracking-wider text-surface-500 mb-3">
+          Onboarding — 10 videos de la semana 1
+        </p>
+        <div className="space-y-4">
+          {ONBOARDING_VIDEO_MODULES.map((m) => (
+            <div key={m.id} className="space-y-1.5">
+              <label className="block text-xs text-surface-400">
+                {m.id}. {m.name}
+                {m.critical && <span className="text-danger-400"> · critico</span>}
+              </label>
+              <input
+                className="input-field"
+                placeholder="Video (URL)"
+                value={(form.onboardingVideoUrls ?? {})[m.id] ?? ''}
+                onChange={(e) => updateOnboardingUrl(m.id, e.target.value)}
+              />
+              <input
+                className="input-field"
+                placeholder="Narracion (URL de audio)"
+                value={(form.onboardingNarrationUrls ?? {})[m.id] ?? ''}
+                onChange={(e) => updateOnboardingNarration(m.id, e.target.value)}
+              />
+            </div>
+          ))}
         </div>
       </motion.div>
 
