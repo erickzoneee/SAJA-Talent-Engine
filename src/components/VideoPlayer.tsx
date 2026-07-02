@@ -31,8 +31,11 @@ export function parseVideoSource(url?: string | null): VideoSource | null {
   const vm = u.match(VIMEO_RE);
   if (vm) return { kind: 'vimeo', id: vm[1], src: u };
 
-  // Cualquier otra URL http(s) se trata como archivo de video directo (MP4/webm/mov/m3u8).
-  if (/^https?:\/\//i.test(u)) return { kind: 'file', src: u };
+  // Cualquier otra URL http(s) o ruta local (/media/...) se trata como archivo
+  // de video directo (MP4/webm/mov/m3u8).
+  if (/^https?:\/\//i.test(u) || u.startsWith('/') || u.startsWith('./')) {
+    return { kind: 'file', src: u };
+  }
 
   return null;
 }
@@ -40,6 +43,13 @@ export function parseVideoSource(url?: string | null): VideoSource | null {
 /** true si la fuente es un archivo directo (permite detectar el fin de forma automatica). */
 export function isTrackableSource(source: VideoSource | null): boolean {
   return source?.kind === 'file';
+}
+
+/** Bloque de subtitulo con su duracion estimada en segundos (para sincronizar). */
+export interface TimedCaption {
+  titulo: string;
+  texto: string;
+  dur: number;
 }
 
 interface RealVideoPlayerProps {
@@ -51,6 +61,21 @@ interface RealVideoPlayerProps {
   onProgress?: (fraction: number) => void;
   /** Si ya se marco como completo (oculta la confirmacion manual del embed). */
   complete?: boolean;
+  /** Subtitulos sincronizados por bloque (BRD: subtitulos activados siempre). */
+  captions?: TimedCaption[];
+}
+
+/** Indice del bloque activo: las duraciones se escalan a la duracion real del video. */
+function activeCaptionIdx(captions: TimedCaption[], time: number, videoDur: number): number {
+  const total = captions.reduce((s, c) => s + c.dur, 0);
+  if (total <= 0 || videoDur <= 0) return 0;
+  const scale = videoDur / total;
+  let acc = 0;
+  for (let i = 0; i < captions.length; i++) {
+    acc += captions[i].dur * scale;
+    if (time < acc) return i;
+  }
+  return captions.length - 1;
 }
 
 export function RealVideoPlayer({
@@ -59,27 +84,46 @@ export function RealVideoPlayer({
   onEnded,
   onProgress,
   complete,
+  captions,
 }: RealVideoPlayerProps) {
   const endedRef = useRef(false);
+  const [time, setTime] = useState(0);
+  const [videoDur, setVideoDur] = useState(0);
 
   if (source.kind === 'file') {
+    const caption =
+      captions && captions.length > 0
+        ? captions[activeCaptionIdx(captions, time, videoDur)]
+        : null;
     return (
-      <video
-        src={source.src}
-        controls
-        playsInline
-        controlsList="nodownload"
-        className="w-full h-full object-contain bg-black"
-        onTimeUpdate={(e) => {
-          const el = e.currentTarget;
-          if (el.duration > 0) onProgress?.(el.currentTime / el.duration);
-        }}
-        onEnded={() => {
-          if (endedRef.current) return;
-          endedRef.current = true;
-          onEnded();
-        }}
-      />
+      <div className="relative w-full h-full bg-black">
+        <video
+          src={source.src}
+          controls
+          playsInline
+          controlsList="nodownload"
+          className="w-full h-full object-contain"
+          onLoadedMetadata={(e) => setVideoDur(e.currentTarget.duration || 0)}
+          onTimeUpdate={(e) => {
+            const el = e.currentTarget;
+            setTime(el.currentTime);
+            if (el.duration > 0) onProgress?.(el.currentTime / el.duration);
+          }}
+          onEnded={() => {
+            if (endedRef.current) return;
+            endedRef.current = true;
+            onEnded();
+          }}
+        />
+        {caption && (
+          <div className="absolute bottom-14 left-3 right-3 pointer-events-none">
+            <div className="bg-black/70 rounded-lg px-4 py-2 flex items-start gap-2 max-w-2xl mx-auto">
+              <Captions size={16} className="text-primary-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-white leading-snug">{caption.texto}</p>
+            </div>
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -131,8 +175,11 @@ interface NarratedVideoPlayerProps {
   onEnded: () => void;
   onProgress?: (fraction: number) => void;
   complete?: boolean;
-  /** Clip de video (mudo, en bucle) que se reproduce de fondo detras de la narracion. */
-  backgroundVideoUrl?: string;
+  /**
+   * Escenas de video (mudas, en bucle), UNA POR BLOQUE del guion: la escena
+   * cambia junto con el subtitulo, de modo que la imagen sigue la narracion.
+   */
+  sceneClips?: string[];
 }
 
 const fmtTime = (s: number) =>
@@ -145,7 +192,7 @@ export function NarratedVideoPlayer({
   onEnded,
   onProgress,
   complete,
-  backgroundVideoUrl,
+  sceneClips,
 }: NarratedVideoPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const endedRef = useRef(false);
@@ -159,6 +206,11 @@ export function NarratedVideoPlayer({
       ? Math.min(Math.floor(fraction * captions.length), captions.length - 1)
       : 0;
   const caption = captions[captionIdx] ?? { titulo: title, texto: '' };
+  // Escena que corresponde al bloque actual del guion (la imagen sigue la letra)
+  const sceneSrc =
+    sceneClips && sceneClips.length > 0
+      ? sceneClips[Math.min(captionIdx, sceneClips.length - 1)]
+      : undefined;
 
   const toggle = () => {
     const a = audioRef.current;
@@ -184,16 +236,24 @@ export function NarratedVideoPlayer({
   return (
     <>
       <div className="aspect-video bg-gradient-to-br from-surface-950 via-primary-950 to-surface-950 relative flex flex-col items-center justify-center overflow-hidden">
-        {backgroundVideoUrl && (
+        {sceneSrc && (
           <>
-            <video
-              src={backgroundVideoUrl}
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="absolute inset-0 w-full h-full object-cover"
-            />
+            {/* La escena cambia con cada bloque del guion (crossfade) */}
+            <AnimatePresence initial={false}>
+              <motion.video
+                key={sceneSrc + captionIdx}
+                src={sceneSrc}
+                autoPlay
+                loop
+                muted
+                playsInline
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.6 }}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            </AnimatePresence>
             {/* Scrim para legibilidad de titulo y subtitulos */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/50" />
           </>
@@ -208,7 +268,7 @@ export function NarratedVideoPlayer({
             transition={{ duration: 0.4 }}
             className="relative z-10 text-center px-10"
           >
-            {!backgroundVideoUrl && (
+            {!sceneSrc && (
               <Video size={40} className="text-primary-400 mx-auto mb-4 opacity-60" />
             )}
             <h2 className="text-xl font-bold text-white mb-2 drop-shadow-lg">{caption.titulo}</h2>

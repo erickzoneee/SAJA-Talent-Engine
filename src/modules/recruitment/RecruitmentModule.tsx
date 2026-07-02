@@ -49,7 +49,7 @@ import {
 import { DIAGNOSTIC_LABELS } from '../../utils/interviewGuide';
 import { generateId, formatDate, getInitials } from '../../utils/helpers';
 import { parseVideoSource, RealVideoPlayer, NarratedVideoPlayer } from '../../components/VideoPlayer';
-import { receptionNarrationBg } from '../../utils/narrationAssets';
+import { receptionSceneClips } from '../../utils/narrationAssets';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -822,7 +822,7 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
                 audioUrl={(receptionNarrationUrl || '').trim()}
                 captions={VIDEO_CAPTIONS}
                 title="Video Informativo — asi trabajamos aqui"
-                backgroundVideoUrl={receptionNarrationBg}
+                sceneClips={receptionSceneClips}
                 complete={complete}
                 onEnded={() => setRealEnded(true)}
                 onProgress={setRealProgress}

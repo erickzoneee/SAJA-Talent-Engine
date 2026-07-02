@@ -43,7 +43,7 @@ import {
 import { createEmptyTour } from '../../utils/tourChecklist';
 import { formatDate } from '../../utils/helpers';
 import { parseVideoSource, RealVideoPlayer, NarratedVideoPlayer } from '../../components/VideoPlayer';
-import { getOnboardingNarrationBg } from '../../utils/narrationAssets';
+import { getOnboardingSceneClips } from '../../utils/narrationAssets';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -1161,7 +1161,7 @@ function VideoModuleView({
                 audioUrl={(narrationUrl || '').trim()}
                 captions={getOnboardingVideoScript(mod.id)}
                 title={`Video ${mod.id}: ${mod.name}`}
-                backgroundVideoUrl={getOnboardingNarrationBg(mod.id)}
+                sceneClips={getOnboardingSceneClips(mod.id)}
                 complete={videoComplete}
                 onEnded={() => setRealEnded(true)}
                 onProgress={setRealProgress}
