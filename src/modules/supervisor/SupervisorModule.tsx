@@ -122,8 +122,10 @@ type ViewState =
 export default function SupervisorModule() {
   const [view, setView] = useState<ViewState>({ kind: 'dashboard' });
 
+  // v2.4: sin AnimatePresence mode="wait" — el cambio de vista es inmediato y
+  // solo se anima la entrada (una salida atorada dejaba la pantalla vacia).
   return (
-    <AnimatePresence mode="wait">
+    <>
       {view.kind === 'dashboard' && (
         <motion.div key="dashboard" {...pageTransition}>
           <DashboardView onSelectEmployee={(id) => setView({ kind: 'dossier', employeeId: id })} />
@@ -137,7 +139,7 @@ export default function SupervisorModule() {
           />
         </motion.div>
       )}
-    </AnimatePresence>
+    </>
   );
 }
 

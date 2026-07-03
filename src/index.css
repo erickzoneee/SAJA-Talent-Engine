@@ -150,6 +150,16 @@
   .input-field:focus { border-color: #338dff; box-shadow: 0 0 0 3px rgba(51,141,255,0.15); }
   .input-field::placeholder { color: #64748b; }
 
+  /* v2.4 — Requerimiento 1: todo el sistema captura y muestra en MAYUSCULAS.
+     Excepciones: contrasenas/PINs, fechas, horas, numeros y campos marcados
+     con .no-uppercase (URLs, codigos de sincronizacion). */
+  input.input-field:not([type="password"]):not([type="date"]):not([type="time"]):not([type="number"]):not(.no-uppercase),
+  textarea.input-field:not(.no-uppercase),
+  select.input-field:not(.no-uppercase) {
+    text-transform: uppercase;
+  }
+  .input-field::placeholder { text-transform: none; }
+
   .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
   .badge-green { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
   .badge-yellow { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { CheckCircle, Play, Pause, RotateCcw, Captions, Video, Volume2 } from 'lucide-react';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -236,35 +236,34 @@ export function NarratedVideoPlayer({
   return (
     <>
       <div className="aspect-video bg-gradient-to-br from-surface-950 via-primary-950 to-surface-950 relative flex flex-col items-center justify-center overflow-hidden">
-        {sceneSrc && (
+        {/* Escena del bloque actual. Al completar se desmonta el <video> para
+            evitar la pantalla negra que dejaban algunos navegadores/tablets al
+            aplicar overlays con blur sobre videos en bucle. Sin AnimatePresence
+            anidado: un exit atorado aqui congelaba la navegacion del modulo. */}
+        {sceneSrc && !complete && (
           <>
-            {/* La escena cambia con cada bloque del guion (crossfade) */}
-            <AnimatePresence initial={false}>
-              <motion.video
-                key={sceneSrc + captionIdx}
-                src={sceneSrc}
-                autoPlay
-                loop
-                muted
-                playsInline
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.6 }}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-            </AnimatePresence>
+            <motion.video
+              key={sceneSrc}
+              src={sceneSrc}
+              autoPlay
+              loop
+              muted
+              playsInline
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
             {/* Scrim para legibilidad de titulo y subtitulos */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/50" />
           </>
         )}
 
-        <AnimatePresence mode="wait">
+        {!complete && (
           <motion.div
             key={captionIdx}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.05 }}
             transition={{ duration: 0.4 }}
             className="relative z-10 text-center px-10"
           >
@@ -273,7 +272,7 @@ export function NarratedVideoPlayer({
             )}
             <h2 className="text-xl font-bold text-white mb-2 drop-shadow-lg">{caption.titulo}</h2>
           </motion.div>
-        </AnimatePresence>
+        )}
 
         <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/50 rounded-lg px-2 py-1">
           <Volume2 size={12} className="text-primary-300" />
@@ -281,17 +280,20 @@ export function NarratedVideoPlayer({
         </div>
 
         {/* Subtitulos — activados siempre */}
-        <div className="absolute bottom-3 left-3 right-3">
-          <div className="bg-black/70 rounded-lg px-4 py-2 flex items-start gap-2">
-            <Captions size={16} className="text-primary-400 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-white leading-snug">{caption.texto}</p>
+        {!complete && (
+          <div className="absolute bottom-3 left-3 right-3">
+            <div className="bg-black/70 rounded-lg px-4 py-2 flex items-start gap-2">
+              <Captions size={16} className="text-primary-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-white leading-snug">{caption.texto}</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {complete && (
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-gradient-to-br from-surface-950 via-primary-950 to-surface-950 flex flex-col items-center justify-center">
             <CheckCircle size={48} className="text-success-500 mb-2" />
             <p className="text-surface-100 font-semibold">Video completo</p>
+            <p className="text-xs text-surface-400 mt-1">Evidencia registrada con fecha y hora</p>
           </div>
         )}
       </div>

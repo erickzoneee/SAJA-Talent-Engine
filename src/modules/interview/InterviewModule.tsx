@@ -71,23 +71,23 @@ type ViewState = { view: 'list' } | { view: 'interview'; candidateId: string };
 export default function InterviewModule() {
   const [viewState, setViewState] = useState<ViewState>({ view: 'list' });
 
+  // v2.4: sin AnimatePresence mode="wait" — el cambio de vista es inmediato y
+  // solo se anima la entrada (una salida atorada dejaba la pantalla vacia).
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <AnimatePresence mode="wait">
-        {viewState.view === 'list' && (
-          <motion.div key="list" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-            <InterviewListView onStart={(id) => setViewState({ view: 'interview', candidateId: id })} />
-          </motion.div>
-        )}
-        {viewState.view === 'interview' && (
-          <motion.div key="interview" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-            <InterviewGuideFlow
-              candidateId={viewState.candidateId}
-              onExit={() => setViewState({ view: 'list' })}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {viewState.view === 'list' && (
+        <motion.div key="list" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+          <InterviewListView onStart={(id) => setViewState({ view: 'interview', candidateId: id })} />
+        </motion.div>
+      )}
+      {viewState.view === 'interview' && (
+        <motion.div key="interview" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+          <InterviewGuideFlow
+            candidateId={viewState.candidateId}
+            onExit={() => setViewState({ view: 'list' })}
+          />
+        </motion.div>
+      )}
     </div>
   );
 }
@@ -389,8 +389,10 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
         </div>
       </div>
 
+      {/* v2.4: sin AnimatePresence mode="wait" — el cambio de paso es inmediato
+          (una salida atorada dejaba la pantalla vacia); solo se anima la entrada */}
       <div className="flex-1 overflow-y-auto px-6 pb-6">
-        <AnimatePresence mode="wait">
+        <>
           {/* ─── PASO 0: Datos del candidato (heredados de recepcion) ─── */}
           {step === 0 && (
             <motion.div key="s0" {...fadeUp} className="max-w-2xl mx-auto space-y-4">
@@ -420,8 +422,8 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
                       <InfoRow
                         label="Disponibilidad declarada"
                         value={
-                          candidate.reception.disponibilidad === 'Otro'
-                            ? `Otro: ${candidate.reception.disponibilidadOtro ?? ''}`
+                          candidate.reception.disponibilidad.toUpperCase() === 'OTRO'
+                            ? `OTRO: ${candidate.reception.disponibilidadOtro ?? ''}`
                             : candidate.reception.disponibilidad
                         }
                       />
@@ -525,7 +527,7 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
               />
             </motion.div>
           )}
-        </AnimatePresence>
+        </>
       </div>
 
       {/* Modal de confirmacion de decision */}

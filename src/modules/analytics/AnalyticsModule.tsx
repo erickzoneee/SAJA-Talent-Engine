@@ -932,13 +932,13 @@ export default function AnalyticsModule() {
         ))}
       </motion.div>
 
-      {/* Tab Content */}
-      <AnimatePresence mode="wait">
+      {/* Tab Content — v2.4: cambio inmediato, sin animacion de salida atorada */}
+      <>
         {activeTab === 'reclutamiento' && <ReclutamientoTab candidates={candidates} />}
         {activeTab === 'retencion' && <RetencionTab employees={employees} />}
         {activeTab === 'desempeno' && <DesempenoTab employees={employees} />}
         {activeTab === 'onboarding' && <OnboardingTab employees={employees} />}
-      </AnimatePresence>
+      </>
     </div>
   );
 }

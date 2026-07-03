@@ -23,6 +23,9 @@ export interface Candidate {
   phone: string;
   neighborhood?: string;
   source: string;
+  // ─── v2.4: RFC del candidato (validado al dar de alta) y reingreso ───
+  rfc?: string;
+  reingreso?: boolean;
   photoUrl?: string;
   applicationPhotoUrl?: string;
   cvPhotoUrl?: string;
@@ -246,12 +249,20 @@ export interface Employee {
   fullName: string;
   position: JobPosition;
   hireDate: string;
+  /** Sueldo SEMANAL (= sueldo diario x 7, con septimo dia). */
   salary: number;
+  /** v2.4: sueldo diario capturado; el semanal se calcula automatico. */
+  dailySalary?: number;
   schedule: string;
   contractType: ContractType;
   area: string;
   supervisor: string;
   imssNumber: string;
+  // ─── v2.4 ───
+  rfc?: string;
+  reingreso?: boolean;
+  /** Texto del contrato individual (autollenado y editable por RH). */
+  contractText?: string;
   bankDetails: string;
   status: EmployeeStatus;
   documents: DocumentChecklist;
@@ -390,11 +401,33 @@ export interface AppSettings {
   supervisorPin: string;
   directionPin: string;
   // ─── v2.1: URLs de videos reales (si vacio, se usa el reproductor de demostracion) ───
-  // Recepcion: 1 video informativo. Onboarding: 10 videos de la semana 1 por id de modulo.
+  // Recepcion: 1 video informativo. Onboarding: 11 videos de la semana 1 por id de modulo.
   receptionVideoUrl?: string;
   onboardingVideoUrls?: Record<number, string>;
   // ─── v2.1: URLs de narracion (audio TTS). Modo "narrado": audio + laminas y
   // subtitulos sincronizados. Se usa cuando no hay video real. ───
   receptionNarrationUrl?: string;
   onboardingNarrationUrls?: Record<number, string>;
+  // ─── v2.4: catalogos editables de contratacion ───
+  /** Tipos de horario asignables (3 turnos por defecto; editables). */
+  schedules?: string[];
+  /** Areas asignables (editables; se pueden agregar nuevas). */
+  areas?: string[];
 }
+
+// ─── v2.4: valores por defecto de los catalogos de contratacion ─────────────
+
+export const DEFAULT_SCHEDULES: string[] = [
+  'TURNO MATUTINO · LUNES A SABADO 7:00 - 15:30',
+  'TURNO VESPERTINO · LUNES A SABADO 14:00 - 22:30',
+  'TURNO MIXTO · LUNES A VIERNES 9:00 - 19:00',
+];
+
+export const DEFAULT_AREAS: string[] = [
+  'PRODUCCION',
+  'ACONDICIONAMIENTO',
+  'ALMACEN',
+  'MANTENIMIENTO',
+  'ADMINISTRACION',
+  'CONTROL DE CALIDAD',
+];

@@ -111,8 +111,10 @@ type ViewState =
 export default function ExitModule() {
   const [view, setView] = useState<ViewState>({ kind: 'list' });
 
+  // v2.4: sin AnimatePresence mode="wait" — el cambio de vista es inmediato y
+  // solo se anima la entrada (una salida atorada dejaba la pantalla vacia).
   return (
-    <AnimatePresence mode="wait">
+    <>
       {view.kind === 'list' && (
         <motion.div key="list" {...pageTransition}>
           <EmployeeListView
@@ -153,7 +155,7 @@ export default function ExitModule() {
           <ReferenceLookupView onBack={() => setView({ kind: 'list' })} />
         </motion.div>
       )}
-    </AnimatePresence>
+    </>
   );
 }
 

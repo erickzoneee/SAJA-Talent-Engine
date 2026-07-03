@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Candidate, Employee, AppSettings, SystemAlert } from '../types';
+import { DEFAULT_SCHEDULES, DEFAULT_AREAS } from '../types';
 import { generateId } from '../utils/helpers';
 
 interface AppState {
@@ -56,6 +57,7 @@ const defaultOnboardingNarrationUrls: Record<number, string> = {
   8: `${NARRATION_BASE}onboarding-8.mp3`,
   9: `${NARRATION_BASE}onboarding-9.mp3`,
   10: `${NARRATION_BASE}onboarding-10.mp3`,
+  11: `${NARRATION_BASE}onboarding-11.mp3`,
 };
 
 const defaultSettings: AppSettings = {
@@ -73,6 +75,8 @@ const defaultSettings: AppSettings = {
   onboardingVideoUrls: {},
   receptionNarrationUrl: defaultReceptionNarrationUrl,
   onboardingNarrationUrls: { ...defaultOnboardingNarrationUrls },
+  schedules: [...DEFAULT_SCHEDULES],
+  areas: [...DEFAULT_AREAS],
 };
 
 export const useStore = create<AppState>()(
@@ -154,9 +158,11 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'saja-talent-engine-storage',
-      version: 2,
+      version: 4,
       // v2 → inyecta las narraciones por defecto en expedientes ya guardados
       // (sin pisar lo que Direccion haya configurado a mano).
+      // v3 → agrega la narracion del video 11 (Presentacion de la empresa).
+      // v4 → catalogos de horarios (3 turnos) y areas asignables.
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as { settings?: AppSettings } | null;
         if (state?.settings && version < 2) {
@@ -169,6 +175,19 @@ export const useStore = create<AppState>()(
             Object.keys(state.settings.onboardingNarrationUrls).length === 0
           ) {
             state.settings.onboardingNarrationUrls = { ...defaultOnboardingNarrationUrls };
+          }
+        }
+        if (state?.settings && version < 3) {
+          if (state.settings.onboardingNarrationUrls && !state.settings.onboardingNarrationUrls[11]) {
+            state.settings.onboardingNarrationUrls[11] = defaultOnboardingNarrationUrls[11];
+          }
+        }
+        if (state?.settings && version < 4) {
+          if (!state.settings.schedules || state.settings.schedules.length === 0) {
+            state.settings.schedules = [...DEFAULT_SCHEDULES];
+          }
+          if (!state.settings.areas || state.settings.areas.length === 0) {
+            state.settings.areas = [...DEFAULT_AREAS];
           }
         }
         return state as AppState;

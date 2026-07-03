@@ -15,6 +15,7 @@
 //   onboarding-8   celular guardado en locker
 //   onboarding-9   camara de videovigilancia sobre la planta
 //   onboarding-10  botiquin, extintor y colaborador ayudando a otro
+//   onboarding-11  linea de empaque con producto terminado (jabones y amenidades)
 
 const CLIP_BASE = `${import.meta.env.BASE_URL}media/clips/`;
 
@@ -46,6 +47,7 @@ const ONBOARDING_SCENES: Record<number, string[]> = {
   8: [clip('onboarding-8'), clip('recepcion'), clip('onboarding-9')],
   9: [clip('onboarding-9'), clip('onboarding-1'), clip('onboarding-9')],
   10: [clip('onboarding-10'), clip('onboarding-10'), clip('onboarding-1'), clip('onboarding-6')],
+  11: [clip('recepcion'), clip('onboarding-11'), clip('onboarding-5'), clip('onboarding-1'), clip('recepcion')],
 };
 
 export function getOnboardingSceneClips(moduleId: number): string[] {

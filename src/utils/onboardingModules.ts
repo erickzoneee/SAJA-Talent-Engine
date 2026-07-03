@@ -2,7 +2,8 @@ import type { OnboardingModule } from '../types';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // v2.0 — VIDEOS GENERALES DE CAPACITACION — SEMANA 1 (BRD seccion 7)
-// 10 videos. Los criticos llevan mini evaluacion con minimo 70%.
+// 10 videos del BRD + presentacion de la empresa (v2.3).
+// Los criticos llevan mini evaluacion con minimo 70%.
 // Si no aprueba: repite el video COMPLETO antes de volver a contestar.
 // Maximo 3 intentos → alerta inmediata a Direccion + bloqueo.
 // Boton 'Tengo dudas' → alerta inmediata a RH y jefe directo.
@@ -30,6 +31,8 @@ export function getDefaultOnboardingModules(): OnboardingModule[] {
     { id: 8, name: 'Uso de celular y confidencialidad', duration: '2 min', durationMin: 2, critical: true, questionsCount: 3, ...base },
     { id: 9, name: 'Videovigilancia y camaras de seguridad', duration: '1.5 min', durationMin: 1.5, critical: true, questionsCount: 3, ...base },
     { id: 10, name: 'Que hacer en caso de accidente', duration: '2 min', durationMin: 2, critical: true, questionsCount: 4, ...base },
+    // v2.3 — pedido por Direccion ademas de los 10 del BRD
+    { id: 11, name: 'Presentacion de la empresa', duration: '1 min', durationMin: 1, critical: false, ...base },
   ];
 }
 
@@ -96,6 +99,13 @@ export function getOnboardingVideoScript(moduleId: number): OnboardingNarrationC
       { titulo: 'No lo muevas', texto: 'Si el accidentado esta grave, no lo muevas y pide ayuda de inmediato.' },
       { titulo: 'Reporta todo', texto: 'Todo accidente, aunque parezca leve, se reporta siempre.' },
       { titulo: 'Botiquin y extintor', texto: 'Debes saber donde estan el botiquin y el extintor de tu area.' },
+    ],
+    11: [
+      { titulo: 'Quienes somos', texto: 'Jabones y Amenidades de Calidad es una empresa cien por ciento mexicana, con mas de tres decadas fabricando productos de higiene.' },
+      { titulo: 'Que hacemos', texto: 'Fabricamos jabones y amenidades para hoteles: jabon, shampoo, acondicionador y mas productos que acompanan a miles de huespedes todos los dias.' },
+      { titulo: 'Nuestra calidad', texto: 'Cada pieza que sale de esta planta lleva el trabajo y el cuidado de todo el equipo. La calidad es nuestra carta de presentacion.' },
+      { titulo: 'Nuestros valores', texto: 'Trabajamos con honestidad, limpieza y respeto, para que cada cliente reciba un producto del que estemos orgullosos.' },
+      { titulo: 'Eres parte', texto: 'Desde hoy tu tambien formas parte de esta historia. Bienvenido al equipo.' },
     ],
   };
   return scripts[moduleId] || [];

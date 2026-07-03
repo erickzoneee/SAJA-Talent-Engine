@@ -165,25 +165,25 @@ type ViewState =
 export default function PerformanceModule() {
   const [viewState, setViewState] = useState<ViewState>({ view: 'list' });
 
+  // v2.4: sin AnimatePresence mode="wait" — el cambio de vista es inmediato y
+  // solo se anima la entrada (una salida atorada dejaba la pantalla vacia).
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <AnimatePresence mode="wait">
-        {viewState.view === 'list' && (
-          <motion.div key="list" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-            <EmployeeListView
-              onSelectEmployee={(id) => setViewState({ view: 'employee', employeeId: id })}
-            />
-          </motion.div>
-        )}
-        {viewState.view === 'employee' && (
-          <motion.div key="employee" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-            <EmployeeDashboard
-              employeeId={viewState.employeeId}
-              onBack={() => setViewState({ view: 'list' })}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {viewState.view === 'list' && (
+        <motion.div key="list" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+          <EmployeeListView
+            onSelectEmployee={(id) => setViewState({ view: 'employee', employeeId: id })}
+          />
+        </motion.div>
+      )}
+      {viewState.view === 'employee' && (
+        <motion.div key="employee" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+          <EmployeeDashboard
+            employeeId={viewState.employeeId}
+            onBack={() => setViewState({ view: 'list' })}
+          />
+        </motion.div>
+      )}
     </div>
   );
 }

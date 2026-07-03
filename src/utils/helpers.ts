@@ -2,17 +2,95 @@ export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
+// ─── v2.4: estandarizacion a MAYUSCULAS en todo el sistema ───────────────────
+
+/** Normaliza texto capturado: recorta espacios y lo pasa a MAYUSCULAS. */
+export function toUpper(value: string): string {
+  return value.trim().toLocaleUpperCase('es-MX');
+}
+
+// ─── v2.4: validacion de RFC (SAT — persona fisica 13 / moral 12) ────────────
+
+export const RFC_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}$/;
+
+export function isValidRfc(rfc: string): boolean {
+  return RFC_REGEX.test(rfc.trim().toUpperCase());
+}
+
+// ─── v2.4: cantidad en letra para el contrato (pesos mexicanos) ──────────────
+
+const UNIDADES = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
+const DIECIS = ['DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISEIS', 'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE'];
+const DECENAS = ['', '', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
+const CENTENAS = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
+
+function tresDigitos(n: number): string {
+  if (n === 0) return '';
+  if (n === 100) return 'CIEN';
+  const c = Math.floor(n / 100);
+  const resto = n % 100;
+  let texto = c > 0 ? CENTENAS[c] : '';
+  if (resto > 0) {
+    let dec: string;
+    if (resto < 10) dec = UNIDADES[resto];
+    else if (resto < 20) dec = DIECIS[resto - 10];
+    else if (resto < 30) dec = resto === 20 ? 'VEINTE' : `VEINTI${UNIDADES[resto - 20]}`;
+    else {
+      const d = Math.floor(resto / 10);
+      const u = resto % 10;
+      dec = u > 0 ? `${DECENAS[d]} Y ${UNIDADES[u]}` : DECENAS[d];
+    }
+    texto = texto ? `${texto} ${dec}` : dec;
+  }
+  return texto;
+}
+
+/** Convierte una cantidad a letra, ej. 2450.5 → "DOS MIL CUATROCIENTOS CINCUENTA PESOS 50/100 M.N." */
+export function cantidadEnLetra(cantidad: number): string {
+  const entero = Math.floor(cantidad);
+  const centavos = Math.round((cantidad - entero) * 100);
+  let letras: string;
+  if (entero === 0) letras = 'CERO';
+  else if (entero >= 1000000) {
+    const millones = Math.floor(entero / 1000000);
+    const resto = entero % 1000000;
+    const millonesTxt = millones === 1 ? 'UN MILLON' : `${cantidadEnteroTexto(millones)} MILLONES`;
+    letras = resto > 0 ? `${millonesTxt} ${cantidadEnteroTexto(resto)}` : millonesTxt;
+  } else letras = cantidadEnteroTexto(entero);
+  return `${letras} PESOS ${String(centavos).padStart(2, '0')}/100 M.N.`;
+}
+
+function cantidadEnteroTexto(n: number): string {
+  if (n === 0) return 'CERO';
+  const miles = Math.floor(n / 1000);
+  const resto = n % 1000;
+  let texto = '';
+  if (miles > 0) texto = miles === 1 ? 'MIL' : `${tresDigitos(miles)} MIL`;
+  if (resto > 0) texto = texto ? `${texto} ${tresDigitos(resto)}` : tresDigitos(resto);
+  return texto;
+}
+
+// Las fechas sin hora ("2026-07-02") se interpretan a MEDIODIA LOCAL: si se
+// dejan al parser nativo se toman como medianoche UTC y en Mexico se muestran
+// UN DIA ANTES (ej. ingreso 01 jun aparecia como 31 may).
+function parseLocalDate(date: string): Date {
+  return new Date(/^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date}T12:00:00` : date);
+}
+
 export function formatDate(date: string | Date): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = typeof date === 'string' ? parseLocalDate(date) : date;
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export function formatDateInput(date: Date): string {
-  return date.toISOString().split('T')[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 export function daysUntil(dateStr: string): number {
-  const target = new Date(dateStr);
+  const target = parseLocalDate(dateStr);
   const now = new Date();
   return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }

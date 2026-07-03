@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useStore } from './store/useStore';
+import { initCloudSync } from './utils/cloudSync';
 import Layout from './components/Layout';
 import LoginScreen from './components/LoginScreen';
 import RecruitmentModule from './modules/recruitment/RecruitmentModule';
@@ -27,6 +29,11 @@ function DirectionRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  // v2.4: reanuda la sincronizacion multi-dispositivo si esta configurada
+  useEffect(() => {
+    initCloudSync();
+  }, []);
+
   return (
     <HashRouter>
       <Routes>

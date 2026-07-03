@@ -47,7 +47,7 @@ import {
   getExamOutcome,
 } from '../../utils/examBank';
 import { DIAGNOSTIC_LABELS } from '../../utils/interviewGuide';
-import { generateId, formatDate, getInitials } from '../../utils/helpers';
+import { generateId, formatDate, getInitials, toUpper, isValidRfc } from '../../utils/helpers';
 import { parseVideoSource, RealVideoPlayer, NarratedVideoPlayer } from '../../components/VideoPlayer';
 import { receptionSceneClips } from '../../utils/narrationAssets';
 
@@ -150,9 +150,11 @@ type ViewState =
 export default function RecruitmentModule() {
   const [viewState, setViewState] = useState<ViewState>({ view: 'list' });
 
+  // v2.4: sin AnimatePresence mode="wait" — un exit atorado con el reproductor
+  // de video adentro dejaba la pantalla en negro (mismo fix que en Onboarding).
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <AnimatePresence mode="wait">
+      <>
         {viewState.view === 'list' && (
           <motion.div key="list" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
             <CandidateListView
@@ -205,7 +207,7 @@ export default function RecruitmentModule() {
             />
           </motion.div>
         )}
-      </AnimatePresence>
+      </>
     </div>
   );
 }
@@ -438,11 +440,15 @@ interface FichaRecepcionViewProps {
 
 function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
   const addCandidate = useStore((s) => s.addCandidate);
+  const employees = useStore((s) => s.employees);
+  const candidates = useStore((s) => s.candidates);
 
   const [form, setForm] = useState({
     fullName: '',
     phone: '',
     position: '' as JobPosition | '',
+    rfc: '',
+    reingreso: false,
     escolaridad: '',
     ultimoTrabajo: '',
     tiempoUltimoEmpleo: '',
@@ -453,10 +459,27 @@ function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
   });
   const [saving, setSaving] = useState(false);
 
-  const setField = (key: keyof typeof form, value: string) =>
+  const setField = (key: keyof typeof form, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const today = new Date();
+
+  // ─── v2.4 Req 8: validacion de RFC al dar de alta ───
+  const rfcUpper = form.rfc.trim().toUpperCase();
+  const rfcFormatOk = rfcUpper === '' || isValidRfc(rfcUpper);
+  const rfcActiveEmployee = rfcUpper
+    ? employees.find((e) => (e.rfc ?? '') === rfcUpper && e.status !== 'inactive')
+    : undefined;
+  const rfcExEmployee = !rfcActiveEmployee && rfcUpper
+    ? employees.find((e) => (e.rfc ?? '') === rfcUpper && e.status === 'inactive')
+    : undefined;
+  const rfcDupCandidate = !rfcActiveEmployee && rfcUpper
+    ? candidates.find((c) => (c.rfc ?? '') === rfcUpper && !c.hired)
+    : undefined;
+  const rfcOk = rfcFormatOk && !rfcActiveEmployee;
+
+  // Ex-colaborador detectado por RFC → se marca reingreso automaticamente
+  const reingresoEfectivo = form.reingreso || !!rfcExEmployee;
 
   const formValid =
     form.fullName.trim() !== '' &&
@@ -468,7 +491,8 @@ function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
     form.motivoSalida.trim() !== '' &&
     form.disponibilidad !== '' &&
     (form.disponibilidad !== 'Otro' || form.disponibilidadOtro.trim() !== '') &&
-    form.source !== '';
+    form.source !== '' &&
+    rfcOk;
 
   const handleSave = () => {
     if (!formValid || saving) return;
@@ -477,24 +501,27 @@ function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
     const id = generateId();
     const now = new Date().toISOString();
 
+    // v2.4 Req 1: los datos capturados se guardan en MAYUSCULAS
     const candidate: Candidate = {
       id,
-      fullName: form.fullName.trim(),
+      fullName: toUpper(form.fullName),
       applicationDate: now.split('T')[0],
       position: form.position as JobPosition,
       phone: form.phone.trim(),
-      source: form.source,
+      source: toUpper(form.source),
+      rfc: rfcUpper || undefined,
+      reingreso: reingresoEfectivo || undefined,
       mathCompleted: false,
       interviewCompleted: false,
       hired: false,
       createdAt: now,
       reception: {
-        escolaridad: form.escolaridad,
-        ultimoTrabajo: form.ultimoTrabajo.trim(),
-        tiempoUltimoEmpleo: form.tiempoUltimoEmpleo,
-        motivoSalida: form.motivoSalida.trim(),
-        disponibilidad: form.disponibilidad,
-        disponibilidadOtro: form.disponibilidad === 'Otro' ? form.disponibilidadOtro.trim() : undefined,
+        escolaridad: toUpper(form.escolaridad),
+        ultimoTrabajo: toUpper(form.ultimoTrabajo),
+        tiempoUltimoEmpleo: toUpper(form.tiempoUltimoEmpleo),
+        motivoSalida: toUpper(form.motivoSalida),
+        disponibilidad: toUpper(form.disponibilidad),
+        disponibilidadOtro: form.disponibilidad === 'Otro' ? toUpper(form.disponibilidadOtro) : undefined,
         videoCompleto: false,
       },
     };
@@ -575,6 +602,71 @@ function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
                       ),
                     )}
                   </select>
+                </div>
+              </div>
+
+              {/* ─── v2.4: RFC (Req 8) y Reingreso (Req 2) ─── */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm text-surface-400 mb-1">RFC (con homoclave)</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Ej. BUMD830914JK0"
+                    maxLength={13}
+                    value={form.rfc}
+                    onChange={(e) => setField('rfc', e.target.value.toUpperCase())}
+                  />
+                  {!rfcFormatOk && (
+                    <p className="text-xs text-danger-500 mt-1 flex items-center gap-1">
+                      <AlertTriangle size={12} /> Formato de RFC invalido (12-13 caracteres del SAT).
+                    </p>
+                  )}
+                  {rfcActiveEmployee && (
+                    <p className="text-xs text-danger-500 mt-1 flex items-center gap-1">
+                      <AlertTriangle size={12} />
+                      Este RFC ya esta ACTIVO en el sistema: {rfcActiveEmployee.fullName} (expediente #
+                      {String(rfcActiveEmployee.expedientNumber).padStart(3, '0')}). No se puede dar de alta dos veces.
+                    </p>
+                  )}
+                  {rfcExEmployee && (
+                    <p className="text-xs text-warning-500 mt-1 flex items-center gap-1">
+                      <CheckCircle size={12} />
+                      RFC de ex-colaborador ({rfcExEmployee.fullName}) — se marcara como REINGRESO automaticamente.
+                    </p>
+                  )}
+                  {rfcDupCandidate && rfcFormatOk && (
+                    <p className="text-xs text-warning-500 mt-1 flex items-center gap-1">
+                      <AlertTriangle size={12} />
+                      Ya hay un candidato en proceso con este RFC: {rfcDupCandidate.fullName}.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm text-surface-400 mb-1">¿Es reingreso? (ya trabajo aqui antes)</label>
+                  <div className="flex gap-2">
+                    {[{ v: false, t: 'NO' }, { v: true, t: 'SI, ES REINGRESO' }].map((opt) => (
+                      <button
+                        key={opt.t}
+                        type="button"
+                        onClick={() => setField('reingreso', opt.v)}
+                        className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                          reingresoEfectivo === opt.v
+                            ? opt.v
+                              ? 'bg-warning-500/20 border-warning-500/60 text-warning-500'
+                              : 'bg-primary-500/20 border-primary-500/60 text-primary-300'
+                            : 'bg-surface-900/40 border-surface-700 text-surface-400 hover:border-surface-500'
+                        }`}
+                      >
+                        {opt.t}
+                      </button>
+                    ))}
+                  </div>
+                  {reingresoEfectivo && (
+                    <p className="text-xs text-warning-500 mt-1">
+                      Se registrara como REINGRESO en el expediente.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -865,7 +957,7 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
               )}
 
               {complete && (
-                <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center ${usingReal ? 'pointer-events-none' : ''}`}>
+                <div className={`absolute inset-0 bg-black/80 flex flex-col items-center justify-center ${usingReal ? 'pointer-events-none' : ''}`}>
                   <CheckCircle size={48} className="text-success-500 mb-2" />
                   <p className="text-surface-100 font-semibold">Video completo</p>
                 </div>
@@ -1191,8 +1283,10 @@ function CandidateDetail({ candidateId, onBack, onStartExam, onWatchVideo, onSch
                 <DetailRow label="Motivo de salida" value={r.motivoSalida} />
                 <DetailRow
                   label="Disponibilidad"
-                  value={r.disponibilidad === 'Otro' ? `Otro: ${r.disponibilidadOtro ?? ''}` : r.disponibilidad}
+                  value={r.disponibilidad.toUpperCase() === 'OTRO' ? `OTRO: ${r.disponibilidadOtro ?? ''}` : r.disponibilidad}
                 />
+                <DetailRow label="RFC" value={candidate.rfc ?? ''} />
+                <DetailRow label="Reingreso" value={candidate.reingreso ? 'SI — YA TRABAJO AQUI ANTES' : 'NO'} />
               </div>
             </div>
           )}

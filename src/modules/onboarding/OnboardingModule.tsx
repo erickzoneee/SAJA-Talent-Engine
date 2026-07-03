@@ -119,53 +119,55 @@ type ViewState =
 export default function OnboardingModule() {
   const [viewState, setViewState] = useState<ViewState>({ view: 'list' });
 
+  // v2.4: sin AnimatePresence mode="wait" aqui — con reproductores de video
+  // adentro, una animacion de salida atorada dejaba la pantalla en negro al
+  // volver de un video (habia que salirse o recargar el modulo). El cambio de
+  // vista ahora es inmediato y solo se anima la entrada.
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <AnimatePresence mode="wait">
-        {viewState.view === 'list' && (
-          <motion.div key="list" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-            <EmployeeListView
-              onSelectEmployee={(id) => setViewState({ view: 'dashboard', employeeId: id })}
-            />
-          </motion.div>
-        )}
-        {viewState.view === 'dashboard' && (
-          <motion.div key="dashboard" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-            <OnboardingDashboard
-              employeeId={viewState.employeeId}
-              onBack={() => setViewState({ view: 'list' })}
-              onSelectModule={(moduleId) =>
-                setViewState({ view: 'module', employeeId: viewState.employeeId, moduleId })
-              }
-              onCompleted={() =>
-                setViewState({ view: 'completed', employeeId: viewState.employeeId })
-              }
-            />
-          </motion.div>
-        )}
-        {viewState.view === 'module' && (
-          <motion.div key="module" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-            <ModuleDetailView
-              employeeId={viewState.employeeId}
-              moduleId={viewState.moduleId}
-              onBack={() =>
-                setViewState({ view: 'dashboard', employeeId: viewState.employeeId })
-              }
-            />
-          </motion.div>
-        )}
-        {viewState.view === 'completed' && (
-          <motion.div key="completed" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-            <CompletionScreen
-              employeeId={viewState.employeeId}
-              onBack={() =>
-                setViewState({ view: 'dashboard', employeeId: viewState.employeeId })
-              }
-              onBackToList={() => setViewState({ view: 'list' })}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {viewState.view === 'list' && (
+        <motion.div key="list" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+          <EmployeeListView
+            onSelectEmployee={(id) => setViewState({ view: 'dashboard', employeeId: id })}
+          />
+        </motion.div>
+      )}
+      {viewState.view === 'dashboard' && (
+        <motion.div key="dashboard" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+          <OnboardingDashboard
+            employeeId={viewState.employeeId}
+            onBack={() => setViewState({ view: 'list' })}
+            onSelectModule={(moduleId) =>
+              setViewState({ view: 'module', employeeId: viewState.employeeId, moduleId })
+            }
+            onCompleted={() =>
+              setViewState({ view: 'completed', employeeId: viewState.employeeId })
+            }
+          />
+        </motion.div>
+      )}
+      {viewState.view === 'module' && (
+        <motion.div key="module" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+          <ModuleDetailView
+            employeeId={viewState.employeeId}
+            moduleId={viewState.moduleId}
+            onBack={() =>
+              setViewState({ view: 'dashboard', employeeId: viewState.employeeId })
+            }
+          />
+        </motion.div>
+      )}
+      {viewState.view === 'completed' && (
+        <motion.div key="completed" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+          <CompletionScreen
+            employeeId={viewState.employeeId}
+            onBack={() =>
+              setViewState({ view: 'dashboard', employeeId: viewState.employeeId })
+            }
+            onBackToList={() => setViewState({ view: 'list' })}
+          />
+        </motion.div>
+      )}
     </div>
   );
 }
@@ -1194,7 +1196,7 @@ function VideoModuleView({
                 </>
               )}
               {videoComplete && (
-                <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center ${usingReal ? 'pointer-events-none' : ''}`}>
+                <div className={`absolute inset-0 bg-black/80 flex flex-col items-center justify-center ${usingReal ? 'pointer-events-none' : ''}`}>
                   <CheckCircle size={44} className="text-success-500 mb-2" />
                   <p className="text-surface-100 font-semibold">Video visto completo</p>
                   <p className="text-xs text-surface-400">Evidencia registrada con fecha y hora</p>
@@ -1343,7 +1345,7 @@ function VideoModuleView({
                 <BookOpen size={16} className="text-accent-400" />
                 Mini evaluacion — {mod.name}
               </h3>
-              <span className="text-xs text-surface-400">
+              <span className="badge badge-blue text-xs font-bold">
                 Pregunta {currentQ + 1} de {questions.length}
               </span>
             </div>
@@ -1363,21 +1365,33 @@ function VideoModuleView({
                 transition={{ duration: 0.25 }}
                 className="space-y-4"
               >
-                <p className="text-sm text-surface-200 font-medium leading-relaxed">
-                  {questions[currentQ].question}
-                </p>
-                <div className="space-y-2">
+                {/* v2.4 — Requerimiento 5: pregunta mas grande y visible */}
+                <div className="p-4 rounded-xl bg-primary-500/10 border-l-4 border-l-primary-500 border border-primary-500/20">
+                  <p className="text-lg md:text-xl text-white font-bold leading-relaxed">
+                    {questions[currentQ].question}
+                  </p>
+                </div>
+                <div className="space-y-2.5">
                   {questions[currentQ].options.map((option, optIdx) => (
                     <button
                       key={optIdx}
                       onClick={() => setSelected(optIdx)}
-                      className={`w-full text-left p-3.5 rounded-xl text-sm transition-all duration-200 cursor-pointer ${
+                      className={`w-full text-left p-4 rounded-xl text-base transition-all duration-200 cursor-pointer flex items-center gap-3 ${
                         selected === optIdx
-                          ? 'bg-primary-500/20 border border-primary-500/40 text-primary-300'
-                          : 'bg-surface-800/40 border border-surface-700/30 text-surface-300 hover:bg-surface-700/40'
+                          ? 'bg-primary-500/25 border-2 border-primary-500/60 text-white font-semibold'
+                          : 'bg-surface-800/40 border-2 border-surface-700/30 text-surface-200 hover:bg-surface-700/40 hover:border-surface-500/50'
                       }`}
                     >
-                      {option}
+                      <span
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 ${
+                          selected === optIdx
+                            ? 'bg-primary-500 text-white'
+                            : 'bg-surface-700/60 text-surface-300'
+                        }`}
+                      >
+                        {String.fromCharCode(65 + optIdx)}
+                      </span>
+                      <span>{option}</span>
                     </button>
                   ))}
                 </div>
@@ -1677,7 +1691,7 @@ function QuizSection({
           <BookOpen size={16} className="text-accent-400" />
           Quiz
         </h3>
-        <span className="text-xs text-surface-400">
+        <span className="badge badge-blue text-xs font-bold">
           Pregunta {currentQuestion + 1} de {questions.length}
         </span>
       </div>
@@ -1700,31 +1714,32 @@ function QuizSection({
           transition={{ duration: 0.25 }}
           className="space-y-4"
         >
-          <p className="text-sm text-surface-200 font-medium leading-relaxed">{q.question}</p>
+          {/* v2.4 — Requerimiento 5: pregunta mas grande y visible */}
+          <div className="p-4 rounded-xl bg-primary-500/10 border-l-4 border-l-primary-500 border border-primary-500/20">
+            <p className="text-lg md:text-xl text-white font-bold leading-relaxed">{q.question}</p>
+          </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {q.options.map((option, optIdx) => (
               <button
                 key={optIdx}
                 onClick={() => handleSelectOption(optIdx)}
-                className={`w-full text-left p-3.5 rounded-xl text-sm transition-all duration-200 cursor-pointer ${
+                className={`w-full text-left p-4 rounded-xl text-base transition-all duration-200 cursor-pointer ${
                   selectedOption === optIdx
-                    ? 'bg-primary-500/20 border border-primary-500/40 text-primary-300'
-                    : 'bg-surface-800/40 border border-surface-700/30 text-surface-300 hover:bg-surface-700/40 hover:border-surface-600/40'
+                    ? 'bg-primary-500/25 border-2 border-primary-500/60 text-white font-semibold'
+                    : 'bg-surface-800/40 border-2 border-surface-700/30 text-surface-200 hover:bg-surface-700/40 hover:border-surface-500/50'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div
-                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                  <span
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 ${
                       selectedOption === optIdx
-                        ? 'border-primary-400 bg-primary-500/30'
-                        : 'border-surface-600'
+                        ? 'bg-primary-500 text-white'
+                        : 'bg-surface-700/60 text-surface-300'
                     }`}
                   >
-                    {selectedOption === optIdx && (
-                      <div className="w-2.5 h-2.5 rounded-full bg-primary-400" />
-                    )}
-                  </div>
+                    {String.fromCharCode(65 + optIdx)}
+                  </span>
                   <span>{option}</span>
                 </div>
               </button>

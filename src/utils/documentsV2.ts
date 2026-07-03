@@ -45,10 +45,10 @@ export function buildDocuments(employee: Employee, settings: AppSettings): DocTe
   return [
     {
       key: 'contrato',
-      titulo: 'Contrato Laboral de Prueba',
+      titulo: 'Contrato Individual de Trabajo',
       cuando: 'Dia 1',
       tantos: '2 tantos',
-      descripcion: 'Datos de empresa y trabajador, puesto, sueldo, horario, duracion 15 dias, jefe directo y obligaciones.',
+      descripcion: 'Autollenado con los datos capturados (empresa, trabajador, puesto, sueldo diario/semanal, horario, vigencia) y EDITABLE antes de imprimir.',
       parrafos: [
         `Contrato individual de trabajo por periodo de prueba que celebran, por una parte, ${empresa}, con domicilio en ${settings.companyAddress}${settings.companyRfc ? ` y RFC ${settings.companyRfc}` : ''}, en adelante "LA EMPRESA", y por otra parte ${nombre}, en adelante "EL TRABAJADOR".`,
         `PUESTO: EL TRABAJADOR prestara sus servicios en el puesto de ${puesto}, reportando directamente a ${jefe}.`,
@@ -140,7 +140,7 @@ export function buildDocuments(employee: Employee, settings: AppSettings): DocTe
 }
 
 export const DOC_LABELS: Record<SignedDocKey, string> = {
-  contrato: 'Contrato laboral de prueba',
+  contrato: 'Contrato individual de trabajo',
   acuseGeneral: 'Acuse general de recepcion',
   avisoISR: 'Aviso de ajuste de ISR',
   convenioVacaciones: 'Convenio de vacaciones',

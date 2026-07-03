@@ -30,7 +30,7 @@ import type {
   SignedDocKey,
 } from '../../types';
 import type { JobPosition } from '../../types';
-import { JOB_POSITIONS } from '../../types';
+import { JOB_POSITIONS, DEFAULT_SCHEDULES, DEFAULT_AREAS } from '../../types';
 import { useStore } from '../../store/useStore';
 import {
   generateId,
@@ -39,11 +39,14 @@ import {
   addBusinessDays,
   fileToBase64,
   getInitials,
+  toUpper,
+  isValidRfc,
 } from '../../utils/helpers';
 import { getVerdictLabel, getVerdictColor } from '../../utils/scoring';
 import { getDefaultOnboardingModules } from '../../utils/onboardingModules';
 import { buildDocuments, createEmptySignedDocs, DOC_ORDER } from '../../utils/documentsV2';
 import type { DocTemplate } from '../../utils/documentsV2';
+import { buildContractText, printContractText } from '../../utils/contractTemplate';
 import { EXAM_OUTCOME_LABELS } from '../../utils/examBank';
 
 // ── Animation Variants ──────────────────────────────────────────────────────
@@ -154,43 +157,43 @@ type ViewState =
 export default function HiringModule() {
   const [viewState, setViewState] = useState<ViewState>({ view: 'candidates' });
 
+  // v2.4: sin AnimatePresence mode="wait" — el cambio de vista es inmediato y
+  // solo se anima la entrada (una salida atorada dejaba la pantalla vacia).
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <AnimatePresence mode="wait">
-        {viewState.view === 'candidates' && (
-          <motion.div key="candidates" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-            <CandidatesReadyView
-              onHire={(id) => setViewState({ view: 'hiring-form', candidateId: id })}
-              onViewEmployees={() => setViewState({ view: 'employee-list' })}
-            />
-          </motion.div>
-        )}
-        {viewState.view === 'hiring-form' && (
-          <motion.div key="hiring-form" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-            <HiringFormView
-              candidateId={viewState.candidateId}
-              onBack={() => setViewState({ view: 'candidates' })}
-              onComplete={() => setViewState({ view: 'employee-list' })}
-            />
-          </motion.div>
-        )}
-        {viewState.view === 'employee-list' && (
-          <motion.div key="employee-list" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-            <EmployeeListView
-              onBack={() => setViewState({ view: 'candidates' })}
-              onViewDossier={(id) => setViewState({ view: 'dossier', employeeId: id })}
-            />
-          </motion.div>
-        )}
-        {viewState.view === 'dossier' && (
-          <motion.div key="dossier" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-            <DossierView
-              employeeId={viewState.employeeId}
-              onBack={() => setViewState({ view: 'employee-list' })}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {viewState.view === 'candidates' && (
+        <motion.div key="candidates" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+          <CandidatesReadyView
+            onHire={(id) => setViewState({ view: 'hiring-form', candidateId: id })}
+            onViewEmployees={() => setViewState({ view: 'employee-list' })}
+          />
+        </motion.div>
+      )}
+      {viewState.view === 'hiring-form' && (
+        <motion.div key="hiring-form" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+          <HiringFormView
+            candidateId={viewState.candidateId}
+            onBack={() => setViewState({ view: 'candidates' })}
+            onComplete={() => setViewState({ view: 'employee-list' })}
+          />
+        </motion.div>
+      )}
+      {viewState.view === 'employee-list' && (
+        <motion.div key="employee-list" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+          <EmployeeListView
+            onBack={() => setViewState({ view: 'candidates' })}
+            onViewDossier={(id) => setViewState({ view: 'dossier', employeeId: id })}
+          />
+        </motion.div>
+      )}
+      {viewState.view === 'dossier' && (
+        <motion.div key="dossier" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+          <DossierView
+            employeeId={viewState.employeeId}
+            onBack={() => setViewState({ view: 'employee-list' })}
+          />
+        </motion.div>
+      )}
     </div>
   );
 }
@@ -371,17 +374,33 @@ interface HiringFormViewProps {
 }
 
 function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps) {
-  const { candidates, addEmployee, updateCandidate, getNextExpedientNumber, settings, authRole, addAlert } = useStore();
+  const { candidates, employees, addEmployee, updateCandidate, getNextExpedientNumber, settings, updateSettings, authRole, addAlert } = useStore();
   const candidate = candidates.find((c) => c.id === candidateId);
+
+  const scheduleOptions = settings.schedules?.length ? settings.schedules : DEFAULT_SCHEDULES;
+  const areaOptions = settings.areas?.length ? settings.areas : DEFAULT_AREAS;
 
   const [documents, setDocuments] = useState<DocumentChecklist>(createEmptyDocuments);
   const [hireDate, setHireDate] = useState(formatDateInput(new Date()));
-  const [salary, setSalary] = useState('');
+  // v2.4 Req 2: se captura el sueldo DIARIO y el semanal se calcula automatico
+  const [dailySalary, setDailySalary] = useState('');
   const [schedule, setSchedule] = useState('');
   const [contractType, setContractType] = useState<ContractType>('eventual');
-  const [area, setArea] = useState(candidate ? JOB_POSITIONS[candidate.position]?.area ?? '' : '');
+  const [area, setArea] = useState(() => {
+    const sugerida = candidate ? JOB_POSITIONS[candidate.position]?.area ?? '' : '';
+    // La sugerencia del puesto puede traer 2 areas ("Produccion / Acondicionamiento") —
+    // se toma la primera que exista en el catalogo.
+    const catalogo = (useStore.getState().settings.areas?.length ? useStore.getState().settings.areas! : DEFAULT_AREAS);
+    return catalogo.find((a) => sugerida.toUpperCase().includes(a)) ?? '';
+  });
   const [supervisor, setSupervisor] = useState(candidate ? JOB_POSITIONS[candidate.position]?.reportsTo ?? '' : '');
   const [imssNumber, setImssNumber] = useState('');
+  const [rfc, setRfc] = useState(candidate?.rfc ?? '');
+  const [reingreso, setReingreso] = useState(!!candidate?.reingreso);
+  const [newArea, setNewArea] = useState('');
+  const [showNewArea, setShowNewArea] = useState(false);
+  const [newSchedule, setNewSchedule] = useState('');
+  const [showNewSchedule, setShowNewSchedule] = useState(false);
   const [supervisorOverride, setSupervisorOverride] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -402,9 +421,47 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
     return DOCUMENT_ITEMS.filter((d) => documents[d.key].done).length;
   }, [documents]);
 
+  // v2.4 Req 2: sueldo semanal = diario x 7 (incluye septimo dia pagado)
+  const dailyNum = parseFloat(dailySalary) || 0;
+  const weeklySalary = Math.round(dailyNum * 7 * 100) / 100;
+
+  // v2.4 Req 8: RFC no puede estar ACTIVO ya en el sistema
+  const rfcUpper = rfc.trim().toUpperCase();
+  const rfcFormatOk = rfcUpper === '' || isValidRfc(rfcUpper);
+  const rfcActiveEmployee = rfcUpper
+    ? employees.find((e) => (e.rfc ?? '') === rfcUpper && e.status !== 'inactive')
+    : undefined;
+  const rfcExEmployee = !rfcActiveEmployee && rfcUpper
+    ? employees.find((e) => (e.rfc ?? '') === rfcUpper && e.status === 'inactive')
+    : undefined;
+  const rfcOk = rfcFormatOk && !rfcActiveEmployee;
+  const reingresoEfectivo = reingreso || !!rfcExEmployee;
+
   const allMandatoryDone = mandatoryCompleted === mandatoryTotal;
   const authOk = !isNotRecommended || (authConfirmed && authMotivo.trim() !== '');
-  const canSubmit = (allMandatoryDone || supervisorOverride) && salary && schedule && hireDate && authOk;
+  const canSubmit = (allMandatoryDone || supervisorOverride) && dailyNum > 0 && schedule && hireDate && rfcOk && authOk;
+
+  const handleAddArea = () => {
+    const a = toUpper(newArea);
+    if (!a) return;
+    if (!areaOptions.includes(a)) {
+      updateSettings({ areas: [...areaOptions, a] });
+    }
+    setArea(a);
+    setNewArea('');
+    setShowNewArea(false);
+  };
+
+  const handleAddSchedule = () => {
+    const s = toUpper(newSchedule);
+    if (!s) return;
+    if (!scheduleOptions.includes(s)) {
+      updateSettings({ schedules: [...scheduleOptions, s] });
+    }
+    setSchedule(s);
+    setNewSchedule('');
+    setShowNewSchedule(false);
+  };
 
   const handleDocToggle = useCallback((key: keyof DocumentChecklist) => {
     setDocuments((prev) => ({
@@ -436,15 +493,18 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
       id: employeeId,
       candidateId: candidate.id,
       expedientNumber,
-      fullName: candidate.fullName,
+      fullName: toUpper(candidate.fullName),
       position: candidate.position,
       hireDate,
-      salary: parseFloat(salary),
-      schedule,
+      salary: weeklySalary,
+      dailySalary: dailyNum,
+      schedule: toUpper(schedule),
       contractType,
-      area,
-      supervisor,
-      imssNumber,
+      area: toUpper(area),
+      supervisor: toUpper(supervisor),
+      imssNumber: imssNumber.trim(),
+      rfc: rfcUpper || undefined,
+      reingreso: reingresoEfectivo || undefined,
       bankDetails: '',
       status: 'trial',
       documents,
@@ -485,7 +545,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
       setSaving(false);
       onComplete();
     }, 500);
-  }, [candidate, canSubmit, saving, hireDate, salary, schedule, contractType, area, supervisor, imssNumber, documents, addEmployee, updateCandidate, getNextExpedientNumber, onComplete, isReservations, isNotRecommended, authMotivo, settings.directorName, addAlert]);
+  }, [candidate, canSubmit, saving, hireDate, weeklySalary, dailyNum, schedule, contractType, area, supervisor, imssNumber, rfcUpper, reingresoEfectivo, documents, addEmployee, updateCandidate, getNextExpedientNumber, onComplete, isReservations, isNotRecommended, authMotivo, settings.directorName, addAlert]);
 
   if (!candidate) {
     return (
@@ -615,36 +675,82 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
               />
             </div>
 
-            {/* Sueldo acordado */}
+            {/* v2.4 Req 2: sueldo diario capturado; semanal calculado automatico */}
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1.5">
                 <DollarSign size={14} className="inline mr-1.5 -mt-0.5" />
-                Sueldo acordado (semanal) *
+                Sueldo diario *
               </label>
               <input
                 type="number"
                 className="input-field"
-                placeholder="Ej: 2,200"
-                value={salary}
-                onChange={(e) => setSalary(e.target.value)}
+                placeholder="Ej: 315"
+                value={dailySalary}
+                onChange={(e) => setDailySalary(e.target.value)}
                 min="0"
-                step="100"
+                step="10"
               />
             </div>
 
-            {/* Horario asignado */}
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1.5">
+                <DollarSign size={14} className="inline mr-1.5 -mt-0.5" />
+                Sueldo semanal (calculado automatico: diario x 7)
+              </label>
+              <input
+                type="text"
+                className="input-field opacity-70 cursor-not-allowed"
+                value={
+                  dailyNum > 0
+                    ? `$${weeklySalary.toLocaleString('es-MX', { minimumFractionDigits: 2 })} SEMANALES`
+                    : 'CAPTURA EL SUELDO DIARIO'
+                }
+                readOnly
+                tabIndex={-1}
+              />
+            </div>
+
+            {/* v2.4 Req 3: horario asignado — 3 tipos de horario (catalogo editable) */}
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1.5">
                 <Clock size={14} className="inline mr-1.5 -mt-0.5" />
                 Horario asignado *
               </label>
-              <input
-                type="text"
+              <select
                 className="input-field"
-                placeholder="Ej: Lun-Vie 7:00 - 15:30"
                 value={schedule}
                 onChange={(e) => setSchedule(e.target.value)}
-              />
+              >
+                <option value="">Seleccionar horario</option>
+                {scheduleOptions.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              {!showNewSchedule ? (
+                <button
+                  type="button"
+                  className="text-xs text-primary-400 hover:text-primary-300 mt-1.5 cursor-pointer"
+                  onClick={() => setShowNewSchedule(true)}
+                >
+                  + Agregar otro tipo de horario
+                </button>
+              ) : (
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    className="input-field text-xs"
+                    placeholder="Ej: TURNO NOCTURNO · LUN-SAB 22:00 - 6:00"
+                    value={newSchedule}
+                    onChange={(e) => setNewSchedule(e.target.value)}
+                  />
+                  <button type="button" className="btn-primary text-xs px-3 py-1.5" onClick={handleAddSchedule}>
+                    Agregar
+                  </button>
+                  <button type="button" className="btn-secondary text-xs px-3 py-1.5" onClick={() => setShowNewSchedule(false)}>
+                    X
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Tipo de contrato */}
@@ -663,19 +769,47 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
               </select>
             </div>
 
-            {/* Area asignada */}
+            {/* v2.4 Req 3: area asignada con opciones + agregar nuevas */}
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1.5">
                 <Building size={14} className="inline mr-1.5 -mt-0.5" />
                 Area asignada
               </label>
-              <input
-                type="text"
+              <select
                 className="input-field"
-                placeholder="Area"
                 value={area}
                 onChange={(e) => setArea(e.target.value)}
-              />
+              >
+                <option value="">Seleccionar area</option>
+                {areaOptions.map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+              {!showNewArea ? (
+                <button
+                  type="button"
+                  className="text-xs text-primary-400 hover:text-primary-300 mt-1.5 cursor-pointer"
+                  onClick={() => setShowNewArea(true)}
+                >
+                  + Agregar nueva area
+                </button>
+              ) : (
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    className="input-field text-xs"
+                    placeholder="Nombre de la nueva area"
+                    value={newArea}
+                    onChange={(e) => setNewArea(e.target.value)}
+                  />
+                  <button type="button" className="btn-primary text-xs px-3 py-1.5" onClick={handleAddArea}>
+                    Agregar
+                  </button>
+                  <button type="button" className="btn-secondary text-xs px-3 py-1.5" onClick={() => setShowNewArea(false)}>
+                    X
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Supervisor directo */}
@@ -713,6 +847,66 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
                 {candidate.position === 'AM' ? ' (como este puesto de Mantenimiento)' : ''}, el alta es
                 desde el primer dia.
               </p>
+            </div>
+
+            {/* v2.4 Req 8: RFC validado contra el sistema */}
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1.5">
+                <Hash size={14} className="inline mr-1.5 -mt-0.5" />
+                RFC (con homoclave)
+              </label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Ej. BUMD830914JK0"
+                maxLength={13}
+                value={rfc}
+                onChange={(e) => setRfc(e.target.value.toUpperCase())}
+              />
+              {!rfcFormatOk && (
+                <p className="text-xs text-danger-500 mt-1 flex items-center gap-1">
+                  <AlertTriangle size={12} /> Formato de RFC invalido (12-13 caracteres del SAT).
+                </p>
+              )}
+              {rfcActiveEmployee && (
+                <p className="text-xs text-danger-500 mt-1 flex items-center gap-1">
+                  <AlertTriangle size={12} />
+                  Este RFC ya esta ACTIVO en el sistema: {rfcActiveEmployee.fullName} (expediente #
+                  {String(rfcActiveEmployee.expedientNumber).padStart(3, '0')}). No se puede contratar dos veces.
+                </p>
+              )}
+              {rfcExEmployee && (
+                <p className="text-xs text-warning-500 mt-1 flex items-center gap-1">
+                  <CheckCircle size={12} />
+                  RFC de ex-colaborador ({rfcExEmployee.fullName}) — se marcara como REINGRESO.
+                </p>
+              )}
+            </div>
+
+            {/* v2.4 Req 2: reingreso */}
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1.5">
+                <User size={14} className="inline mr-1.5 -mt-0.5" />
+                ¿Es reingreso?
+              </label>
+              <div className="flex gap-2">
+                {[{ v: false, t: 'NO' }, { v: true, t: 'SI, ES REINGRESO' }].map((opt) => (
+                  <button
+                    key={opt.t}
+                    type="button"
+                    onClick={() => setReingreso(opt.v)}
+                    className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all cursor-pointer ${
+                      reingresoEfectivo === opt.v
+                        ? opt.v
+                          ? 'bg-warning-500/20 border-warning-500/60 text-warning-500'
+                          : 'bg-primary-500/20 border-primary-500/60 text-primary-300'
+                        : 'bg-surface-900/40 border-surface-700 text-surface-400 hover:border-surface-500'
+                    }`}
+                  >
+                    {opt.t}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -846,9 +1040,11 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
 
           {!canSubmit && !saving && (
             <p className="text-surface-500 text-xs mt-3 text-center">
-              {!salary ? 'Ingrese el sueldo acordado. ' : ''}
-              {!schedule ? 'Ingrese el horario. ' : ''}
+              {dailyNum <= 0 ? 'Ingrese el sueldo diario. ' : ''}
+              {!schedule ? 'Seleccione el horario asignado. ' : ''}
               {!hireDate ? 'Seleccione la fecha de ingreso. ' : ''}
+              {!rfcFormatOk ? 'El RFC no tiene formato valido. ' : ''}
+              {rfcActiveEmployee ? 'El RFC ya esta activo en el sistema. ' : ''}
               {!allMandatoryDone && !supervisorOverride ? 'Complete los documentos obligatorios o active la omision de supervisor. ' : ''}
               {!authOk ? 'Se requiere autorizacion expresa de Direccion (motivo + confirmacion).' : ''}
             </p>
@@ -1247,25 +1443,23 @@ function DossierView({ employeeId, onBack }: DossierViewProps) {
         })}
       </div>
 
-      {/* Tab Content */}
+      {/* Tab Content — v2.4: cambio inmediato, solo animacion de entrada */}
       <div className="flex-1 overflow-y-auto pr-1">
-        <AnimatePresence mode="wait">
-          {activeTab === 'info' && (
-            <motion.div key="info" {...fadeUp}>
-              <DossierInfoTab employee={employee} />
-            </motion.div>
-          )}
-          {activeTab === 'documents' && (
-            <motion.div key="documents" {...fadeUp}>
-              <DossierDocumentsTab employee={employee} docsCompleted={docsCompleted} docsTotal={docsTotal} />
-            </motion.div>
-          )}
-          {activeTab === 'onboarding' && (
-            <motion.div key="onboarding" {...fadeUp}>
-              <DossierOnboardingTab employee={employee} completed={onboardingCompleted} total={onboardingTotal} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {activeTab === 'info' && (
+          <motion.div key="info" {...fadeUp}>
+            <DossierInfoTab employee={employee} />
+          </motion.div>
+        )}
+        {activeTab === 'documents' && (
+          <motion.div key="documents" {...fadeUp}>
+            <DossierDocumentsTab employee={employee} docsCompleted={docsCompleted} docsTotal={docsTotal} />
+          </motion.div>
+        )}
+        {activeTab === 'onboarding' && (
+          <motion.div key="onboarding" {...fadeUp}>
+            <DossierOnboardingTab employee={employee} completed={onboardingCompleted} total={onboardingTotal} />
+          </motion.div>
+        )}
       </div>
     </div>
   );
@@ -1278,12 +1472,21 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
 
   const fields = [
     { label: 'Fecha de ingreso', value: formatDate(employee.hireDate), icon: Calendar },
-    { label: 'Sueldo semanal', value: `$${employee.salary.toLocaleString('es-MX')}`, icon: DollarSign },
+    {
+      label: 'Sueldo diario',
+      value: employee.dailySalary
+        ? `$${employee.dailySalary.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+        : 'No registrado',
+      icon: DollarSign,
+    },
+    { label: 'Sueldo semanal (diario x 7)', value: `$${employee.salary.toLocaleString('es-MX')}`, icon: DollarSign },
     { label: 'Horario', value: employee.schedule, icon: Clock },
     { label: 'Tipo de contrato', value: contractLabel, icon: FileCheck },
     { label: 'Area asignada', value: employee.area, icon: Building },
     { label: 'Supervisor directo', value: employee.supervisor, icon: User },
     { label: 'Numero IMSS', value: employee.imssNumber || 'No registrado', icon: Hash },
+    { label: 'RFC', value: employee.rfc || 'No registrado', icon: Hash },
+    { label: 'Reingreso', value: employee.reingreso ? 'SI — YA TRABAJO AQUI ANTES' : 'NO', icon: User },
     { label: 'Fin periodo de prueba', value: employee.trialEndDate ? formatDate(employee.trialEndDate) : 'N/A', icon: Clock },
   ];
 
@@ -1561,6 +1764,10 @@ function printDocumentV2(doc: DocTemplate, companyName: string) {
 function SignedDocsSection({ employee }: { employee: Employee }) {
   const { settings, updateEmployee } = useStore();
   const [previewDoc, setPreviewDoc] = useState<DocTemplate | null>(null);
+  // v2.4 Req 6: contrato individual autollenado con los datos capturados y EDITABLE
+  const [contractOpen, setContractOpen] = useState(false);
+  const [contractDraft, setContractDraft] = useState('');
+  const [contractSaved, setContractSaved] = useState(false);
   const scanRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const docs = useMemo(() => buildDocuments(employee, settings), [employee, settings]);
@@ -1579,7 +1786,26 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
     if (!status[doc.key].generado) {
       setDocStatus(doc.key, { generado: true, fechaGenerado: new Date().toISOString() });
     }
+    if (doc.key === 'contrato') {
+      // Autollenado con la informacion capturada; si RH ya lo edito, se respeta su version
+      setContractDraft(employee.contractText ?? buildContractText(employee, settings));
+      setContractSaved(false);
+      setContractOpen(true);
+      return;
+    }
     setPreviewDoc(doc);
+  };
+
+  const handleContractSave = () => {
+    updateEmployee(employee.id, { contractText: contractDraft });
+    setContractSaved(true);
+    setTimeout(() => setContractSaved(false), 2000);
+  };
+
+  const handleContractRegenerate = () => {
+    const fresh = buildContractText(employee, settings);
+    setContractDraft(fresh);
+    updateEmployee(employee.id, { contractText: fresh });
   };
 
   const handleScanUpload = async (key: SignedDocKey, file: File) => {
@@ -1728,6 +1954,79 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
                   </div>
                 </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* v2.4 Req 6: contrato individual — autollenado con los datos capturados y editable */}
+      <AnimatePresence>
+        {contractOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setContractOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="glass-card w-full max-w-4xl h-[90vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 border-b border-white/[0.06] flex flex-wrap items-center gap-3">
+                <div className="flex-1 min-w-[220px]">
+                  <h3 className="text-lg font-bold text-white">Contrato Individual de Trabajo</h3>
+                  <p className="text-xs text-surface-500">
+                    Autollenado con la informacion capturada del expediente · el texto es editable —
+                    escribe directamente sobre el para modificarlo antes de imprimir.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5"
+                    onClick={handleContractRegenerate}
+                    title="Vuelve a llenar el contrato con los datos actuales del expediente (descarta ediciones)"
+                  >
+                    <FileText size={14} />
+                    Regenerar con datos del expediente
+                  </button>
+                  <button
+                    className="btn-success text-xs px-3 py-2 flex items-center gap-1.5"
+                    onClick={handleContractSave}
+                  >
+                    <CheckCircle size={14} />
+                    {contractSaved ? 'Guardado!' : 'Guardar cambios'}
+                  </button>
+                  <button
+                    className="btn-primary text-xs px-3 py-2 flex items-center gap-1.5"
+                    onClick={() => {
+                      updateEmployee(employee.id, { contractText: contractDraft });
+                      printContractText(contractDraft, settings.companyName);
+                    }}
+                  >
+                    <FileCheck size={14} />
+                    Imprimir
+                  </button>
+                  <button className="btn-secondary text-xs px-3 py-2" onClick={() => setContractOpen(false)}>
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-hidden p-4">
+                <textarea
+                  className="w-full h-full bg-surface-50 text-surface-900 rounded-xl p-6 font-serif text-[13px] leading-relaxed resize-none outline-none border-2 border-transparent focus:border-primary-500/50"
+                  value={contractDraft}
+                  onChange={(e) => setContractDraft(e.target.value)}
+                  spellCheck={false}
+                />
+              </div>
+              <p className="px-5 pb-4 text-[11px] text-surface-500">
+                Los espacios ____________________ son datos que el sistema no captura (domicilio, CURP,
+                estado civil, testigos): puedes escribirlos aqui mismo o llenarlos a mano ya impreso.
+              </p>
             </motion.div>
           </motion.div>
         )}
