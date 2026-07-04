@@ -105,13 +105,17 @@ export const useStore = create<AppState>()(
 
       logout: () => set({ isAuthenticated: false, authRole: null }),
 
+      // v2.5: cada alta/edicion lleva syncStamp — en el sync multi-dispositivo
+      // gana la copia mas reciente en lugar de "lo remoto siempre pisa"
       addCandidate: (candidate) =>
-        set((state) => ({ candidates: [candidate, ...state.candidates] })),
+        set((state) => ({
+          candidates: [{ ...candidate, syncStamp: new Date().toISOString() }, ...state.candidates],
+        })),
 
       updateCandidate: (id, data) =>
         set((state) => ({
           candidates: state.candidates.map((c) =>
-            c.id === id ? { ...c, ...data } : c
+            c.id === id ? { ...c, ...data, syncStamp: new Date().toISOString() } : c
           ),
         })),
 
@@ -121,31 +125,41 @@ export const useStore = create<AppState>()(
         })),
 
       addEmployee: (employee) =>
-        set((state) => ({ employees: [employee, ...state.employees] })),
+        set((state) => ({
+          employees: [{ ...employee, syncStamp: new Date().toISOString() }, ...state.employees],
+        })),
 
       updateEmployee: (id, data) =>
         set((state) => ({
           employees: state.employees.map((e) =>
-            e.id === id ? { ...e, ...data } : e
+            e.id === id ? { ...e, ...data, syncStamp: new Date().toISOString() } : e
           ),
         })),
 
       addAlert: (alert) =>
         set((state) => ({
           alerts: [
-            { ...alert, id: generateId(), fecha: new Date().toISOString(), atendida: false },
+            {
+              ...alert,
+              id: generateId(),
+              fecha: new Date().toISOString(),
+              atendida: false,
+              syncStamp: new Date().toISOString(),
+            },
             ...state.alerts,
           ],
         })),
 
       markAlertAttended: (id) =>
         set((state) => ({
-          alerts: state.alerts.map((a) => (a.id === id ? { ...a, atendida: true } : a)),
+          alerts: state.alerts.map((a) =>
+            a.id === id ? { ...a, atendida: true, syncStamp: new Date().toISOString() } : a
+          ),
         })),
 
       updateSettings: (newSettings) =>
         set((state) => ({
-          settings: { ...state.settings, ...newSettings },
+          settings: { ...state.settings, ...newSettings, syncStamp: new Date().toISOString() },
         })),
 
       setCurrentView: (view) => set({ currentView: view }),
@@ -158,13 +172,15 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'saja-talent-engine-storage',
-      version: 4,
+      version: 5,
       // v2 → inyecta las narraciones por defecto en expedientes ya guardados
       // (sin pisar lo que Direccion haya configurado a mano).
       // v3 → agrega la narracion del video 11 (Presentacion de la empresa).
       // v4 → catalogos de horarios (3 turnos) y areas asignables.
+      // v5 → renuncia voluntaria como 6to documento firmable: se rellena la
+      // llave en expedientes guardados para que el sync siempre suba 6 llaves.
       migrate: (persisted: unknown, version: number) => {
-        const state = persisted as { settings?: AppSettings } | null;
+        const state = persisted as { settings?: AppSettings; employees?: Employee[] } | null;
         if (state?.settings && version < 2) {
           state.settings = { ...defaultSettings, ...state.settings };
           if (!state.settings.receptionNarrationUrl) {
@@ -188,6 +204,13 @@ export const useStore = create<AppState>()(
           }
           if (!state.settings.areas || state.settings.areas.length === 0) {
             state.settings.areas = [...DEFAULT_AREAS];
+          }
+        }
+        if (state?.employees && version < 5) {
+          for (const e of state.employees) {
+            if (e.signedDocsV2 && !e.signedDocsV2.renunciaVoluntaria) {
+              e.signedDocsV2.renunciaVoluntaria = { generado: false };
+            }
           }
         }
         return state as AppState;

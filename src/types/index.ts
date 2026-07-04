@@ -16,6 +16,8 @@ export type IncidentType = 'falta_justificada' | 'falta_injustificada' | 'retard
 
 export interface Candidate {
   id: string;
+  /** v2.5: ultima modificacion — en el sync multi-dispositivo gana el mas reciente */
+  syncStamp?: string;
   fullName: string;
   applicationDate: string;
   position: JobPosition;
@@ -148,9 +150,16 @@ export interface AdmissionExamResult {
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // v2.0 — DOCUMENTOS OBLIGATORIOS (5 documentos fisicos con firma)
+// v2.5 — se agrega la renuncia voluntaria como documento de baja
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export type SignedDocKey = 'contrato' | 'acuseGeneral' | 'avisoISR' | 'convenioVacaciones' | 'cartaUniforme';
+export type SignedDocKey =
+  | 'contrato'
+  | 'acuseGeneral'
+  | 'avisoISR'
+  | 'convenioVacaciones'
+  | 'cartaUniforme'
+  | 'renunciaVoluntaria';
 
 export interface SignedDocStatus {
   generado: boolean;
@@ -180,6 +189,8 @@ export type AlertType = 'video_reprobado_3' | 'tengo_dudas' | 'contrato_por_venc
 
 export interface SystemAlert {
   id: string;
+  /** v2.5: ultima modificacion — en el sync multi-dispositivo gana el mas reciente */
+  syncStamp?: string;
   tipo: AlertType;
   mensaje: string;
   fecha: string;
@@ -244,6 +255,8 @@ export interface InterviewData {
 
 export interface Employee {
   id: string;
+  /** v2.5: ultima modificacion — en el sync multi-dispositivo gana el mas reciente */
+  syncStamp?: string;
   candidateId: string;
   expedientNumber: number;
   fullName: string;
@@ -390,6 +403,8 @@ export interface ExitData {
 }
 
 export interface AppSettings {
+  /** v2.5: ultima modificacion — en el sync multi-dispositivo gana la mas reciente */
+  syncStamp?: string;
   companyName: string;
   companyAddress: string;
   companyPhone: string;

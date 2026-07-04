@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   FileCheck,
@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Clock,
   User,
+  UserPlus,
   Building,
   Calendar,
   ArrowLeft,
@@ -36,18 +37,19 @@ import {
   generateId,
   formatDate,
   formatDateInput,
-  addBusinessDays,
-  fileToBase64,
+  compressImageFile,
   getInitials,
   toUpper,
   isValidRfc,
 } from '../../utils/helpers';
 import { getVerdictLabel, getVerdictColor } from '../../utils/scoring';
 import { getDefaultOnboardingModules } from '../../utils/onboardingModules';
-import { buildDocuments, createEmptySignedDocs, DOC_ORDER } from '../../utils/documentsV2';
+import { buildDocuments, createEmptySignedDocs, ONBOARDING_DOC_KEYS } from '../../utils/documentsV2';
+import { escapeHtml, printHtmlDocument } from '../../utils/printDoc';
 import type { DocTemplate } from '../../utils/documentsV2';
 import { buildContractText, printContractText } from '../../utils/contractTemplate';
 import { EXAM_OUTCOME_LABELS } from '../../utils/examBank';
+import { pullNow } from '../../utils/cloudSync';
 
 // ── Animation Variants ──────────────────────────────────────────────────────
 
@@ -150,7 +152,10 @@ type ViewState =
   | { view: 'candidates' }
   | { view: 'hiring-form'; candidateId: string }
   | { view: 'employee-list' }
-  | { view: 'dossier'; employeeId: string };
+  | { view: 'dossier'; employeeId: string }
+  // v2.5: alta directa de colaboradores que YA trabajan en la empresa
+  // (informacion real, sin pasar por recepcion/examen/entrevista)
+  | { view: 'direct-registration' };
 
 // ── Main Component ──────────────────────────────────────────────────────────
 
@@ -183,6 +188,7 @@ export default function HiringModule() {
           <EmployeeListView
             onBack={() => setViewState({ view: 'candidates' })}
             onViewDossier={(id) => setViewState({ view: 'dossier', employeeId: id })}
+            onDirectRegister={() => setViewState({ view: 'direct-registration' })}
           />
         </motion.div>
       )}
@@ -191,6 +197,14 @@ export default function HiringModule() {
           <DossierView
             employeeId={viewState.employeeId}
             onBack={() => setViewState({ view: 'employee-list' })}
+          />
+        </motion.div>
+      )}
+      {viewState.view === 'direct-registration' && (
+        <motion.div key="direct-registration" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+          <DirectRegistrationView
+            onBack={() => setViewState({ view: 'employee-list' })}
+            onComplete={() => setViewState({ view: 'employee-list' })}
           />
         </motion.div>
       )}
@@ -374,6 +388,12 @@ interface HiringFormViewProps {
 }
 
 function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps) {
+  // v2.5: traer lo mas reciente de la nube al abrir, para que la validacion
+  // de RFC duplicado vea contrataciones hechas en otros dispositivos
+  useEffect(() => {
+    void pullNow();
+  }, []);
+
   const { candidates, employees, addEmployee, updateCandidate, getNextExpedientNumber, settings, updateSettings, authRole, addAlert } = useStore();
   const candidate = candidates.find((c) => c.id === candidateId);
 
@@ -471,7 +491,9 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
   }, []);
 
   const handleDocPhoto = useCallback(async (key: keyof DocumentChecklist, file: File) => {
-    const base64 = await fileToBase64(file);
+    // v2.5: comprimida — una foto cruda de camara congelaba la UI y podia
+    // desbordar el almacenamiento local
+    const base64 = await compressImageFile(file);
     setDocuments((prev) => ({
       ...prev,
       [key]: { ...prev[key], photoUrl: base64, done: true },
@@ -1174,13 +1196,391 @@ function DocumentRow({ doc, checked, photoUrl, onToggle, onPhotoUpload, index, f
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // VIEW 3 : Employee List
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.5 — REGISTRO DIRECTO DE COLABORADORES EXISTENTES
+// Para capturar con informacion real a quienes YA trabajan en la empresa:
+// no pasan por recepcion/examen/entrevista y la fecha de ingreso es la real
+// (puede ser de hace meses o anos). Si ya paso el periodo de prueba de 30
+// dias, el expediente se crea directamente como ACTIVO.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface DirectRegistrationViewProps {
+  onBack: () => void;
+  onComplete: () => void;
+}
+
+function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewProps) {
+  const { employees, settings, addEmployee, getNextExpedientNumber, updateSettings } = useStore();
+  const [saving, setSaving] = useState(false);
+
+  // Datos frescos de la nube antes de validar RFC duplicado
+  useEffect(() => {
+    void pullNow();
+  }, []);
+
+  const [fullName, setFullName] = useState('');
+  const [position, setPosition] = useState<JobPosition | ''>('');
+  const [hireDate, setHireDate] = useState('');
+  const [dailySalary, setDailySalary] = useState('');
+  const [schedule, setSchedule] = useState('');
+  const [contractType, setContractType] = useState<ContractType>('indefinido');
+  const [area, setArea] = useState('');
+  const [supervisor, setSupervisor] = useState('');
+  const [imssNumber, setImssNumber] = useState('');
+  const [rfc, setRfc] = useState('');
+  const [newArea, setNewArea] = useState('');
+  const [showNewArea, setShowNewArea] = useState(false);
+  const [newSchedule, setNewSchedule] = useState('');
+  const [showNewSchedule, setShowNewSchedule] = useState(false);
+
+  const scheduleOptions = settings.schedules?.length ? settings.schedules : DEFAULT_SCHEDULES;
+  const areaOptions = settings.areas?.length ? settings.areas : DEFAULT_AREAS;
+
+  const dailyNum = parseFloat(dailySalary) || 0;
+  const weeklySalary = Math.round(dailyNum * 7 * 100) / 100;
+
+  // Mismas validaciones de RFC que la contratacion normal
+  const rfcUpper = rfc.trim().toUpperCase();
+  const rfcFormatOk = rfcUpper === '' || isValidRfc(rfcUpper);
+  const rfcActiveEmployee = rfcUpper
+    ? employees.find((e) => (e.rfc ?? '') === rfcUpper && e.status !== 'inactive')
+    : undefined;
+  const rfcOk = rfcFormatOk && !rfcActiveEmployee;
+
+  // Colaborador existente: si su ingreso real fue hace mas de 30 dias, entra
+  // directo como ACTIVO (ya paso el periodo de prueba en la vida real)
+  const [today] = useState(() => Date.now());
+  const hireDateObj = hireDate ? new Date(`${hireDate}T12:00:00`) : null;
+  const daysSinceHire = hireDateObj ? Math.floor((today - hireDateObj.getTime()) / 86400000) : 0;
+  const willBeActive = daysSinceHire > 30;
+
+  const canSubmit =
+    fullName.trim() !== '' && position !== '' && hireDate !== '' && dailyNum > 0 && schedule !== '' && rfcOk;
+
+  const handleAddArea = () => {
+    const a = toUpper(newArea);
+    if (!a) return;
+    if (!areaOptions.includes(a)) updateSettings({ areas: [...areaOptions, a] });
+    setArea(a);
+    setNewArea('');
+    setShowNewArea(false);
+  };
+
+  const handleAddSchedule = () => {
+    const s = toUpper(newSchedule);
+    if (!s) return;
+    if (!scheduleOptions.includes(s)) updateSettings({ schedules: [...scheduleOptions, s] });
+    setSchedule(s);
+    setNewSchedule('');
+    setShowNewSchedule(false);
+  };
+
+  const handleSubmit = () => {
+    if (!canSubmit || saving || !hireDateObj) return;
+    setSaving(true);
+
+    const trialEnd = new Date(hireDateObj);
+    trialEnd.setDate(trialEnd.getDate() + 30);
+
+    const newEmployee: Employee = {
+      id: generateId(),
+      candidateId: '', // sin proceso de reclutamiento: es un colaborador existente
+      expedientNumber: getNextExpedientNumber(),
+      fullName: toUpper(fullName),
+      position: position as JobPosition,
+      hireDate,
+      salary: weeklySalary,
+      dailySalary: dailyNum,
+      schedule: toUpper(schedule),
+      contractType,
+      area: toUpper(area),
+      supervisor: toUpper(supervisor || (position ? JOB_POSITIONS[position as JobPosition]?.reportsTo ?? '' : '')),
+      imssNumber: imssNumber.trim(),
+      rfc: rfcUpper || undefined,
+      bankDetails: '',
+      status: willBeActive ? 'active' : 'trial',
+      documents: createEmptyDocuments(),
+      onboardingProgress: {
+        modules: getDefaultOnboardingModules(),
+        certificateGenerated: false,
+      },
+      evaluations: [],
+      incidents: [],
+      bonuses: [],
+      trainings: [],
+      trialEndDate: formatDateInput(trialEnd),
+      trialExtended: false,
+      createdAt: new Date().toISOString(),
+      signedDocsV2: createEmptySignedDocs(),
+    };
+
+    addEmployee(newEmployee);
+    setTimeout(() => {
+      setSaving(false);
+      onComplete();
+    }, 400);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-4 mb-6">
+        <button
+          className="w-10 h-10 rounded-xl glass flex items-center justify-center text-surface-400 hover:text-white transition-colors cursor-pointer"
+          onClick={onBack}
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <div>
+          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-500/20 to-primary-500/20 flex items-center justify-center">
+              <UserPlus size={22} className="text-accent-400" />
+            </div>
+            Registrar Colaborador Existente
+          </h2>
+          <p className="text-surface-400 text-sm mt-1">
+            Personal que YA trabaja en la empresa: entra directo al expediente con su fecha de ingreso
+            real, sin pasar por recepcion, examen ni entrevista.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto pb-6">
+        <div className="max-w-2xl space-y-5">
+          <div className="glass-card p-5 space-y-4">
+            <h3 className="text-base font-semibold text-white">Datos del colaborador</h3>
+
+            <div>
+              <label className="block text-sm text-surface-400 mb-1">Nombre completo *</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Nombre y apellidos"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value.toUpperCase())}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm text-surface-400 mb-1">Puesto *</label>
+                <select
+                  className="input-field"
+                  value={position}
+                  onChange={(e) => setPosition(e.target.value as JobPosition | '')}
+                >
+                  <option value="">Seleccionar puesto</option>
+                  {Object.entries(JOB_POSITIONS).map(([key, val]) => (
+                    <option key={key} value={key}>
+                      {val.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-surface-400 mb-1">Fecha de ingreso REAL *</label>
+                <input
+                  type="date"
+                  className="input-field"
+                  value={hireDate}
+                  max={formatDateInput(new Date())}
+                  onChange={(e) => setHireDate(e.target.value)}
+                />
+                {hireDate && (
+                  <p className={`text-xs mt-1 flex items-center gap-1 ${willBeActive ? 'text-success-500' : 'text-warning-500'}`}>
+                    <Info size={12} />
+                    {willBeActive
+                      ? `Ingreso hace ${daysSinceHire} dias — se registrara como ACTIVO (ya paso el periodo de prueba).`
+                      : 'Ingreso reciente — se registrara en periodo de prueba.'}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm text-surface-400 mb-1">Sueldo diario *</label>
+                <input
+                  type="number"
+                  className="input-field"
+                  placeholder="Ej: 315"
+                  min="0"
+                  value={dailySalary}
+                  onChange={(e) => setDailySalary(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-surface-400 mb-1">
+                  Sueldo semanal (diario x 7)
+                </label>
+                <input
+                  type="text"
+                  className="input-field opacity-70"
+                  disabled
+                  value={dailyNum > 0 ? `$${weeklySalary.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : 'CAPTURA EL SUELDO DIARIO'}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-surface-400 mb-1">Horario asignado *</label>
+              <select className="input-field" value={schedule} onChange={(e) => setSchedule(e.target.value)}>
+                <option value="">Seleccionar horario</option>
+                {scheduleOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              {!showNewSchedule ? (
+                <button className="text-xs text-primary-400 mt-1" onClick={() => setShowNewSchedule(true)}>
+                  + Agregar otro tipo de horario
+                </button>
+              ) : (
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    className="input-field flex-1"
+                    placeholder="Nuevo horario"
+                    value={newSchedule}
+                    onChange={(e) => setNewSchedule(e.target.value)}
+                  />
+                  <button className="btn-secondary text-xs px-3" onClick={handleAddSchedule}>
+                    Agregar
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm text-surface-400 mb-1">Tipo de contrato</label>
+                <select
+                  className="input-field"
+                  value={contractType}
+                  onChange={(e) => setContractType(e.target.value as ContractType)}
+                >
+                  <option value="indefinido">Indefinido</option>
+                  <option value="eventual">Contrato de prueba — 15 dias</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-surface-400 mb-1">Area asignada</label>
+                <select className="input-field" value={area} onChange={(e) => setArea(e.target.value)}>
+                  <option value="">Seleccionar area</option>
+                  {areaOptions.map((a) => (
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
+                  ))}
+                </select>
+                {!showNewArea ? (
+                  <button className="text-xs text-primary-400 mt-1" onClick={() => setShowNewArea(true)}>
+                    + Agregar nueva area
+                  </button>
+                ) : (
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      type="text"
+                      className="input-field flex-1"
+                      placeholder="Nueva area"
+                      value={newArea}
+                      onChange={(e) => setNewArea(e.target.value)}
+                    />
+                    <button className="btn-secondary text-xs px-3" onClick={handleAddArea}>
+                      Agregar
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm text-surface-400 mb-1">Supervisor directo</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Nombre del supervisor"
+                  value={supervisor}
+                  onChange={(e) => setSupervisor(e.target.value.toUpperCase())}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-surface-400 mb-1">Numero IMSS</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Numero de seguro social"
+                  value={imssNumber}
+                  onChange={(e) => setImssNumber(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-surface-400 mb-1">RFC (con homoclave)</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Ej. BUMD830914JK0"
+                maxLength={13}
+                value={rfc}
+                onChange={(e) => setRfc(e.target.value.toUpperCase())}
+              />
+              {!rfcFormatOk && (
+                <p className="text-xs text-danger-500 mt-1 flex items-center gap-1">
+                  <AlertTriangle size={12} /> Formato de RFC invalido (12-13 caracteres del SAT).
+                </p>
+              )}
+              {rfcActiveEmployee && (
+                <p className="text-xs text-danger-500 mt-1 flex items-center gap-1">
+                  <AlertTriangle size={12} />
+                  Este RFC ya esta ACTIVO en el sistema: {rfcActiveEmployee.fullName} (expediente #
+                  {String(rfcActiveEmployee.expedientNumber).padStart(3, '0')}). No se puede registrar dos veces.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="glass-card p-4 border-l-4 border-l-primary-500">
+            <p className="text-xs text-surface-400 leading-relaxed">
+              El expediente se crea con el checklist de documentos y los documentos para firma vacios:
+              RH puede irlos completando despues (subir INE, contrato firmado, etc.). El onboarding queda
+              disponible por si se desea aplicar, pero no bloquea nada para colaboradores existentes.
+            </p>
+          </div>
+
+          <button
+            className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50"
+            disabled={!canSubmit || saving}
+            onClick={handleSubmit}
+          >
+            <BadgeCheck size={18} />
+            {saving ? 'Guardando...' : 'Registrar Colaborador'}
+          </button>
+          {!canSubmit && !saving && (
+            <p className="text-surface-500 text-xs text-center">
+              {fullName.trim() === '' ? 'Escribe el nombre completo. ' : ''}
+              {position === '' ? 'Selecciona el puesto. ' : ''}
+              {!hireDate ? 'Selecciona la fecha de ingreso real. ' : ''}
+              {dailyNum <= 0 ? 'Captura el sueldo diario. ' : ''}
+              {schedule === '' ? 'Selecciona el horario. ' : ''}
+              {!rfcFormatOk ? 'El RFC no tiene formato valido. ' : ''}
+              {rfcActiveEmployee ? 'El RFC ya esta activo en el sistema. ' : ''}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface EmployeeListViewProps {
   onBack: () => void;
   onViewDossier: (employeeId: string) => void;
+  onDirectRegister: () => void;
 }
 
-function EmployeeListView({ onBack, onViewDossier }: EmployeeListViewProps) {
+function EmployeeListView({ onBack, onViewDossier, onDirectRegister }: EmployeeListViewProps) {
   const { employees } = useStore();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'trial' | 'active' | 'inactive'>('all');
@@ -1220,6 +1620,11 @@ function EmployeeListView({ onBack, onViewDossier }: EmployeeListViewProps) {
             {employees.length} empleado{employees.length !== 1 ? 's' : ''} registrado{employees.length !== 1 ? 's' : ''}
           </p>
         </div>
+        {/* v2.5: alta directa de colaboradores que ya trabajan aqui */}
+        <button className="btn-primary flex items-center gap-2" onClick={onDirectRegister}>
+          <UserPlus size={16} />
+          Registrar colaborador existente
+        </button>
       </div>
 
       {/* Filters */}
@@ -1734,31 +2139,36 @@ function DossierOnboardingTab({ employee, completed, total }: { employee: Employ
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 function printDocumentV2(doc: DocTemplate, companyName: string) {
-  const w = window.open('', '_blank', 'width=820,height=950');
-  if (!w) return;
-  const parrafosHtml = doc.parrafos.map((p) => `<p>${p}</p>`).join('');
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${doc.titulo}</title>
+  // Impresion via iframe oculto: funciona aunque el navegador bloquee popups.
+  // Todo el texto libre (nombres, domicilios, horarios) va escapado para que
+  // un "<" o "&" capturado no corte el texto del documento impreso.
+  const parrafosHtml = doc.parrafos
+    .map((p) =>
+      p === 'A T E N T A M E N T E'
+        ? `<p class="centrado">${escapeHtml(p)}</p>`
+        : `<p>${escapeHtml(p)}</p>`,
+    )
+    .join('');
+  printHtmlDocument(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(doc.titulo)}</title>
   <style>
     body { font-family: Georgia, 'Times New Roman', serif; margin: 56px; color: #111; }
     .empresa { text-align: center; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #444; }
     h1 { font-size: 19px; text-align: center; text-transform: uppercase; margin: 8px 0 4px; }
     .meta { text-align: center; font-size: 11px; color: #666; margin-bottom: 28px; }
     p { font-size: 13px; line-height: 1.75; text-align: justify; margin: 10px 0; }
+    .centrado { text-align: center; letter-spacing: 2px; margin: 28px 0; }
     .firmas { display: flex; justify-content: space-between; gap: 60px; margin-top: 100px; }
     .firma { flex: 1; text-align: center; font-size: 12px; border-top: 1px solid #111; padding-top: 8px; }
   </style></head><body>
-    <div class="empresa">${companyName}</div>
-    <h1>${doc.titulo}</h1>
-    <div class="meta">${doc.cuando} · ${doc.tantos}</div>
+    <div class="empresa">${escapeHtml(companyName)}</div>
+    <h1>${escapeHtml(doc.titulo)}</h1>
+    <div class="meta">${escapeHtml(doc.cuando)} · ${escapeHtml(doc.tantos)}</div>
     ${parrafosHtml}
     <div class="firmas">
-      <div class="firma">${doc.firmaIzquierda}<br/>Nombre y firma</div>
-      <div class="firma">${doc.firmaDerecha}<br/>Nombre y firma</div>
+      <div class="firma">${escapeHtml(doc.firmaIzquierda)}<br/>Nombre y firma</div>
+      <div class="firma">${escapeHtml(doc.firmaDerecha)}<br/>Nombre y firma</div>
     </div>
   </body></html>`);
-  w.document.close();
-  w.focus();
-  setTimeout(() => w.print(), 300);
 }
 
 function SignedDocsSection({ employee }: { employee: Employee }) {
@@ -1771,7 +2181,9 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
   const scanRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const docs = useMemo(() => buildDocuments(employee, settings), [employee, settings]);
-  const status = employee.signedDocsV2 ?? createEmptySignedDocs();
+  // Se mezcla con el vacio para que expedientes guardados antes de agregar la
+  // renuncia voluntaria (solo 5 llaves) no truenen al leer la nueva llave
+  const status = { ...createEmptySignedDocs(), ...(employee.signedDocsV2 ?? {}) };
 
   const setDocStatus = (key: SignedDocKey, partial: Partial<(typeof status)[SignedDocKey]>) => {
     updateEmployee(employee.id, {
@@ -1809,11 +2221,83 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
   };
 
   const handleScanUpload = async (key: SignedDocKey, file: File) => {
-    const base64 = await fileToBase64(file);
+    // v2.5: comprimido — los escaneos crudos de camara congelaban la UI y
+    // podian desbordar el almacenamiento local
+    const base64 = await compressImageFile(file);
     setDocStatus(key, { firmadoUrl: base64, fechaFirmado: new Date().toISOString() });
   };
 
-  const signedCount = DOC_ORDER.filter((k) => status[k].firmadoUrl).length;
+  const signedCount = ONBOARDING_DOC_KEYS.filter((k) => status[k].firmadoUrl).length;
+  const onboardingDocs = docs.filter((d) => d.key !== 'renunciaVoluntaria');
+  const exitDocs = docs.filter((d) => d.key === 'renunciaVoluntaria');
+
+  const renderDocRow = (doc: DocTemplate, prefijo: string) => {
+    const st = status[doc.key];
+    return (
+      <div
+        key={doc.key}
+        className="p-4 rounded-xl bg-surface-800/30 border border-white/[0.04] space-y-3"
+      >
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          {st.firmadoUrl ? (
+            <CheckCircle size={20} className="text-success-500 shrink-0" />
+          ) : st.generado ? (
+            <Clock size={20} className="text-warning-500 shrink-0" />
+          ) : (
+            <XCircle size={20} className="text-surface-600 shrink-0" />
+          )}
+          <div className="flex-1 min-w-[240px]">
+            <p className="text-sm font-semibold text-surface-100 leading-snug">
+              {prefijo}
+              {doc.titulo}
+            </p>
+            <p className="text-xs text-surface-400 mt-1 leading-relaxed">{doc.descripcion}</p>
+            <p className="text-[11px] text-surface-500 mt-1.5">
+              {doc.cuando} · {doc.tantos}
+              {st.fechaGenerado && ` · generado ${formatDate(st.fechaGenerado)}`}
+              {st.fechaFirmado && ` · firmado subido ${formatDate(st.fechaFirmado)}`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              className="btn-secondary text-xs px-3.5 py-2 flex items-center gap-1.5"
+              onClick={() => handleGenerate(doc)}
+            >
+              <Eye size={14} />
+              {st.generado ? 'Ver / Imprimir' : 'Generar'}
+            </button>
+            <button
+              className="btn-secondary text-xs px-3.5 py-2 flex items-center gap-1.5"
+              onClick={() => scanRefs.current[doc.key]?.click()}
+              title="Subir documento firmado escaneado"
+            >
+              <Upload size={14} />
+              {st.firmadoUrl ? 'Reemplazar' : 'Subir firmado'}
+            </button>
+            <input
+              ref={(el) => {
+                scanRefs.current[doc.key] = el;
+              }}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleScanUpload(doc.key, f);
+              }}
+            />
+          </div>
+        </div>
+        {st.firmadoUrl && (
+          <img
+            src={st.firmadoUrl}
+            alt={`${doc.titulo} firmado`}
+            className="h-16 rounded-lg border border-surface-600/30 object-cover"
+          />
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="glass-card p-5">
@@ -1822,80 +2306,29 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
           <FileText size={18} className="text-accent-400" />
           Documentos para Firma (v2.0)
         </h3>
-        <span className={`badge ${signedCount === DOC_ORDER.length ? 'badge-green' : 'badge-blue'}`}>
-          {signedCount}/{DOC_ORDER.length} firmados
+        <span className={`badge ${signedCount === ONBOARDING_DOC_KEYS.length ? 'badge-green' : 'badge-blue'}`}>
+          {signedCount}/{ONBOARDING_DOC_KEYS.length} firmados
         </span>
       </div>
-      <p className="text-xs text-surface-500 mb-4">
-        Regla de oro: el colaborador firma SOLO estos 5 documentos fisicos. Todo lo demas se cubre con
-        video + confirmacion digital. RH imprime, explica cada documento en voz alta, recaba la firma y
-        sube el escaneado.
+      <p className="text-xs text-surface-500 mb-4 leading-relaxed">
+        Regla de oro: el colaborador firma SOLO estos 5 documentos fisicos durante su ingreso. Todo lo
+        demas se cubre con video + confirmacion digital. RH imprime, explica cada documento en voz alta,
+        recaba la firma y sube el escaneado. La renuncia voluntaria se imprime unicamente al momento de
+        la baja.
       </p>
 
-      <div className="space-y-2">
-        {docs.map((doc, i) => {
-          const st = status[doc.key];
-          return (
-            <div key={doc.key} className="p-3 rounded-xl bg-surface-800/30 space-y-2">
-              <div className="flex items-center gap-3">
-                {st.firmadoUrl ? (
-                  <CheckCircle size={18} className="text-success-500 shrink-0" />
-                ) : st.generado ? (
-                  <Clock size={18} className="text-warning-500 shrink-0" />
-                ) : (
-                  <XCircle size={18} className="text-surface-600 shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-surface-200 font-medium">
-                    {i + 1}. {doc.titulo}
-                  </p>
-                  <p className="text-[11px] text-surface-500">
-                    {doc.cuando} · {doc.tantos}
-                    {st.fechaGenerado && ` · generado ${formatDate(st.fechaGenerado)}`}
-                    {st.fechaFirmado && ` · firmado subido ${formatDate(st.fechaFirmado)}`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5"
-                    onClick={() => handleGenerate(doc)}
-                  >
-                    <Eye size={13} />
-                    {st.generado ? 'Ver / Imprimir' : 'Generar'}
-                  </button>
-                  <button
-                    className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5"
-                    onClick={() => scanRefs.current[doc.key]?.click()}
-                    title="Subir documento firmado escaneado"
-                  >
-                    <Upload size={13} />
-                    {st.firmadoUrl ? 'Reemplazar' : 'Subir firmado'}
-                  </button>
-                  <input
-                    ref={(el) => {
-                      scanRefs.current[doc.key] = el;
-                    }}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleScanUpload(doc.key, f);
-                    }}
-                  />
-                </div>
-              </div>
-              {st.firmadoUrl && (
-                <img
-                  src={st.firmadoUrl}
-                  alt={`${doc.titulo} firmado`}
-                  className="h-16 rounded-lg border border-surface-600/30 object-cover"
-                />
-              )}
-            </div>
-          );
-        })}
+      <div className="space-y-3">
+        {onboardingDocs.map((doc, i) => renderDocRow(doc, `${i + 1}. `))}
       </div>
+
+      {exitDocs.length > 0 && (
+        <div className="mt-6">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-surface-500 mb-2">
+            Documento de baja (no cuenta para el onboarding)
+          </p>
+          <div className="space-y-3">{exitDocs.map((doc) => renderDocRow(doc, ''))}</div>
+        </div>
+      )}
 
       {/* Modal de vista del documento */}
       <AnimatePresence>
@@ -1921,13 +2354,18 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
                     {previewDoc.cuando} · {previewDoc.tantos} · autollenado con variables del expediente
                   </p>
                 </div>
-                <button
-                  className="btn-primary text-sm flex items-center gap-2"
-                  onClick={() => printDocumentV2(previewDoc, settings.companyName)}
-                >
-                  <FileCheck size={15} />
-                  Imprimir
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="btn-primary text-sm flex items-center gap-2"
+                    onClick={() => printDocumentV2(previewDoc, settings.companyName)}
+                  >
+                    <FileCheck size={15} />
+                    Imprimir
+                  </button>
+                  <button className="btn-secondary text-sm" onClick={() => setPreviewDoc(null)}>
+                    Cerrar
+                  </button>
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto p-6 bg-white/[0.02]">
                 <div className="bg-surface-50 text-surface-900 rounded-xl p-8 font-serif">
@@ -1936,7 +2374,12 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
                   </p>
                   <h4 className="text-center font-bold uppercase text-base mb-6">{previewDoc.titulo}</h4>
                   {previewDoc.parrafos.map((p, idx) => (
-                    <p key={idx} className="text-[13px] leading-relaxed text-justify mb-3">
+                    <p
+                      key={idx}
+                      className={`text-[13px] leading-relaxed mb-3 ${
+                        p === 'A T E N T A M E N T E' ? 'text-center tracking-widest my-6' : 'text-justify'
+                      }`}
+                    >
                       {p}
                     </p>
                   ))}

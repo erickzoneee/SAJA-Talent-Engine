@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Play, Pause, RotateCcw, Captions, Video, Volume2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Play, Pause, RotateCcw, Captions, Video, Volume2 } from 'lucide-react';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Reproductor de VIDEO REAL (v2.1)
@@ -89,6 +89,9 @@ export function RealVideoPlayer({
   const endedRef = useRef(false);
   const [time, setTime] = useState(0);
   const [videoDur, setVideoDur] = useState(0);
+  // v2.5: si el archivo de video falla (404 / red), se ofrece continuar
+  // manualmente en lugar de dejar el flujo trabado esperando 'ended'.
+  const [videoError, setVideoError] = useState(false);
 
   if (source.kind === 'file') {
     const caption =
@@ -104,6 +107,7 @@ export function RealVideoPlayer({
           controlsList="nodownload"
           className="w-full h-full object-contain"
           onLoadedMetadata={(e) => setVideoDur(e.currentTarget.duration || 0)}
+          onError={() => setVideoError(true)}
           onTimeUpdate={(e) => {
             const el = e.currentTarget;
             setTime(el.currentTime);
@@ -115,6 +119,24 @@ export function RealVideoPlayer({
             onEnded();
           }}
         />
+        {videoError && !complete && (
+          <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center gap-3 p-6 text-center">
+            <AlertTriangle size={32} className="text-warning-500" />
+            <p className="text-sm text-surface-200">
+              No se pudo cargar el video (sin conexion o archivo no disponible).
+            </p>
+            <button
+              onClick={() => {
+                if (endedRef.current) return;
+                endedRef.current = true;
+                onEnded();
+              }}
+              className="btn-primary text-sm"
+            >
+              Continuar de todos modos
+            </button>
+          </div>
+        )}
         {caption && (
           <div className="absolute bottom-14 left-3 right-3 pointer-events-none">
             <div className="bg-black/70 rounded-lg px-4 py-2 flex items-start gap-2 max-w-2xl mx-auto">
@@ -199,6 +221,37 @@ export function NarratedVideoPlayer({
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState(0);
   const [dur, setDur] = useState(0);
+  // v2.5: si el audio falla (404, red inestable, formato no soportado) el
+  // flujo quedaba TRABADO para siempre porque onEnded nunca llegaba y los
+  // botones para continuar solo aparecen al completar. Ahora se detecta el
+  // error / estancamiento y se ofrece continuar manualmente.
+  const [audioError, setAudioError] = useState(false);
+  const [stalled, setStalled] = useState(false);
+  const lastTimeRef = useRef({ t: 0, at: 0 });
+
+  // Vigilante de estancamiento: reproduciendo pero el tiempo no avanza >8s
+  useEffect(() => {
+    if (!playing || complete || audioError) return;
+    lastTimeRef.current = { t: audioRef.current?.currentTime ?? 0, at: Date.now() };
+    const iv = setInterval(() => {
+      const a = audioRef.current;
+      if (!a || a.paused || a.ended) return;
+      const { t, at } = lastTimeRef.current;
+      if (a.currentTime === t && Date.now() - at > 8000) setStalled(true);
+      if (a.currentTime !== t) {
+        lastTimeRef.current = { t: a.currentTime, at: Date.now() };
+        setStalled(false);
+      }
+    }, 2000);
+    return () => clearInterval(iv);
+  }, [playing, complete, audioError]);
+
+  const manualComplete = () => {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    setPlaying(false);
+    onEnded();
+  };
 
   const fraction = dur > 0 ? Math.min(cur / dur, 1) : 0;
   const captionIdx =
@@ -216,8 +269,10 @@ export function NarratedVideoPlayer({
     const a = audioRef.current;
     if (!a) return;
     if (a.paused) {
-      void a.play();
-      setPlaying(true);
+      a.play().then(
+        () => setPlaying(true),
+        () => setAudioError(true),
+      );
     } else {
       a.pause();
       setPlaying(false);
@@ -228,9 +283,13 @@ export function NarratedVideoPlayer({
     const a = audioRef.current;
     if (!a) return;
     endedRef.current = false;
+    setAudioError(false);
+    setStalled(false);
     a.currentTime = 0;
-    void a.play();
-    setPlaying(true);
+    a.play().then(
+      () => setPlaying(true),
+      () => setAudioError(true),
+    );
   };
 
   return (
@@ -326,6 +385,25 @@ export function NarratedVideoPlayer({
             Narracion en espanol · subtitulos activados
           </span>
         </div>
+
+        {/* Salida de emergencia: sin esto, un mp3 caido dejaba el flujo muerto */}
+        {(audioError || stalled) && !complete && (
+          <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-warning-500/10 border border-warning-500/30">
+            <AlertTriangle size={16} className="text-warning-500 shrink-0" />
+            <p className="text-xs text-surface-300 flex-1 min-w-[180px]">
+              {audioError
+                ? 'No se pudo reproducir la narracion (sin conexion o archivo no disponible).'
+                : 'La narracion se detuvo (conexion inestable).'}{' '}
+              Puedes reintentar o continuar leyendo los puntos en pantalla.
+            </p>
+            <button className="btn-secondary text-xs px-3 py-1.5" onClick={restart}>
+              Reintentar
+            </button>
+            <button className="btn-primary text-xs px-3 py-1.5" onClick={manualComplete}>
+              Continuar sin audio
+            </button>
+          </div>
+        )}
       </div>
 
       <audio
@@ -335,9 +413,14 @@ export function NarratedVideoPlayer({
         onLoadedMetadata={(e) => setDur(e.currentTarget.duration || 0)}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
+        onError={() => {
+          setPlaying(false);
+          setAudioError(true);
+        }}
         onTimeUpdate={(e) => {
           const a = e.currentTarget;
           setCur(a.currentTime);
+          lastTimeRef.current = { t: a.currentTime, at: Date.now() };
           if (a.duration > 0) onProgress?.(a.currentTime / a.duration);
         }}
         onEnded={() => {

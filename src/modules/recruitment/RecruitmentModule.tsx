@@ -50,6 +50,7 @@ import { DIAGNOSTIC_LABELS } from '../../utils/interviewGuide';
 import { generateId, formatDate, getInitials, toUpper, isValidRfc } from '../../utils/helpers';
 import { parseVideoSource, RealVideoPlayer, NarratedVideoPlayer } from '../../components/VideoPlayer';
 import { receptionSceneClips } from '../../utils/narrationAssets';
+import { pullNow } from '../../utils/cloudSync';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -439,6 +440,12 @@ interface FichaRecepcionViewProps {
 }
 
 function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
+  // v2.5: traer lo mas reciente de la nube al abrir la ficha, para que la
+  // validacion de RFC duplicado vea capturas hechas en otros dispositivos
+  useEffect(() => {
+    void pullNow();
+  }, []);
+
   const addCandidate = useStore((s) => s.addCandidate);
   const employees = useStore((s) => s.employees);
   const candidates = useStore((s) => s.candidates);
@@ -897,6 +904,15 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
   return (
     <>
       <div className="flex items-center gap-3 px-6 pt-5 pb-3">
+        {/* v2.5: salida de emergencia — sin este boton, si el audio fallaba la
+            recepcion quedaba atrapada en esta pantalla sin poder regresar */}
+        <button
+          className="p-2 rounded-xl hover:bg-surface-800 transition-colors"
+          onClick={onDeclined}
+          title="Regresar a la lista (el candidato queda con video pendiente)"
+        >
+          <ArrowLeft size={20} className="text-surface-300" />
+        </button>
         <div>
           <h1 className="text-2xl font-bold gradient-text">Video Informativo</h1>
           <p className="text-sm text-surface-400 mt-0.5">

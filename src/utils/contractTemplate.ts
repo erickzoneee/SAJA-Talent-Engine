@@ -1,6 +1,7 @@
 import type { AppSettings, Employee } from '../types';
 import { JOB_POSITIONS } from '../types';
 import { cantidadEnLetra } from './helpers';
+import { escapeHtml, printHtmlDocument } from './printDoc';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONTRATO INDIVIDUAL DE TRABAJO — v2.4 (Requerimiento 6)
@@ -141,26 +142,19 @@ TESTIGO 1: NOMBRE: ${BLANK}   FIRMA: ${BLANK}
 TESTIGO 2: NOMBRE: ${BLANK}   FIRMA: ${BLANK}`;
 }
 
-/** Abre la ventana de impresion con el texto (editable) del contrato. */
+/** Imprime el texto (editable) del contrato via iframe oculto (sin popups). */
 export function printContractText(text: string, companyName: string): void {
-  const w = window.open('', '_blank', 'width=820,height=950');
-  if (!w) return;
-  const esc = (s: string) =>
-    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const bloques = text
     .split(/\n{2,}/)
-    .map((p) => `<p>${esc(p).replace(/\n/g, '<br/>')}</p>`)
+    .map((p) => `<p>${escapeHtml(p).replace(/\n/g, '<br/>')}</p>`)
     .join('');
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Contrato Individual de Trabajo</title>
+  printHtmlDocument(`<!doctype html><html><head><meta charset="utf-8"><title>Contrato Individual de Trabajo</title>
   <style>
     body { font-family: Georgia, 'Times New Roman', serif; margin: 56px; color: #111; }
     .empresa { text-align: center; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #444; margin-bottom: 18px; }
     p { font-size: 12.5px; line-height: 1.7; text-align: justify; margin: 10px 0; white-space: pre-wrap; }
   </style></head><body>
-    <div class="empresa">${esc(companyName)}</div>
+    <div class="empresa">${escapeHtml(companyName)}</div>
     ${bloques}
   </body></html>`);
-  w.document.close();
-  w.focus();
-  setTimeout(() => w.print(), 300);
 }

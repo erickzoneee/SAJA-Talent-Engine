@@ -41,6 +41,7 @@ import {
   VIDEO_PASS_PERCENT,
 } from '../../utils/onboardingModules';
 import { createEmptyTour } from '../../utils/tourChecklist';
+import { ONBOARDING_DOC_KEYS } from '../../utils/documentsV2';
 import { formatDate } from '../../utils/helpers';
 import { parseVideoSource, RealVideoPlayer, NarratedVideoPlayer } from '../../components/VideoPlayer';
 import { getOnboardingSceneClips } from '../../utils/narrationAssets';
@@ -366,10 +367,10 @@ function OnboardingDashboard({
   const isV2 = modules.some((m) => m.isVideo);
   const recorridoDone = !!employee.recorrido?.completadoEn && !!employee.recorrido?.firmaUrl;
   const docsV2 = employee.signedDocsV2;
+  // Solo los 5 documentos de ingreso: la renuncia voluntaria (documento de
+  // baja) no debe bloquear el cierre del onboarding
   const docsDone = docsV2
-    ? (['contrato', 'acuseGeneral', 'avisoISR', 'convenioVacaciones', 'cartaUniforme'] as const).every(
-        (k) => !!docsV2[k]?.firmadoUrl,
-      )
+    ? ONBOARDING_DOC_KEYS.every((k) => !!docsV2[k]?.firmadoUrl)
     : true; // expedientes v1 sin documentos v2
   const hasEval15 = employee.evaluations.some((e) => e.type.includes('15'));
   const hasEval30 = employee.evaluations.some((e) => e.type.includes('30'));

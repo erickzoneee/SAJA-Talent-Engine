@@ -125,6 +125,47 @@ export function fileToBase64(file: File): Promise<string> {
   });
 }
 
+/**
+ * v2.5: comprime una imagen antes de guardarla en el expediente.
+ * Las fotos de camara de tablet pesan 5-12 MB; guardarlas crudas en base64
+ * congelaba la interfaz al subirlas y podia REVENTAR el limite de
+ * localStorage (~5 MB), con lo que el guardado dejaba de funcionar en
+ * silencio. Reducidas a max 1280px JPEG quedan en ~100-250 KB y siguen
+ * siendo perfectamente legibles como evidencia.
+ */
+export function compressImageFile(file: File, maxDim = 1280, quality = 0.72): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      try {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          void fileToBase64(file).then(resolve, reject);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } catch {
+        void fileToBase64(file).then(resolve, reject);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      // No es una imagen decodificable: se guarda tal cual
+      void fileToBase64(file).then(resolve, reject);
+    };
+    img.src = url;
+  });
+}
+
 export const INCIDENT_LABELS: Record<string, string> = {
   falta_justificada: 'Falta Justificada',
   falta_injustificada: 'Falta Injustificada',

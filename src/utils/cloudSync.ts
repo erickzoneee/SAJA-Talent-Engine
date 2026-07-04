@@ -1,5 +1,8 @@
 import { useStore } from '../store/useStore';
-import type { Candidate, Employee, AppSettings, SystemAlert } from '../types';
+import { useQuestionBank } from '../store/useQuestionBank';
+import { useTrainingStore } from '../store/useTrainingStore';
+import type { BankQuestion, Candidate, Employee, AppSettings, SystemAlert } from '../types';
+import type { Proceso, RegistroCapacitacion, TrainingCatalogs } from '../types/training';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SINCRONIZACION EN LA NUBE — v2.4 (Requerimiento 7)
@@ -23,6 +26,17 @@ const MEDIA_MARKER = '__LOCAL_MEDIA__';
 const PUSH_DEBOUNCE_MS = 4000;
 const PULL_INTERVAL_MS = 60000;
 const PUSH_RETRY_MS = 20000;
+// v2.5: sin timeout, una conexion que se "muere" a media peticion dejaba el
+// boton Conectar / el badge Sincronizando trabados durante minutos.
+const FETCH_TIMEOUT_MS = 15000;
+
+function fetchTimeout(url: string, init?: RequestInit): Promise<Response> {
+  const signal =
+    typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal
+      ? AbortSignal.timeout(FETCH_TIMEOUT_MS)
+      : undefined;
+  return fetch(url, { ...init, signal });
+}
 
 interface SyncConfig {
   pantryId: string;
@@ -38,6 +52,10 @@ interface SyncEnvelope {
   /** Ids de registros ELIMINADOS en algun dispositivo (para que el borrado
    *  se propague en lugar de que el registro "reviva" con el merge). */
   tombstones?: string[];
+  /** v2.5: huella de la clave de cifrado (NO la clave). Permite detectar un
+   *  codigo equivocado con un mensaje claro en lugar de un error criptico,
+   *  y evita que dos flotas con claves distintas se pisen el respaldo. */
+  keyFp?: string;
 }
 
 interface SyncData {
@@ -45,6 +63,14 @@ interface SyncData {
   employees: Employee[];
   alerts: SystemAlert[];
   settings: AppSettings;
+  // v2.5: el banco de preguntas y JAC Capacita tambien viajan — antes solo
+  // useStore se respaldaba y cada dispositivo tenia SU banco/capacitacion.
+  questionBank?: BankQuestion[];
+  training?: {
+    procesos: Proceso[];
+    registros: RegistroCapacitacion[];
+    catalogs: TrainingCatalogs;
+  };
 }
 
 export interface SyncStatus {
@@ -76,7 +102,7 @@ let initialized = false;
 
 // Registros eliminados localmente: se recuerdan para que el merge de union no
 // los "reviva" con los datos de otro dispositivo, y viajan en el envelope.
-let tombstones = new Set<string>(loadTombstones());
+const tombstones = new Set<string>(loadTombstones());
 let prevIds: Set<string> | null = null;
 
 function loadTombstones(): string[] {
@@ -185,6 +211,35 @@ async function gunzipBytes(bytes: Uint8Array): Promise<Uint8Array> {
 
 // ─── Cifrado AES-GCM ─────────────────────────────────────────────────────────
 
+const fpCache = new Map<string, string>();
+
+/** Huella corta (no reversible) de la clave, para detectar codigos que no
+ *  coinciden ANTES de intentar descifrar. */
+async function keyFingerprint(keyB64: string): Promise<string> {
+  const cached = fpCache.get(keyB64);
+  if (cached) return cached;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(keyB64));
+  const fp = toB64(new Uint8Array(digest)).slice(0, 12);
+  fpCache.set(keyB64, fp);
+  return fp;
+}
+
+export class SyncKeyMismatchError extends Error {
+  constructor() {
+    super(
+      'El codigo de sincronizacion de este dispositivo NO coincide con el respaldo en la nube. ' +
+        'Pega el CODIGO COMPLETO (ID#clave) que aparece en Configuracion > Sincronizacion del dispositivo original.',
+    );
+    this.name = 'SyncKeyMismatchError';
+  }
+}
+
+async function ensureKeyMatch(cfg: SyncConfig, envelope: SyncEnvelope): Promise<void> {
+  if (!envelope.keyFp) return; // respaldo de version anterior: sin huella
+  const fp = await keyFingerprint(cfg.keyB64);
+  if (envelope.keyFp !== fp) throw new SyncKeyMismatchError();
+}
+
 async function importKey(keyB64: string): Promise<CryptoKey> {
   return crypto.subtle.importKey('raw', fromB64(keyB64) as BufferSource, 'AES-GCM', false, [
     'encrypt',
@@ -235,13 +290,36 @@ function stripMedia<T>(value: T): T {
   return value;
 }
 
+// Detecta si un valor (o cualquier hijo anidado) contiene un medio en base64
+function containsMedia(value: unknown): boolean {
+  if (typeof value === 'string') return value.startsWith('data:');
+  if (Array.isArray(value)) return value.some((v) => containsMedia(v));
+  if (value && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).some((v) => containsMedia(v));
+  }
+  return false;
+}
+
 function restoreMedia<T>(remote: T, local: unknown): T {
   if (remote === MEDIA_MARKER) {
     return (typeof local === 'string' && local.startsWith('data:') ? local : undefined) as unknown as T;
   }
   if (Array.isArray(remote)) {
     const localArr = Array.isArray(local) ? local : [];
-    return remote.map((v, i) => restoreMedia(v, localArr[i])) as unknown as T;
+    // v2.5: los elementos con id se emparejan POR ID, no por posicion. Las
+    // listas anidadas (incidentes, evaluaciones) se PREPENDEN, asi que el
+    // emparejamiento por indice pegaba la firma de un incidente viejo al
+    // incidente nuevo despues de un merge entre dispositivos.
+    const localById = new Map(
+      localArr
+        .filter((v): v is { id: string } => !!v && typeof v === 'object' && typeof (v as { id?: unknown }).id === 'string')
+        .map((v) => [v.id, v]),
+    );
+    return remote.map((v, i) => {
+      const vid = v && typeof v === 'object' ? (v as { id?: unknown }).id : undefined;
+      const match = typeof vid === 'string' && localById.has(vid) ? localById.get(vid) : localArr[i];
+      return restoreMedia(v, match);
+    }) as unknown as T;
   }
   if (remote && typeof remote === 'object') {
     const localObj = local && typeof local === 'object' ? (local as Record<string, unknown>) : {};
@@ -252,8 +330,11 @@ function restoreMedia<T>(remote: T, local: unknown): T {
     // Conserva medios que SI existen aqui pero que el remoto no trae: otro
     // dispositivo sin la foto la dejo en undefined y su push omitio la clave.
     // Sin esto, un pull borraria la foto/firma en el dispositivo que la tomo.
+    // Aplica tambien a OBJETOS anidados con medios adentro (p. ej. la llave
+    // signedDocsV2.renunciaVoluntaria con su escaneo firmado, que un
+    // dispositivo con version anterior de la app no incluye en su push).
     for (const [k, v] of Object.entries(localObj)) {
-      if (!(k in (remote as Record<string, unknown>)) && typeof v === 'string' && v.startsWith('data:')) {
+      if (!(k in (remote as Record<string, unknown>)) && containsMedia(v)) {
         out[k] = v;
       }
     }
@@ -262,13 +343,26 @@ function restoreMedia<T>(remote: T, local: unknown): T {
   return remote;
 }
 
-// Merge de UNION: lo remoto gana en registros compartidos (restaurando medios
-// locales), y los registros que SOLO existen aqui se CONSERVAN — capturas
-// hechas sin internet o simultaneas en otra tablet ya no se pierden.
+// v2.5: cada registro lleva su marca de tiempo (syncStamp) y en los
+// compartidos GANA EL MAS RECIENTE — antes lo remoto siempre ganaba, y una
+// captura hecha aqui se revertia si otro dispositivo subia una copia vieja.
+function recordStamp(e: object): string {
+  const r = e as { syncStamp?: string; modificadaEn?: string; creadaEn?: string };
+  return r.syncStamp ?? r.modificadaEn ?? r.creadaEn ?? '';
+}
+
+// Merge de UNION: en registros compartidos gana el mas reciente (restaurando
+// medios locales), y los registros que SOLO existen aqui se CONSERVAN —
+// capturas hechas sin internet o simultaneas en otra tablet ya no se pierden.
 function mergeEntities<T extends { id: string }>(remote: T[], local: T[]): T[] {
   const localById = new Map(local.map((e) => [e.id, e]));
   const remoteIds = new Set(remote.map((r) => r.id));
-  const merged = remote.map((r) => restoreMedia(r, localById.get(r.id)));
+  const merged = remote.map((r) => {
+    const loc = localById.get(r.id);
+    // La copia local es mas nueva que la remota: se conserva tal cual
+    if (loc && recordStamp(loc) > recordStamp(r)) return loc;
+    return restoreMedia(r, loc);
+  });
   const soloLocales = local.filter((e) => !remoteIds.has(e.id));
   return [...merged, ...soloLocales].filter((e) => !tombstones.has(e.id));
 }
@@ -276,14 +370,14 @@ function mergeEntities<T extends { id: string }>(remote: T[], local: T[]): T[] {
 // ─── Pantry (nube) ───────────────────────────────────────────────────────────
 
 async function pantryGetBasket(cfg: SyncConfig): Promise<SyncEnvelope | null> {
-  const res = await fetch(`${PANTRY_API}/${cfg.pantryId}/basket/${BASKET}`, { cache: 'no-store' });
+  const res = await fetchTimeout(`${PANTRY_API}/${cfg.pantryId}/basket/${BASKET}`, { cache: 'no-store' });
   if (res.status === 400 || res.status === 404) return null; // basket aun no existe
   if (!res.ok) throw new Error(`Nube respondio ${res.status}`);
   return (await res.json()) as SyncEnvelope;
 }
 
 async function pantryPutBasket(cfg: SyncConfig, envelope: SyncEnvelope): Promise<void> {
-  const res = await fetch(`${PANTRY_API}/${cfg.pantryId}/basket/${BASKET}`, {
+  const res = await fetchTimeout(`${PANTRY_API}/${cfg.pantryId}/basket/${BASKET}`, {
     method: 'POST', // POST = crear o reemplazar el basket completo
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(envelope),
@@ -295,11 +389,18 @@ async function pantryPutBasket(cfg: SyncConfig, envelope: SyncEnvelope): Promise
 
 function collectData(): SyncData {
   const s = useStore.getState();
+  const t = useTrainingStore.getState();
   return {
     candidates: stripMedia(s.candidates),
     employees: stripMedia(s.employees),
     alerts: s.alerts,
     settings: stripMedia(s.settings),
+    questionBank: stripMedia(useQuestionBank.getState().questions),
+    training: {
+      procesos: stripMedia(t.procesos),
+      registros: stripMedia(t.registros),
+      catalogs: stripMedia(t.catalogs),
+    },
   };
 }
 
@@ -315,6 +416,7 @@ async function buildEnvelope(cfg: SyncConfig, data: SyncData): Promise<SyncEnvel
     gz: gzipped !== null,
     payload,
     tombstones: [...tombstones],
+    keyFp: await keyFingerprint(cfg.keyB64),
   };
 }
 
@@ -324,7 +426,7 @@ async function openEnvelope(cfg: SyncConfig, envelope: SyncEnvelope): Promise<Sy
   return JSON.parse(new TextDecoder().decode(raw)) as SyncData;
 }
 
-function applyRemote(data: SyncData, remoteTombstones: string[] = []) {
+function applyRemote(data: SyncData, remoteTombstones: string[] = [], reschedulePush = true) {
   // Union de borrados de todos los dispositivos ANTES del merge
   remoteTombstones.forEach((id) => tombstones.add(id));
   saveTombstones();
@@ -337,16 +439,39 @@ function applyRemote(data: SyncData, remoteTombstones: string[] = []) {
       employees: mergeEntities(data.employees, local.employees),
       alerts: mergeEntities(data.alerts, local.alerts),
       // La configuracion tambien viaja (catalogos de horarios/areas, umbrales,
-      // PINs) para que todos los dispositivos trabajen igual.
-      settings: restoreMedia(data.settings, local.settings),
+      // PINs) para que todos los dispositivos trabajen igual. Gana la mas
+      // reciente entre la local y la remota.
+      settings:
+        (local.settings.syncStamp ?? '') > (data.settings.syncStamp ?? '')
+          ? local.settings
+          : restoreMedia(data.settings, local.settings),
     });
+    // v2.5: banco de preguntas — merge por id, gana la version mas reciente
+    if (data.questionBank) {
+      const localQs = useQuestionBank.getState().questions;
+      useQuestionBank.setState({ questions: mergeEntities(data.questionBank, localQs) });
+    }
+    // v2.5: JAC Capacita — procesos/registros/catalogos tambien se comparten
+    if (data.training) {
+      const t = useTrainingStore.getState();
+      useTrainingStore.setState({
+        procesos: mergeEntities(data.training.procesos, t.procesos),
+        registros: mergeEntities(data.training.registros, t.registros),
+        catalogs: Object.fromEntries(
+          Object.entries(data.training.catalogs).map(([k, remoteItems]) => [
+            k,
+            mergeEntities(remoteItems, t.catalogs[k as keyof TrainingCatalogs] ?? []),
+          ]),
+        ) as unknown as TrainingCatalogs,
+      });
+    }
   } finally {
     applyingRemote = false;
     prevIds = collectIds();
   }
   // El merge pudo conservar registros que la nube no tiene: se re-suben pronto
   // para que los demas dispositivos tambien los vean.
-  schedulePush();
+  if (reschedulePush) schedulePush();
 }
 
 // ─── API publica ─────────────────────────────────────────────────────────────
@@ -375,7 +500,20 @@ export async function connectSync(input: string): Promise<void> {
   try {
     const existing = await pantryGetBasket(cfg);
     if (existing) {
-      const data = await openEnvelope(cfg, existing);
+      await ensureKeyMatch(cfg, existing);
+      let data: SyncData;
+      try {
+        data = await openEnvelope(cfg, existing);
+      } catch {
+        // Descifrado fallido: clave equivocada. Mensaje claro en lugar del
+        // DOMException criptico (antes esto podia ademas FORCAR la clave si
+        // se pegaba un ID pelado, partiendo la flota en dos islas).
+        throw parsed
+          ? new Error('El codigo no es correcto: no se pudo leer el respaldo de la nube. Verifica que copiaste el codigo completo.')
+          : new Error(
+              'Este Pantry ya tiene un respaldo de otro dispositivo. Pega el CODIGO COMPLETO (ID#clave) que aparece en Configuracion > Sincronizacion del dispositivo original.',
+            );
+      }
       saveConfig(cfg);
       lastRemoteStamp = existing.updatedAt;
       applyRemote(data, existing.tombstones ?? []);
@@ -396,14 +534,41 @@ export async function connectSync(input: string): Promise<void> {
   }
 }
 
+// Candado: evita DOS subidas simultaneas (podian aterrizar en desorden y
+// dejar datos VIEJOS como los mas recientes para toda la flota)
+let pushing = false;
+
 export async function pushNow(): Promise<void> {
   if (!config) return;
+  if (pushing) {
+    schedulePush(); // ya hay una subida en curso: se reintenta en un momento
+    return;
+  }
+  pushing = true;
   if (pushRetryTimer) {
     clearTimeout(pushRetryTimer);
     pushRetryTimer = null;
   }
   setStatus({ state: 'syncing', error: null });
   try {
+    // v2.5: TRAER y fusionar lo mas reciente ANTES de subir. Sin esto, el
+    // POST reemplazaba el respaldo completo y pisaba lo que otro dispositivo
+    // hubiera subido desde nuestro ultimo pull.
+    try {
+      const remote = await pantryGetBasket(config);
+      if (remote) {
+        await ensureKeyMatch(config, remote);
+        if (remote.updatedAt !== lastRemoteStamp) {
+          const remoteData = await openEnvelope(config, remote);
+          lastRemoteStamp = remote.updatedAt;
+          applyRemote(remoteData, remote.tombstones ?? [], false);
+        }
+      }
+    } catch (err) {
+      // Clave equivocada: NO subir (se pisaria el respaldo de otra flota)
+      if (err instanceof SyncKeyMismatchError) throw err;
+      // GET fallo (sin internet, etc.): se intenta subir de todos modos
+    }
     const data = collectData();
     const envelope = await buildEnvelope(config, data);
     await pantryPutBasket(config, envelope);
@@ -413,11 +578,16 @@ export async function pushNow(): Promise<void> {
   } catch (err) {
     setStatus({ state: 'error', error: err instanceof Error ? err.message : String(err) });
     // Sin internet o la nube fallo: se reintenta solo, para que una captura
-    // hecha sin conexion no se quede sin subir.
-    pushRetryTimer = setTimeout(() => {
-      pushRetryTimer = null;
-      void pushNow();
-    }, PUSH_RETRY_MS);
+    // hecha sin conexion no se quede sin subir. (Con clave equivocada NO se
+    // reintenta: seria insistir en pisar el respaldo ajeno.)
+    if (!(err instanceof SyncKeyMismatchError)) {
+      pushRetryTimer = setTimeout(() => {
+        pushRetryTimer = null;
+        void pushNow();
+      }, PUSH_RETRY_MS);
+    }
+  } finally {
+    pushing = false;
   }
 }
 
@@ -427,6 +597,7 @@ export async function pullNow(): Promise<void> {
   try {
     const envelope = await pantryGetBasket(config);
     if (envelope && envelope.updatedAt !== lastRemoteStamp) {
+      await ensureKeyMatch(config, envelope);
       const data = await openEnvelope(config, envelope);
       lastRemoteStamp = envelope.updatedAt;
       applyRemote(data, envelope.tombstones ?? []);
@@ -494,8 +665,25 @@ export function initCloudSync(): void {
     schedulePush();
   });
 
+  // v2.5: el banco de preguntas y JAC Capacita tambien disparan la subida —
+  // antes solo useStore se vigilaba y sus cambios nunca viajaban.
+  useQuestionBank.subscribe(() => schedulePush());
+  useTrainingStore.subscribe(() => schedulePush());
+
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && config) void pullNow();
+    if (!config) return;
+    if (document.hidden) {
+      // v2.5: al ocultar la pestana (cambiar de app / suspender la tablet) se
+      // SUBE de inmediato lo pendiente: el debounce de 4s moria con la
+      // pestana y la captura se quedaba solo en este dispositivo.
+      if (pushTimer) {
+        clearTimeout(pushTimer);
+        pushTimer = null;
+      }
+      if (JSON.stringify(collectData()) !== lastPushedJson) void pushNow();
+    } else {
+      void pullNow();
+    }
   });
 
   // Al recuperar internet: subir lo pendiente y traer lo nuevo
@@ -509,5 +697,9 @@ export function initCloudSync(): void {
   if (config) {
     startAutoSync();
     void pullNow();
+    // v2.5: respaldo de arranque — si quedo algo capturado sin subir en la
+    // sesion anterior (se cerro la app antes del debounce), se sube ahora
+    // aunque el pull falle o el respaldo aun no exista.
+    schedulePush();
   }
 }

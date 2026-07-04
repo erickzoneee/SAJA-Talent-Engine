@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useSyncExternalStore } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -18,8 +18,57 @@ import {
   Shield,
   Power,
   Database,
+  Cloud,
+  CloudOff,
+  RefreshCw,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { getSyncStatus, subscribeSyncStatus, pullNow } from '../utils/cloudSync';
+
+// v2.5: estado de la nube visible para TODOS los roles — antes solo Direccion
+// podia verlo en Configuracion y un error de sync pasaba dias sin detectarse.
+function SyncChip({ collapsed }: { collapsed: boolean }) {
+  const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
+  if (status.state === 'off') return null;
+
+  const icon =
+    status.state === 'error' ? (
+      <CloudOff size={14} className="text-danger-500 shrink-0" />
+    ) : status.state === 'syncing' ? (
+      <RefreshCw size={14} className="text-warning-500 shrink-0 animate-spin" />
+    ) : (
+      <Cloud size={14} className="text-success-500 shrink-0" />
+    );
+  const label =
+    status.state === 'error'
+      ? 'Sin sincronizar'
+      : status.state === 'syncing'
+        ? 'Sincronizando...'
+        : 'Nube al dia';
+
+  return (
+    <button
+      className={`w-full flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-white/[0.04] transition-colors ${collapsed ? 'justify-center' : ''}`}
+      title={status.error ?? `${label} — toca para actualizar ahora`}
+      onClick={() => void pullNow()}
+    >
+      {icon}
+      {!collapsed && (
+        <span
+          className={`text-xs ${
+            status.state === 'error'
+              ? 'text-danger-500'
+              : status.state === 'syncing'
+                ? 'text-warning-500'
+                : 'text-surface-400'
+          }`}
+        >
+          {label}
+        </span>
+      )}
+    </button>
+  );
+}
 
 interface NavItem {
   id: string;
@@ -254,6 +303,9 @@ export default function Layout() {
 
         {/* Bottom section */}
         <div className="border-t border-white/[0.06] px-3 py-4 space-y-3">
+          {/* Estado de la nube (v2.5) */}
+          <SyncChip collapsed={collapsed} />
+
           {/* Role badge */}
           <AnimatePresence>
             {!collapsed ? (

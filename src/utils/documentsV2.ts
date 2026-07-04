@@ -28,10 +28,29 @@ export function createEmptySignedDocs(): SignedDocsV2 {
     avisoISR: { ...empty },
     convenioVacaciones: { ...empty },
     cartaUniforme: { ...empty },
+    renunciaVoluntaria: { ...empty },
   };
 }
 
-export const DOC_ORDER: SignedDocKey[] = ['contrato', 'acuseGeneral', 'avisoISR', 'convenioVacaciones', 'cartaUniforme'];
+export const DOC_ORDER: SignedDocKey[] = [
+  'contrato',
+  'acuseGeneral',
+  'avisoISR',
+  'convenioVacaciones',
+  'cartaUniforme',
+  'renunciaVoluntaria',
+];
+
+// Los 5 documentos que se firman durante el ingreso (dia 1 / dia 30).
+// La renuncia voluntaria se firma solo al momento de la baja, por lo que
+// NO cuenta para el cierre del onboarding ni para el badge de firmados.
+export const ONBOARDING_DOC_KEYS: SignedDocKey[] = [
+  'contrato',
+  'acuseGeneral',
+  'avisoISR',
+  'convenioVacaciones',
+  'cartaUniforme',
+];
 
 export function buildDocuments(employee: Employee, settings: AppSettings): DocTemplate[] {
   const empresa = settings.companyName;
@@ -41,6 +60,8 @@ export function buildDocuments(employee: Employee, settings: AppSettings): DocTe
   const horario = employee.schedule || 'Horario establecido por la empresa';
   const jefe = employee.supervisor || JOB_POSITIONS[employee.position]?.reportsTo || 'Jefe directo de area';
   const fechaIngreso = formatDate(employee.hireDate);
+  // Fecha para la renuncia voluntaria: la fecha de baja registrada o el dia de hoy
+  const fechaBaja = formatDate(employee.exitData?.exitDate || new Date());
 
   return [
     {
@@ -136,6 +157,26 @@ export function buildDocuments(employee: Employee, settings: AppSettings): DocTe
       firmaIzquierda: `${nombre} — Colaborador`,
       firmaDerecha: `Recursos Humanos — ${empresa}`,
     },
+    {
+      key: 'renunciaVoluntaria',
+      titulo: 'Renuncia Voluntaria',
+      cuando: 'Baja (salida)',
+      tantos: '1 tanto',
+      descripcion:
+        'Renuncia con caracter irrevocable + ratificacion del puesto. Se imprime al momento de la baja voluntaria, autollenada con nombre, puesto y fecha.',
+      // Basado en el formato real de la empresa (renuncia voluntaria SAJA)
+      parrafos: [
+        `Ciudad de Mexico, a ${fechaBaja}.`,
+        `${empresa} · ${settings.companyAddress}`,
+        `Atencion: C. ${settings.directorName} — REPRESENTANTE LEGAL`,
+        `Yo, ${nombre}, por mi propio derecho, le manifiesto que con esta fecha renuncio con caracter de irrevocable, por convenir asi a mis intereses, al empleo que a su servicio he venido desempenando.`,
+        'Asi mismo, reconozco que hasta la fecha siempre he recibido el pago puntual y oportuno de mis salarios devengados, tanto ordinarios como extraordinarios, vacaciones, prima vacacional, aguinaldo, septimos dias y en general de todas y cada una de las prestaciones a que tuve derecho derivadas de la Ley Federal del Trabajo y de mi contrato individual que por este conducto y voluntariamente estoy dando por terminado, en virtud de que jamas sufri enfermedad ni riesgo profesional alguno, otorgandole el finiquito mas amplio que en derecho proceda, no reservandome accion ni derecho alguno que ejercitar en su contra o en contra de quien sus intereses legalmente represente.',
+        'A T E N T A M E N T E',
+        `RATIFICACION — Ciudad de Mexico, a ${fechaBaja}: Por medio de este acto ratifico, por asi convenir a mis intereses, mi renuncia formal con caracter voluntario al puesto de ${puesto} que venia desempenando y a los puestos que anteriormente tuve al servicio de ${empresa}.`,
+      ],
+      firmaIzquierda: `${nombre} — Renuncia (nombre y firma)`,
+      firmaDerecha: `${nombre} — Ratificacion (nombre y firma)`,
+    },
   ];
 }
 
@@ -145,4 +186,5 @@ export const DOC_LABELS: Record<SignedDocKey, string> = {
   avisoISR: 'Aviso de ajuste de ISR',
   convenioVacaciones: 'Convenio de vacaciones',
   cartaUniforme: 'Carta responsiva de uniforme (Dia 30)',
+  renunciaVoluntaria: 'Renuncia voluntaria (baja)',
 };
