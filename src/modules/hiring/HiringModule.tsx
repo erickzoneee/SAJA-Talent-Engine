@@ -1948,11 +1948,135 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
   );
 }
 
+// ── Dossier editable document row (v2.7) ────────────────────────────────────
+// Fila del checklist de documentos obligatorios dentro del expediente: permite
+// marcar/desmarcar, tomar foto o subir archivo, y ampliar la miniatura. Cada
+// fila necesita sus propios refs de input, por eso es un sub-componente.
+
+interface DossierDocRowProps {
+  doc: DocumentItem;
+  index: number;
+  data: { done: boolean; photoUrl?: string };
+  onToggle: () => void;
+  onPhoto: (file: File) => void;
+  onExpand: (url: string) => void;
+}
+
+function DossierDocRow({ doc, index, data, onToggle, onPhoto, onExpand }: DossierDocRowProps) {
+  const uploadRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) onPhoto(file);
+    e.target.value = '';
+  };
+
+  return (
+    <div
+      className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 ${
+        data.done
+          ? 'bg-success-500/8 border border-success-500/15'
+          : 'bg-surface-800/30 border border-transparent hover:border-surface-700/30'
+      }`}
+    >
+      {/* Toggle */}
+      <button
+        type="button"
+        onClick={onToggle}
+        className="shrink-0 cursor-pointer"
+        title={data.done ? 'Marcar como pendiente' : 'Marcar como entregado'}
+      >
+        {data.done ? (
+          <CheckCircle size={20} className="text-success-500" />
+        ) : (
+          <div className="w-5 h-5 rounded-full border-2 border-surface-600 hover:border-primary-400 transition-colors" />
+        )}
+      </button>
+
+      {/* Label */}
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm ${data.done ? 'text-surface-300' : 'text-surface-400'}`}>
+          {index + 1}. {doc.label}
+        </p>
+        <div className="flex items-center gap-2 mt-0.5">
+          {doc.mandatory && (
+            <span className="text-[10px] text-danger-500 font-semibold uppercase tracking-wide">Obligatorio</span>
+          )}
+          {doc.maleOnly && doc.note && (
+            <span className="text-[10px] text-warning-500 font-medium flex items-center gap-1">
+              <AlertTriangle size={10} />
+              {doc.note}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Photo thumbnail (ampliable) */}
+      {data.photoUrl && (
+        <button
+          type="button"
+          className="w-10 h-10 rounded-lg overflow-hidden border border-surface-600/30 hover:border-primary-500/40 transition-colors cursor-pointer shrink-0"
+          onClick={() => onExpand(data.photoUrl!)}
+          title="Ver documento"
+        >
+          <img src={data.photoUrl} alt="" className="w-full h-full object-cover" />
+        </button>
+      )}
+
+      {/* Camera */}
+      <button
+        type="button"
+        className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-primary-500/20 flex items-center justify-center text-surface-400 hover:text-primary-400 transition-all cursor-pointer shrink-0"
+        onClick={() => cameraRef.current?.click()}
+        title="Tomar foto"
+      >
+        <Camera size={15} />
+      </button>
+
+      {/* Upload */}
+      <button
+        type="button"
+        className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-accent-500/20 flex items-center justify-center text-surface-400 hover:text-accent-400 transition-all cursor-pointer shrink-0"
+        onClick={() => uploadRef.current?.click()}
+        title="Subir archivo"
+      >
+        <Upload size={15} />
+      </button>
+
+      {/* Hidden inputs */}
+      <input ref={uploadRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handleFile} className="hidden" />
+    </div>
+  );
+}
+
 // ── Dossier Documents Tab ───────────────────────────────────────────────────
 
 function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee: Employee; docsCompleted: number; docsTotal: number }) {
+  const { updateEmployeeDocument } = useStore();
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const progressPercent = docsTotal > 0 ? Math.round((docsCompleted / docsTotal) * 100) : 0;
+
+  // v2.7: el checklist de documentos obligatorios ahora es EDITABLE desde el
+  // expediente. Antes era solo-lectura y a los colaboradores registrados de
+  // forma directa (que nacen con el checklist vacio) no habia forma de
+  // completarles los documentos. RH puede marcar/desmarcar y subir/tomar foto.
+  // El merge por-documento se hace en el store (updateEmployeeDocument) para no
+  // pisar otras ediciones hechas mientras una foto se comprime (async).
+  const handleToggle = (key: keyof DocumentChecklist) => {
+    // se lee el estado fresco (no el snapshot del render) por si hubo un cambio
+    // reciente aun no reflejado en la prop employee
+    const cur = useStore.getState().employees.find((e) => e.id === employee.id) ?? employee;
+    updateEmployeeDocument(employee.id, key, { done: !cur.documents[key].done });
+  };
+
+  const handlePhoto = async (key: keyof DocumentChecklist, file: File) => {
+    // comprimida (mismo criterio que la contratacion) para no congelar la UI
+    // ni desbordar el almacenamiento local con una foto cruda de camara
+    const base64 = await compressImageFile(file);
+    updateEmployeeDocument(employee.id, key, { photoUrl: base64, done: true });
+  };
 
   return (
     <div className="space-y-4">
@@ -1978,39 +2102,24 @@ function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee:
         </div>
       </div>
 
-      {/* Document List */}
+      {/* Document List — v2.7: editable (marcar / subir foto de cada documento) */}
       <div className="glass-card p-4 space-y-2">
-        {DOCUMENT_ITEMS.map((doc, i) => {
-          const docData = employee.documents[doc.key];
-          return (
-            <div
-              key={doc.key}
-              className={`flex items-center gap-3 p-3 rounded-xl ${
-                docData.done ? 'bg-success-500/8' : 'bg-surface-800/30'
-              }`}
-            >
-              {docData.done ? (
-                <CheckCircle size={18} className="text-success-500 shrink-0" />
-              ) : (
-                <XCircle size={18} className="text-surface-600 shrink-0" />
-              )}
-              <span className={`flex-1 text-sm ${docData.done ? 'text-surface-300' : 'text-surface-500'}`}>
-                {i + 1}. {doc.label}
-              </span>
-              {doc.mandatory && (
-                <span className="text-[10px] text-danger-500 font-semibold uppercase">Req</span>
-              )}
-              {docData.photoUrl && (
-                <button
-                  className="w-9 h-9 rounded-lg overflow-hidden border border-surface-600/30 hover:border-primary-500/40 transition-colors cursor-pointer shrink-0"
-                  onClick={() => setExpandedPhoto(docData.photoUrl!)}
-                >
-                  <img src={docData.photoUrl} alt="" className="w-full h-full object-cover" />
-                </button>
-              )}
-            </div>
-          );
-        })}
+        <p className="text-xs text-surface-500 mb-1 flex items-start gap-1.5">
+          <Info size={13} className="mt-0.5 shrink-0 text-primary-400" />
+          Marca cada documento entregado y sube o toma una foto del original. RH puede completar estos
+          documentos en cualquier momento, incluso para colaboradores registrados directamente.
+        </p>
+        {DOCUMENT_ITEMS.map((doc, i) => (
+          <DossierDocRow
+            key={doc.key}
+            doc={doc}
+            index={i}
+            data={employee.documents[doc.key]}
+            onToggle={() => handleToggle(doc.key)}
+            onPhoto={(file) => handlePhoto(doc.key, file)}
+            onExpand={(url) => setExpandedPhoto(url)}
+          />
+        ))}
       </div>
 
       {/* Expanded Photo Modal */}

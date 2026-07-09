@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Candidate, Employee, AppSettings, SystemAlert } from '../types';
+import type { Candidate, Employee, AppSettings, SystemAlert, DocumentChecklist } from '../types';
 import { DEFAULT_SCHEDULES, DEFAULT_AREAS } from '../types';
 import { generateId } from '../utils/helpers';
 
@@ -25,6 +25,14 @@ interface AppState {
   // Employees
   addEmployee: (employee: Employee) => void;
   updateEmployee: (id: string, data: Partial<Employee>) => void;
+  // v2.7: merge atomico de un solo documento del checklist — evita el clobber
+  // por stale-closure cuando handlePhoto escribe despues de comprimir (async)
+  // y otra edicion aterrizo en la ventana de espera.
+  updateEmployeeDocument: (
+    id: string,
+    key: keyof DocumentChecklist,
+    partial: { done?: boolean; photoUrl?: string },
+  ) => void;
 
   // Alerts (v2.0)
   addAlert: (alert: Omit<SystemAlert, 'id' | 'fecha' | 'atendida'>) => void;
@@ -133,6 +141,25 @@ export const useStore = create<AppState>()(
         set((state) => ({
           employees: state.employees.map((e) =>
             e.id === id ? { ...e, ...data, syncStamp: new Date().toISOString() } : e
+          ),
+        })),
+
+      // v2.7: el merge se hace DENTRO de set((state) => ...), sobre el estado mas
+      // fresco, no sobre un snapshot capturado en el render. Asi una foto que se
+      // escribe despues de comprimir no pisa un documento marcado mientras tanto.
+      updateEmployeeDocument: (id, key, partial) =>
+        set((state) => ({
+          employees: state.employees.map((e) =>
+            e.id === id
+              ? {
+                  ...e,
+                  documents: {
+                    ...e.documents,
+                    [key]: { ...e.documents[key], ...partial },
+                  },
+                  syncStamp: new Date().toISOString(),
+                }
+              : e
           ),
         })),
 
