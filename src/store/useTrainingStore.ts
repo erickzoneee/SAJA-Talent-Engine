@@ -9,6 +9,11 @@ import type {
   VozPref,
 } from '../types/training';
 
+// Marca de tiempo para el "gana el más nuevo" del sync multi-dispositivo.
+// Sin esto, procesos/catálogos editados en un dispositivo se perdían al
+// sincronizar (recordStamp los leía como '' y siempre ganaba el remoto).
+const stamp = () => new Date().toISOString();
+
 // ── Semillas de catálogos (spec 3.9 / 4.1) ───────────────────────────────────
 
 function seed(nombres: string[], extra?: (n: string, i: number) => Partial<CatalogItem>): CatalogItem[] {
@@ -105,11 +110,21 @@ export const useTrainingStore = create<TrainingState>()(
       catalogs: defaultCatalogs,
       vozPref: { rate: 1 },
 
-      addProceso: (proceso) => set((s) => ({ procesos: [proceso, ...s.procesos] })),
+      addProceso: (proceso) => set((s) => ({ procesos: [{ ...proceso, syncStamp: stamp() }, ...s.procesos] })),
 
       updateProceso: (id, data) =>
         set((s) => ({
-          procesos: s.procesos.map((p) => (p.id === id ? { ...p, ...data } : p)),
+          procesos: s.procesos.map((p) => {
+            if (p.id !== id) return p;
+            const merged = { ...p, ...data };
+            // Solo re-sellar cuando el contenido realmente cambia. El wizard llama
+            // a updateProceso en cada "Siguiente" aunque no se edite nada; sin este
+            // guardia, ese re-sello le ganaria a una edicion remota mas nueva del
+            // mismo proceso (contenido viejo pisando al del otro dispositivo).
+            const sinSello = (o: Proceso) => JSON.stringify({ ...o, syncStamp: undefined });
+            if (sinSello(p) === sinSello(merged)) return p;
+            return { ...merged, syncStamp: stamp() };
+          }),
         })),
 
       deleteProceso: (id) =>
@@ -119,7 +134,7 @@ export const useTrainingStore = create<TrainingState>()(
         set((s) => ({
           procesos: s.procesos.map((p) =>
             p.id === id
-              ? { ...p, estado: 'publicado', publicadoAt: new Date().toISOString() }
+              ? { ...p, estado: 'publicado', publicadoAt: new Date().toISOString(), syncStamp: stamp() }
               : p,
           ),
         })),
@@ -134,6 +149,7 @@ export const useTrainingStore = create<TrainingState>()(
                   autorizadoPor,
                   autorizadoAt: new Date().toISOString(),
                   listoParaAutorizar: false,
+                  syncStamp: stamp(),
                 }
               : p,
           ),
@@ -141,13 +157,13 @@ export const useTrainingStore = create<TrainingState>()(
 
       archivarProceso: (id) =>
         set((s) => ({
-          procesos: s.procesos.map((p) => (p.id === id ? { ...p, estado: 'archivado' } : p)),
+          procesos: s.procesos.map((p) => (p.id === id ? { ...p, estado: 'archivado', syncStamp: stamp() } : p)),
         })),
 
       marcarListoParaAutorizar: (id, listo) =>
         set((s) => ({
           procesos: s.procesos.map((p) =>
-            p.id === id ? { ...p, listoParaAutorizar: listo } : p,
+            p.id === id ? { ...p, listoParaAutorizar: listo, syncStamp: stamp() } : p,
           ),
         })),
 
@@ -168,11 +184,12 @@ export const useTrainingStore = create<TrainingState>()(
           autorizadoPor: undefined,
           autorizadoAt: undefined,
           listoParaAutorizar: false,
+          syncStamp: stamp(),
         };
         set((s) => ({
           procesos: [
             copia,
-            ...s.procesos.map((p) => (p.id === id ? { ...p, estado: 'archivado' as const } : p)),
+            ...s.procesos.map((p) => (p.id === id ? { ...p, estado: 'archivado' as const, syncStamp: stamp() } : p)),
           ],
         }));
         return nuevoId;
@@ -192,13 +209,13 @@ export const useTrainingStore = create<TrainingState>()(
       },
 
       addCatalogItem: (key, item) =>
-        set((s) => ({ catalogs: { ...s.catalogs, [key]: [...s.catalogs[key], item] } })),
+        set((s) => ({ catalogs: { ...s.catalogs, [key]: [...s.catalogs[key], { ...item, syncStamp: stamp() }] } })),
 
       updateCatalogItem: (key, id, data) =>
         set((s) => ({
           catalogs: {
             ...s.catalogs,
-            [key]: s.catalogs[key].map((it) => (it.id === id ? { ...it, ...data } : it)),
+            [key]: s.catalogs[key].map((it) => (it.id === id ? { ...it, ...data, syncStamp: stamp() } : it)),
           },
         })),
 
@@ -207,7 +224,7 @@ export const useTrainingStore = create<TrainingState>()(
           catalogs: {
             ...s.catalogs,
             [key]: s.catalogs[key].map((it) =>
-              it.id === id ? { ...it, activo: !it.activo } : it,
+              it.id === id ? { ...it, activo: !it.activo, syncStamp: stamp() } : it,
             ),
           },
         })),

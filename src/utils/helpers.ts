@@ -47,8 +47,11 @@ function tresDigitos(n: number): string {
 
 /** Convierte una cantidad a letra, ej. 2450.5 → "DOS MIL CUATROCIENTOS CINCUENTA PESOS 50/100 M.N." */
 export function cantidadEnLetra(cantidad: number): string {
-  const entero = Math.floor(cantidad);
-  const centavos = Math.round((cantidad - entero) * 100);
+  // Redondear a centavos primero y luego separar, para que un fraccionario
+  // >= .995 acarree al entero (ej. 1.999 → "DOS PESOS 00/100", no "100/100").
+  const totalCentavos = Math.round(cantidad * 100);
+  const entero = Math.floor(totalCentavos / 100);
+  const centavos = totalCentavos % 100;
   let letras: string;
   if (entero === 0) letras = 'CERO';
   else if (entero >= 1000000) {

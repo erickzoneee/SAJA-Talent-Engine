@@ -14,8 +14,14 @@ import {
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import type { ProcesoFoto } from '../../types/training';
-import { comprimirFoto, rotarFoto90 } from '../../utils/trainingHelpers';
+import { storeMediaFile, rotateStoredMedia } from '../../utils/mediaStore';
+import MediaImage from '../../components/MediaImage';
 import { fadeUp } from './anims';
+
+// Las fotos de capacitacion se guardan en Supabase Storage (ruta "sb:...") para
+// que viajen en la sincronizacion y se vean en TODOS los dispositivos. Antes
+// eran base64, que el sync elimina → no aparecian en la tablet del trabajador.
+const TRAINING_MEDIA_FOLDER = 'capacitacion';
 
 // ── Encabezado de sub-vista con botón de regreso ─────────────────────────────
 
@@ -169,7 +175,7 @@ export function FullscreenImage({ src, onClose }: { src: string; onClose: () => 
       >
         <X size={20} />
       </button>
-      <img src={src} alt="" className="max-h-[90vh] max-w-full object-contain rounded-xl" />
+      <MediaImage value={src} alt="" className="max-h-[90vh] max-w-full object-contain rounded-xl" />
     </motion.div>,
     document.body,
   );
@@ -196,7 +202,9 @@ export function SinglePhotoPicker({
     if (!file) return;
     setBusy(true);
     try {
-      onChange(await comprimirFoto(file));
+      onChange(await storeMediaFile(file, TRAINING_MEDIA_FOLDER, 'portada'));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'No se pudo guardar la foto.');
     } finally {
       setBusy(false);
     }
@@ -206,7 +214,7 @@ export function SinglePhotoPicker({
     if (!value) return;
     setBusy(true);
     try {
-      onChange(await rotarFoto90(value));
+      onChange(await rotateStoredMedia(value, TRAINING_MEDIA_FOLDER, 'portada'));
     } finally {
       setBusy(false);
     }
@@ -219,7 +227,7 @@ export function SinglePhotoPicker({
       </span>
       {value ? (
         <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-surface-600/30 bg-black/40">
-          <img src={value} alt={label} className="w-full h-full object-contain" />
+          <MediaImage value={value} alt={label} className="w-full h-full object-contain" />
         </div>
       ) : (
         <div className="w-full aspect-video rounded-xl border-2 border-dashed border-surface-600/40 flex flex-col items-center justify-center text-surface-500">
@@ -296,10 +304,12 @@ export function PhotoManager({
       const nuevas: ProcesoFoto[] = [];
       for (const f of Array.from(files)) {
         if (fotos.length + nuevas.length >= MAX_FOTOS) break;
-        const url = await comprimirFoto(f);
+        const url = await storeMediaFile(f, TRAINING_MEDIA_FOLDER, 'paso');
         nuevas.push({ id: `f_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, url, desc: '' });
       }
       onChange([...fotos, ...nuevas]);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'No se pudo guardar la foto.');
     } finally {
       setBusy(false);
     }
@@ -308,7 +318,7 @@ export function PhotoManager({
   async function rotate(i: number) {
     setBusy(true);
     try {
-      const url = await rotarFoto90(fotos[i].url);
+      const url = await rotateStoredMedia(fotos[i].url, TRAINING_MEDIA_FOLDER, 'paso');
       onChange(fotos.map((f, j) => (j === i ? { ...f, url } : f)));
     } finally {
       setBusy(false);
@@ -357,7 +367,7 @@ export function PhotoManager({
           className="flex gap-3 bg-surface-800/30 border border-surface-700/30 rounded-xl p-3 items-start"
         >
           <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-black/40 shrink-0">
-            <img src={f.url} alt="" className="w-full h-full object-cover" />
+            <MediaImage value={f.url} alt="" className="w-full h-full object-cover" />
             {i === 0 && (
               <span className="absolute top-1 left-1 text-[9px] font-bold bg-primary-500 text-white px-1.5 py-0.5 rounded">
                 Portada

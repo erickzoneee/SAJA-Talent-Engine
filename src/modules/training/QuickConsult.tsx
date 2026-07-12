@@ -7,6 +7,7 @@ import { narrativaVisible } from '../../utils/trainingHelpers';
 import { TrainingHeader, EmptyState, FullscreenImage } from './shared';
 import { fadeUp } from './anims';
 import NarrationButton from '../../components/NarrationButton';
+import MediaImage from '../../components/MediaImage';
 
 export default function QuickConsult({ onBack }: { onBack: () => void }) {
   const procesos = useTrainingStore((s) => s.procesos);
@@ -63,7 +64,7 @@ export default function QuickConsult({ onBack }: { onBack: () => void }) {
               <motion.div key={mp.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }} className="space-y-4">
                 {mp.fotos.length > 0 && (
                   <div className="glass-card p-2">
-                    <img src={mp.fotos[0].url} alt="" onClick={() => setZoom(mp.fotos[0].url)} className="w-full max-h-64 object-contain rounded-xl cursor-zoom-in bg-black/40" />
+                    <MediaImage value={mp.fotos[0].url} alt="" onClick={() => setZoom(mp.fotos[0].url)} className="w-full max-h-64 object-contain rounded-xl cursor-zoom-in bg-black/40" />
                   </div>
                 )}
                 <div className="glass-card p-5">
@@ -75,7 +76,7 @@ export default function QuickConsult({ onBack }: { onBack: () => void }) {
                   {mp.fotos.length > 1 && (
                     <div className="flex gap-2 overflow-x-auto mt-4 pb-1">
                       {mp.fotos.slice(1).map((f) => (
-                        <img key={f.id} src={f.url} alt="" onClick={() => setZoom(f.url)} className="h-20 rounded-lg cursor-zoom-in shrink-0 object-cover" />
+                        <MediaImage key={f.id} value={f.url} alt="" onClick={() => setZoom(f.url)} className="h-20 rounded-lg cursor-zoom-in shrink-0 object-cover" />
                       ))}
                     </div>
                   )}

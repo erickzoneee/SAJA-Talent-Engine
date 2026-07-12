@@ -23,6 +23,7 @@ import {
 import { TrainingHeader, EmptyState, FullscreenImage } from './shared';
 import { fadeUp, scaleIn, useEmpleados } from './anims';
 import NarrationButton from '../../components/NarrationButton';
+import MediaImage from '../../components/MediaImage';
 
 type Vista = 'id' | 'lib' | 'portada' | 'present' | 'eval' | 'result' | 'bloqueado';
 
@@ -32,6 +33,9 @@ export default function TrainingFlow({ onBack }: { onBack: () => void }) {
 
   const [vista, setVista] = useState<Vista>('id');
   const [trab, setTrab] = useState({ nombre: '', numero: '' });
+  // Escape hatch: un trabajador que no aparece en la lista (recien contratado,
+  // o no registrado aun) puede escribir su nombre a mano.
+  const [manual, setManual] = useState(false);
   const [proc, setProc] = useState<Proceso | null>(null);
   const [mpIdx, setMpIdx] = useState(0);
   const [resultado, setResultado] = useState<{ reg: RegistroCapacitacion; bloqueadoTrasEste: boolean } | null>(null);
@@ -98,7 +102,9 @@ export default function TrainingFlow({ onBack }: { onBack: () => void }) {
       respuestas,
     };
     addRegistro(reg);
-    const fallidosAhora = intentosFallidosHoy(trab.numero, proc.id) + (cal.pasa ? 0 : 1);
+    // addRegistro actualiza el store de forma sincrona, asi que intentosFallidosHoy
+    // ya cuenta ESTE intento fallido. No sumar +1 (doble conteo bloqueaba al 2do fallo).
+    const fallidosAhora = intentosFallidosHoy(trab.numero, proc.id);
     setResultado({ reg, bloqueadoTrasEste: !cal.pasa && fallidosAhora >= 3 });
     setVista('result');
   }
@@ -119,28 +125,58 @@ export default function TrainingFlow({ onBack }: { onBack: () => void }) {
               <p className="text-sm text-surface-400 mt-1">Necesitamos tu nombre y número de empleado para registrar tu capacitación.</p>
             </div>
             <label className="block text-sm font-medium text-surface-300 mb-1.5">Tu nombre completo</label>
-            <input
-              value={trab.nombre}
-              onChange={(e) => {
-                const nombre = e.target.value;
-                const match = empleados.find((em) => em.nombre.toLowerCase() === nombre.toLowerCase());
-                setTrab((t) => ({ ...t, nombre, numero: match ? match.numero : t.numero }));
-              }}
-              list="empleados-list"
-              placeholder="Ej: María López García"
-              className="input-field mb-4"
-            />
-            <datalist id="empleados-list">
-              {empleados.map((e) => (
-                <option key={e.numero} value={e.nombre} />
-              ))}
-            </datalist>
+            {empleados.length > 0 && !manual ? (
+              <select
+                value={trab.numero}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === '__manual__') {
+                    setManual(true);
+                    setTrab({ nombre: '', numero: '' });
+                    return;
+                  }
+                  const match = empleados.find((em) => em.numero === v);
+                  setTrab((t) => ({ ...t, numero: v, nombre: match ? match.nombre : '' }));
+                }}
+                className="input-field mb-4 cursor-pointer"
+              >
+                <option value="">— Selecciona tu nombre —</option>
+                {empleados.map((e) => (
+                  <option key={e.numero} value={e.numero}>
+                    {e.nombre}
+                  </option>
+                ))}
+                <option value="__manual__">Otro — no aparezco en la lista</option>
+              </select>
+            ) : (
+              <>
+                <input
+                  value={trab.nombre}
+                  onChange={(e) => setTrab((t) => ({ ...t, nombre: e.target.value }))}
+                  placeholder="Ej: María López García"
+                  className="input-field mb-2"
+                />
+                {empleados.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManual(false);
+                      setTrab({ nombre: '', numero: '' });
+                    }}
+                    className="text-xs text-primary-400 hover:text-primary-300 mb-4 block"
+                  >
+                    ← Elegir de la lista
+                  </button>
+                )}
+              </>
+            )}
             <label className="block text-sm font-medium text-surface-300 mb-1.5">Número de empleado</label>
             <input
               value={trab.numero}
               onChange={(e) => setTrab((t) => ({ ...t, numero: e.target.value }))}
               placeholder="Ej: EMP-001"
               className="input-field mb-5"
+              readOnly={!manual && empleados.some((em) => em.numero === trab.numero)}
             />
             <button onClick={() => setVista('lib')} disabled={!ok} className="btn-primary w-full flex items-center justify-center gap-2">
               Continuar <ArrowRight size={16} />
@@ -211,7 +247,7 @@ export default function TrainingFlow({ onBack }: { onBack: () => void }) {
 
   // ── Evaluación ──
   if (vista === 'eval' && proc) {
-    return <Evaluacion proc={proc} trabajador={trab} onTerminar={terminarEvaluacion} />;
+    return <Evaluacion proc={proc} trabajador={trab} onTerminar={terminarEvaluacion} onBack={() => setVista('present')} />;
   }
 
   // ── Resultado ──
@@ -317,7 +353,7 @@ function Biblioteca({
               className="glass-card p-4 w-full text-left flex items-center gap-4 cursor-pointer group"
             >
               <div className="w-14 h-14 rounded-xl bg-surface-800/60 border border-surface-700/40 overflow-hidden flex items-center justify-center shrink-0">
-                {p.portadaInicio ? <img src={p.portadaInicio} alt="" className="w-full h-full object-cover" /> : <GraduationCap size={22} className="text-surface-500" />}
+                {p.portadaInicio ? <MediaImage value={p.portadaInicio} alt="" className="w-full h-full object-cover" /> : <GraduationCap size={22} className="text-surface-500" />}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -398,7 +434,7 @@ function PortadaFoto({ titulo, src }: { titulo: string; src?: string }) {
     <div className="glass-card p-3">
       <p className="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2">{titulo}</p>
       <div className="aspect-video rounded-xl overflow-hidden bg-black/40 flex items-center justify-center">
-        {src ? <img src={src} alt={titulo} className="w-full h-full object-contain" /> : <span className="text-surface-600 text-sm">Sin foto</span>}
+        {src ? <MediaImage value={src} alt={titulo} className="w-full h-full object-contain" /> : <span className="text-surface-600 text-sm">Sin foto</span>}
       </div>
     </div>
   );
@@ -423,7 +459,26 @@ function Presentacion({
   const total = proc.pasos.length;
   const esUlt = mpIdx === total - 1;
   const [zoom, setZoom] = useState<string | null>(null);
-  if (!mp) return null;
+  // Proceso publicado sin pasos: en vez de dejar una pantalla en blanco sin
+  // salida, mostrar un aviso navegable (volver o ir directo a la evaluación).
+  if (!mp) {
+    return (
+      <div className="flex flex-col gap-4 h-full">
+        <TrainingHeader icon={Play} gradient="from-blue-500 to-indigo-600" title={proc.nombre} subtitle="Sin pasos" onBack={onBack} />
+        <div className="flex-1 flex flex-col items-center justify-center gap-5">
+          <EmptyState icon={ShieldAlert} title="Este proceso todavía no tiene pasos" hint="Pídele a tu supervisor que agregue los pasos del proceso" />
+          <div className="flex gap-3">
+            <button onClick={onBack} className="btn-secondary flex items-center gap-2">
+              <ArrowLeft size={16} /> Volver
+            </button>
+            <button onClick={onEvaluar} className="btn-primary flex items-center gap-2">
+              <ClipboardCheck size={16} /> Ir a la evaluación
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const texto = narrativaVisible(mp);
 
   return (
@@ -440,7 +495,7 @@ function Presentacion({
           <motion.div key={mp.id} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.25 }} className="space-y-4">
             {mp.fotos.length > 0 && (
               <div className="glass-card p-2">
-                <img src={mp.fotos[0].url} alt="" onClick={() => setZoom(mp.fotos[0].url)} className="w-full max-h-72 object-contain rounded-xl cursor-zoom-in bg-black/40" />
+                <MediaImage value={mp.fotos[0].url} alt="" onClick={() => setZoom(mp.fotos[0].url)} className="w-full max-h-72 object-contain rounded-xl cursor-zoom-in bg-black/40" />
                 {mp.fotos[0].desc && <p className="text-xs text-surface-400 text-center mt-2">{mp.fotos[0].desc}</p>}
               </div>
             )}
@@ -457,7 +512,7 @@ function Presentacion({
               {mp.fotos.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto mt-4 pb-1">
                   {mp.fotos.slice(1).map((f) => (
-                    <img key={f.id} src={f.url} alt="" onClick={() => setZoom(f.url)} className="h-20 rounded-lg cursor-zoom-in shrink-0 object-cover" />
+                    <MediaImage key={f.id} value={f.url} alt="" onClick={() => setZoom(f.url)} className="h-20 rounded-lg cursor-zoom-in shrink-0 object-cover" />
                   ))}
                 </div>
               )}
@@ -494,10 +549,12 @@ function Evaluacion({
   proc,
   trabajador,
   onTerminar,
+  onBack,
 }: {
   proc: Proceso;
   trabajador: { nombre: string; numero: string };
   onTerminar: (respuestas: RespuestaRegistro[], tEvalSeg: number) => void;
+  onBack: () => void;
 }) {
   // Mezcla aleatoria de preguntas (spec 4.8.1).
   const preguntas = useMemo<Pregunta[]>(() => {
@@ -547,7 +604,13 @@ function Evaluacion({
   if (!preg) {
     return (
       <div className="flex flex-col gap-5 h-full">
-        <EmptyState icon={ClipboardCheck} title="Este proceso no tiene evaluación" hint="Pide a tu supervisor que la genere" />
+        <TrainingHeader icon={ClipboardCheck} gradient="from-blue-500 to-indigo-600" title="Evaluación" subtitle={trabajador.nombre} onBack={onBack} />
+        <div className="flex-1 flex flex-col items-center justify-center gap-5">
+          <EmptyState icon={ClipboardCheck} title="Este proceso no tiene evaluación" hint="Pide a tu supervisor que la genere" />
+          <button onClick={onBack} className="btn-secondary flex items-center gap-2">
+            <ArrowLeft size={16} /> Volver a los pasos
+          </button>
+        </div>
       </div>
     );
   }

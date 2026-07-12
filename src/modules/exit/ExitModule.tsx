@@ -31,6 +31,7 @@ import {
   generateId,
   getInitials,
 } from '../../utils/helpers';
+import { escapeHtml, printHtmlDocument } from '../../utils/printDoc';
 import StarRating from '../../components/StarRating';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -1049,6 +1050,81 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
 // VIEW 4: Letter Preview & Print
 // ══════════════════════════════════════════════════════════════════════════════
 
+// Construye un documento HTML autonomo y CENTRADO de la carta de recomendacion.
+// Se imprime via iframe (printHtmlDocument) igual que el resto de los
+// documentos del sistema: el bloque queda centrado en la hoja (max-width +
+// margin auto) en lugar de salir pegado a un lado como con window.print().
+function buildRecommendationLetterHtml(
+  employee: Employee,
+  letterType: LetterType,
+  exitDate: string,
+  companyName: string,
+  directorName: string,
+): string {
+  const positionName = JOB_POSITIONS[employee.position]?.name ?? employee.position;
+  const nombre = escapeHtml(employee.fullName);
+  const empresa = escapeHtml(companyName);
+  const puesto = escapeHtml(positionName);
+  const director = escapeHtml(directorName);
+  const ingreso = escapeHtml(formatDate(employee.hireDate));
+  const egreso = escapeHtml(formatDate(exitDate));
+  const today = escapeHtml(
+    new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }),
+  );
+
+  const cuerpoA = `
+    <p>Por medio de la presente, me es grato recomendar ampliamente al(la) C. <strong>${nombre}</strong>, quien laboro en nuestra empresa desde el <strong>${ingreso}</strong> hasta el <strong>${egreso}</strong>, desempenando el puesto de <strong>${puesto}</strong>.</p>
+    <p>Durante su estancia en nuestra organizacion, el(la) C. ${nombre} demostro ser una persona altamente responsable, comprometida, puntual y con una excelente actitud hacia el trabajo y hacia sus companeros. Su desempeno fue consistentemente sobresaliente, cumpliendo y superando las expectativas de su puesto.</p>
+    <p>Es una persona de confianza, con gran capacidad de trabajo en equipo, iniciativa propia y disposicion para aprender y mejorar continuamente. Su conducta fue siempre ejemplar y contribuyo positivamente al ambiente laboral.</p>
+    <p>Por todo lo anterior, recomiendo ampliamente al(la) C. ${nombre} para cualquier oportunidad laboral que se le presente, con la certeza de que sera un excelente elemento para cualquier organizacion.</p>`;
+
+  const cuerpoB = `
+    <p>Por medio de la presente, hago constar que el(la) C. <strong>${nombre}</strong> laboro en <strong>${empresa}</strong> desde el <strong>${ingreso}</strong> hasta el <strong>${egreso}</strong>, desempenando el puesto de <strong>${puesto}</strong>.</p>
+    <p>Durante el tiempo que formo parte de nuestra organizacion, el(la) C. ${nombre} cumplio con las funciones asignadas a su puesto de manera satisfactoria, manteniendo una conducta adecuada conforme a las politicas internas de la empresa.</p>
+    <p>Se extiende la presente carta a solicitud del interesado(a) y para los fines que al mismo(a) convengan.</p>`;
+
+  const cuerpoC = `
+    <p>Por medio de la presente, se hace constar que el(la) C. <strong>${nombre}</strong> laboro en <strong>${empresa}</strong> durante el periodo comprendido del <strong>${ingreso}</strong> al <strong>${egreso}</strong>, ocupando el puesto de <strong>${puesto}</strong>.</p>
+    <p>Se extiende la presente constancia a solicitud del interesado(a) y para los fines legales que al mismo(a) convengan.</p>`;
+
+  const cuerpo = letterType === 'A' ? cuerpoA : letterType === 'B' ? cuerpoB : cuerpoC;
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Carta de Recomendacion — ${nombre}</title>
+  <style>
+    @page { margin: 0; }
+    html, body { margin: 0; padding: 0; background: #fff; }
+    body { font-family: Georgia, 'Times New Roman', serif; color: #111; }
+    .page { max-width: 680px; margin: 0 auto; padding: 76px 64px; box-sizing: border-box; }
+    .empresa { text-align: center; font-size: 18px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin: 0; }
+    .subtitulo { text-align: center; font-size: 12px; color: #555; margin-top: 6px; }
+    hr { border: none; border-top: 2px solid #d0d0d0; margin: 22px 0 30px; }
+    .fecha { text-align: right; font-size: 12.5px; color: #444; margin-bottom: 26px; }
+    .destinatario { font-weight: bold; font-size: 13px; margin-bottom: 14px; }
+    p { font-size: 13px; line-height: 1.75; text-align: justify; margin: 12px 0; }
+    .firma { margin-top: 60px; text-align: center; }
+    .firma .atentamente { font-size: 13px; color: #444; margin: 0; }
+    .firma .linea { border-top: 1px solid #444; width: 260px; margin: 44px auto 0; padding-top: 8px; }
+    .firma .nombre { font-weight: bold; font-size: 13px; margin: 0; }
+    .firma .empresa-firma { font-size: 11px; color: #555; margin: 0; }
+  </style></head><body>
+    <div class="page">
+      <h1 class="empresa">${empresa}</h1>
+      <div class="subtitulo">Carta de Recomendacion Laboral</div>
+      <hr />
+      <div class="fecha">Ciudad de Mexico, a ${today}</div>
+      <div class="destinatario">A QUIEN CORRESPONDA:</div>
+      ${cuerpo}
+      <div class="firma">
+        <p class="atentamente">Atentamente,</p>
+        <div class="linea">
+          <p class="nombre">${director}</p>
+          <p class="empresa-firma">${empresa}</p>
+        </div>
+      </div>
+    </div>
+  </body></html>`;
+}
+
 function LetterPreviewView({
   employeeId,
   onBack,
@@ -1071,8 +1147,17 @@ function LetterPreviewView({
     );
   }
 
+  const exitData = employee.exitData;
   const handlePrint = () => {
-    window.print();
+    printHtmlDocument(
+      buildRecommendationLetterHtml(
+        employee,
+        exitData.letterType,
+        exitData.exitDate,
+        settings.companyName,
+        settings.directorName,
+      ),
+    );
   };
 
   return (
@@ -1096,8 +1181,9 @@ function LetterPreviewView({
         </button>
       </div>
 
-      {/* Letter */}
-      <div className="bg-white text-gray-900 rounded-xl p-10 max-w-3xl mx-auto shadow-2xl print:shadow-none print:rounded-none print:p-8 print:max-w-none">
+      {/* Vista previa en pantalla (la impresion usa un documento HTML centrado
+          aparte, via printHtmlDocument). */}
+      <div className="bg-white text-gray-900 rounded-xl p-10 max-w-3xl mx-auto shadow-2xl">
         <LetterContent
           employee={employee}
           letterType={employee.exitData.letterType}
@@ -1106,16 +1192,6 @@ function LetterPreviewView({
           directorName={settings.directorName}
         />
       </div>
-
-      {/* Print styles */}
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          .print\\:shadow-none, .print\\:shadow-none * { visibility: visible; }
-          .print\\:hidden { display: none !important; }
-          .glass, .glass-card, .glass-light { background: transparent !important; border: none !important; backdrop-filter: none !important; }
-        }
-      `}</style>
     </div>
   );
 }

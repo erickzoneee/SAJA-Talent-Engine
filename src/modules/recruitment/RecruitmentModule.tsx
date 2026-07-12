@@ -841,6 +841,9 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
   const [speed, setSpeed] = useState(1);
   const [realEnded, setRealEnded] = useState(false);
   const [realProgress, setRealProgress] = useState(0); // 0..1 para video real (archivo)
+  // Una vez que el video se vio completo, la decision queda disponible aunque
+  // se vuelva a reproducir (volver a ver no debe ocultar los botones).
+  const [watchedOnce, setWatchedOnce] = useState(false);
   const completedRef = useRef(false);
 
   const source = parseVideoSource(receptionVideoUrl);
@@ -860,11 +863,14 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
   useEffect(() => {
     if (complete && !completedRef.current && candidate) {
       completedRef.current = true;
+      setWatchedOnce(true);
       updateCandidate(candidateId, {
         reception: {
           ...candidate.reception!,
           videoCompleto: true,
-          videoTimestamp: new Date().toISOString(),
+          // Conservar la marca de tiempo de la PRIMERA vez que se completo el
+          // video (volver a verlo no debe sobrescribir la evidencia original).
+          videoTimestamp: candidate.reception!.videoTimestamp ?? new Date().toISOString(),
         },
       });
     }
@@ -934,6 +940,7 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
                 complete={complete}
                 onEnded={() => setRealEnded(true)}
                 onProgress={setRealProgress}
+                onRestart={() => setRealEnded(false)}
               />
             ) : (
               <>
@@ -945,6 +952,7 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
                   complete={complete}
                   onEnded={() => setRealEnded(true)}
                   onProgress={setRealProgress}
+                  onRestart={() => setRealEnded(false)}
                 />
               ) : (
                 <>
@@ -972,8 +980,10 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
                 </>
               )}
 
-              {complete && (
-                <div className={`absolute inset-0 bg-black/80 flex flex-col items-center justify-center ${usingReal ? 'pointer-events-none' : ''}`}>
+              {/* El overlay opaco solo cubre la demostracion; para el video real
+                  se omite para no tapar los controles ni impedir volver a verlo. */}
+              {complete && !usingReal && (
+                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center">
                   <CheckCircle size={48} className="text-success-500 mb-2" />
                   <p className="text-surface-100 font-semibold">Video completo</p>
                 </div>
@@ -1055,9 +1065,9 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
             )}
           </div>
 
-          {/* Decision — solo al terminar el video */}
+          {/* Decision — al terminar el video (y sigue visible si se vuelve a ver) */}
           <AnimatePresence>
-            {complete && (
+            {(complete || watchedOnce) && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

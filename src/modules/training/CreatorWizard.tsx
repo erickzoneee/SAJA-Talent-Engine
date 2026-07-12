@@ -31,6 +31,7 @@ import {
 import { TrainingHeader, PhotoManager, SinglePhotoPicker, ConfirmDialog } from './shared';
 import { fadeUp, scaleIn } from './anims';
 import NarrationButton from '../../components/NarrationButton';
+import MediaImage from '../../components/MediaImage';
 
 const STEPS = ['Datos', 'Portada', 'Recursos', 'Pasos', 'Evaluación', 'Publicar'];
 
@@ -957,7 +958,7 @@ function StepPublicar({
 
         <div className="flex items-start gap-3 mb-4">
           {proc.portadaInicio && (
-            <img src={proc.portadaInicio} alt="" className="w-20 h-20 rounded-xl object-cover border border-surface-700/40" />
+            <MediaImage value={proc.portadaInicio} alt="" className="w-20 h-20 rounded-xl object-cover border border-surface-700/40" />
           )}
           <div className="min-w-0">
             <h3 className="text-base font-bold text-surface-100">{proc.nombre}</h3>

@@ -10,6 +10,7 @@ import {
   Clock,
   User,
   UserPlus,
+  UserX,
   Building,
   Calendar,
   ArrowLeft,
@@ -1671,15 +1672,30 @@ interface EmployeeListViewProps {
 function EmployeeListView({ onBack, onViewDossier, onDirectRegister }: EmployeeListViewProps) {
   const { employees } = useStore();
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'trial' | 'active' | 'inactive'>('all');
+  // v2.12: los colaboradores dados de baja (inactivos / egreso) se muestran en
+  // una pestana aparte, para no mezclarlos con los colaboradores normales.
+  const [tab, setTab] = useState<'activos' | 'bajas'>('activos');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'trial' | 'active'>('all');
+
+  const activosCount = useMemo(
+    () => employees.filter((e) => e.status !== 'inactive').length,
+    [employees],
+  );
+  const bajasCount = useMemo(
+    () => employees.filter((e) => e.status === 'inactive').length,
+    [employees],
+  );
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((e) => {
       const matchSearch = e.fullName.toLowerCase().includes(search.toLowerCase());
+      if (tab === 'bajas') return matchSearch && e.status === 'inactive';
+      // Pestana de activos: los dados de baja nunca aparecen aqui.
+      if (e.status === 'inactive') return false;
       const matchStatus = filterStatus === 'all' || e.status === filterStatus;
       return matchSearch && matchStatus;
     });
-  }, [employees, search, filterStatus]);
+  }, [employees, search, filterStatus, tab]);
 
   const statusConfig: Record<string, { label: string; badge: string; icon: React.ElementType }> = {
     trial: { label: 'Periodo de Prueba', badge: 'badge-yellow', icon: Clock },
@@ -1705,7 +1721,9 @@ function EmployeeListView({ onBack, onViewDossier, onDirectRegister }: EmployeeL
             Expedientes de Empleados
           </h2>
           <p className="text-surface-400 text-sm mt-1">
-            {employees.length} empleado{employees.length !== 1 ? 's' : ''} registrado{employees.length !== 1 ? 's' : ''}
+            {tab === 'bajas'
+              ? `${bajasCount} ex-colaborador${bajasCount !== 1 ? 'es' : ''} dado${bajasCount !== 1 ? 's' : ''} de baja`
+              : `${activosCount} colaborador${activosCount !== 1 ? 'es' : ''} registrado${activosCount !== 1 ? 's' : ''}`}
           </p>
         </div>
         {/* v2.5: alta directa de colaboradores que ya trabajan aqui */}
@@ -1715,54 +1733,95 @@ function EmployeeListView({ onBack, onViewDossier, onDirectRegister }: EmployeeL
         </button>
       </div>
 
+      {/* v2.12: pestanas — colaboradores activos vs. bajas (ex-colaboradores) */}
+      <div className="flex items-center gap-2 mb-4">
+        <button
+          onClick={() => setTab('activos')}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer ${
+            tab === 'activos'
+              ? 'bg-primary-500/20 text-primary-300 ring-1 ring-primary-500/40'
+              : 'glass-card text-surface-400 hover:text-surface-200'
+          }`}
+        >
+          <Users size={15} /> Colaboradores
+          <span className="text-xs font-bold">{activosCount}</span>
+        </button>
+        <button
+          onClick={() => setTab('bajas')}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer ${
+            tab === 'bajas'
+              ? 'bg-danger-500/20 text-danger-400 ring-1 ring-danger-500/40'
+              : 'glass-card text-surface-400 hover:text-surface-200'
+          }`}
+        >
+          <UserX size={15} /> Ex-colaboradores
+          <span className="text-xs font-bold">{bajasCount}</span>
+        </button>
+      </div>
+
       {/* Filters */}
       <div className="flex items-center gap-3 mb-4">
         <div className="relative flex-1 max-w-md">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" />
           <input
             type="text"
-            placeholder="Buscar empleado..."
+            placeholder={tab === 'bajas' ? 'Buscar ex-colaborador...' : 'Buscar empleado...'}
             className="input-field pl-10"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <select
-          className="input-field w-auto"
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
-        >
-          <option value="all">Todos los estados</option>
-          <option value="trial">Periodo de prueba</option>
-          <option value="active">Activos</option>
-          <option value="inactive">Inactivos</option>
-        </select>
+        {tab === 'activos' && (
+          <select
+            className="input-field w-auto"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
+          >
+            <option value="all">Todos los estados</option>
+            <option value="trial">Periodo de prueba</option>
+            <option value="active">Activos</option>
+          </select>
+        )}
       </div>
 
-      {/* Summary Badges */}
-      <div className="flex gap-3 mb-4">
-        {(['trial', 'active', 'inactive'] as const).map((status) => {
-          const count = employees.filter((e) => e.status === status).length;
-          const cfg = statusConfig[status];
-          return (
-            <div key={status} className="glass-card px-4 py-2 flex items-center gap-2">
-              <cfg.icon size={14} className={status === 'trial' ? 'text-warning-500' : status === 'active' ? 'text-success-500' : 'text-danger-500'} />
-              <span className="text-xs text-surface-400">{cfg.label}:</span>
-              <span className="text-sm font-bold text-white">{count}</span>
-            </div>
-          );
-        })}
-      </div>
+      {/* Summary Badges (solo en la pestana de activos) */}
+      {tab === 'activos' && (
+        <div className="flex gap-3 mb-4">
+          {(['trial', 'active'] as const).map((status) => {
+            const count = employees.filter((e) => e.status === status).length;
+            const cfg = statusConfig[status];
+            return (
+              <div key={status} className="glass-card px-4 py-2 flex items-center gap-2">
+                <cfg.icon size={14} className={status === 'trial' ? 'text-warning-500' : 'text-success-500'} />
+                <span className="text-xs text-surface-400">{cfg.label}:</span>
+                <span className="text-sm font-bold text-white">{count}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Employee List */}
       <div className="flex-1 overflow-y-auto space-y-3 pr-1">
         {filteredEmployees.length === 0 ? (
           <motion.div {...fadeUp} className="glass-card p-12 text-center">
-            <Building size={48} className="mx-auto text-surface-600 mb-4" />
-            <p className="text-surface-400 text-lg font-medium">No hay empleados registrados</p>
-            <p className="text-surface-500 text-sm mt-1">
-              Contrate candidatos para verlos aqui
-            </p>
+            {tab === 'bajas' ? (
+              <>
+                <UserX size={48} className="mx-auto text-surface-600 mb-4" />
+                <p className="text-surface-400 text-lg font-medium">No hay ex-colaboradores</p>
+                <p className="text-surface-500 text-sm mt-1">
+                  Los colaboradores a los que se les da egreso apareceran aqui
+                </p>
+              </>
+            ) : (
+              <>
+                <Building size={48} className="mx-auto text-surface-600 mb-4" />
+                <p className="text-surface-400 text-lg font-medium">No hay empleados registrados</p>
+                <p className="text-surface-500 text-sm mt-1">
+                  Contrate candidatos para verlos aqui
+                </p>
+              </>
+            )}
           </motion.div>
         ) : (
           filteredEmployees.map((employee, i) => {

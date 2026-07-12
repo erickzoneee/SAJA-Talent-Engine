@@ -63,6 +63,10 @@ interface RealVideoPlayerProps {
   complete?: boolean;
   /** Subtitulos sincronizados por bloque (BRD: subtitulos activados siempre). */
   captions?: TimedCaption[];
+  /** Se llama cuando el usuario vuelve a reproducir un video ya terminado: el
+   *  padre debe limpiar su estado `complete` para que el overlay de "terminado"
+   *  desaparezca y se vea el video reproduciendose desde el inicio. */
+  onRestart?: () => void;
 }
 
 /** Indice del bloque activo: las duraciones se escalan a la duracion real del video. */
@@ -85,8 +89,10 @@ export function RealVideoPlayer({
   onProgress,
   complete,
   captions,
+  onRestart,
 }: RealVideoPlayerProps) {
   const endedRef = useRef(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [time, setTime] = useState(0);
   const [videoDur, setVideoDur] = useState(0);
   // v2.5: si el archivo de video falla (404 / red), se ofrece continuar
@@ -101,6 +107,7 @@ export function RealVideoPlayer({
     return (
       <div className="relative w-full h-full bg-black">
         <video
+          ref={videoRef}
           src={source.src}
           controls
           playsInline
@@ -112,6 +119,15 @@ export function RealVideoPlayer({
             const el = e.currentTarget;
             setTime(el.currentTime);
             if (el.duration > 0) onProgress?.(el.currentTime / el.duration);
+          }}
+          onPlay={() => {
+            // Volver a reproducir un video ya terminado: se rearma el detector de
+            // fin y se avisa al padre para que quite su overlay de "terminado",
+            // de modo que el video se vea de nuevo desde el inicio.
+            if (endedRef.current) {
+              endedRef.current = false;
+              onRestart?.();
+            }
           }}
           onEnded={() => {
             if (endedRef.current) return;
@@ -202,6 +218,9 @@ interface NarratedVideoPlayerProps {
    * cambia junto con el subtitulo, de modo que la imagen sigue la narracion.
    */
   sceneClips?: string[];
+  /** Se llama al presionar "reiniciar": el padre debe limpiar su estado
+   *  `complete` para que se vuelva a ver la narracion desde el inicio. */
+  onRestart?: () => void;
 }
 
 const fmtTime = (s: number) =>
@@ -215,6 +234,7 @@ export function NarratedVideoPlayer({
   onProgress,
   complete,
   sceneClips,
+  onRestart,
 }: NarratedVideoPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const endedRef = useRef(false);
@@ -285,6 +305,9 @@ export function NarratedVideoPlayer({
     endedRef.current = false;
     setAudioError(false);
     setStalled(false);
+    // Avisa al padre para que limpie su estado `complete`: sin esto el overlay
+    // de "Video completo" se quedaba encima y el video no se veia reiniciar.
+    onRestart?.();
     a.currentTime = 0;
     a.play().then(
       () => setPlaying(true),

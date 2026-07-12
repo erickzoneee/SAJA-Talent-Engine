@@ -18,6 +18,8 @@ export interface CatalogItem {
   icono?: string;
   /** Para materiales: unidad de medida. */
   unidad?: string;
+  /** Marca de tiempo de la última modificación (para el "gana el más nuevo" del sync). */
+  syncStamp?: string;
 }
 
 /** Catálogos dinámicos que alimentan las listas desplegables del wizard. */
@@ -105,6 +107,9 @@ export interface Proceso {
   motivoCambio?: string;
   /** Marca de "listo para autorizar" puesta por el supervisor (spec 4.7.1). */
   listoParaAutorizar?: boolean;
+
+  /** Marca de tiempo de la última modificación (para el "gana el más nuevo" del sync). */
+  syncStamp?: string;
 }
 
 /** Respuesta individual dentro de un registro (spec 3.8). */

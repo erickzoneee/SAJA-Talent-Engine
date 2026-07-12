@@ -17,6 +17,7 @@ import { useTrainingStore } from '../../store/useTrainingStore';
 import { TrainingHeader, EmptyState, ConfirmDialog } from './shared';
 import { listItem } from './anims';
 import Modal from '../../components/Modal';
+import MediaImage from '../../components/MediaImage';
 
 interface ProcessLibraryProps {
   isAdmin: boolean;
@@ -112,7 +113,7 @@ export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onN
                 <div className="flex items-start gap-3">
                   <div className="w-12 h-12 rounded-xl bg-surface-800/60 border border-surface-700/40 flex items-center justify-center overflow-hidden shrink-0">
                     {p.portadaInicio ? (
-                      <img src={p.portadaInicio} alt="" className="w-full h-full object-cover" />
+                      <MediaImage value={p.portadaInicio} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <ImageIcon size={20} className="text-surface-500" />
                     )}

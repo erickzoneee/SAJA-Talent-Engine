@@ -211,3 +211,55 @@ export async function openMedia(value?: string): Promise<void> {
   const src = await resolveMediaSrc(value);
   if (src) window.open(src, '_blank', 'noopener,noreferrer');
 }
+
+// ─── Rotacion de una foto ya almacenada ──────────────────────────────────────
+// Rota 90° una imagen que puede estar como base64 (data:) o como ruta de
+// Storage (sb:). Devuelve un NUEVO valor almacenado (sb: si hay sesion, base64
+// si no). Se obtiene el mapa de bits via un blob: URL de mismo origen para NO
+// contaminar el canvas (toBlob fallaria con una URL firmada cross-origin).
+function rotateBlob90(objectUrl: string): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.height;
+        canvas.height = img.width;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(null);
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.8);
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = objectUrl;
+  });
+}
+
+/**
+ * Rota una foto almacenada (data: o sb:) 90° y la vuelve a guardar.
+ * Si algo falla (red, CORS, formato), devuelve el valor original sin romper.
+ */
+export async function rotateStoredMedia(value: string, folder: string, key: string): Promise<string> {
+  try {
+    const src = await resolveMediaSrc(value);
+    if (!src) return value;
+    const resp = await fetch(src);
+    const blob = await resp.blob();
+    const objUrl = URL.createObjectURL(blob);
+    try {
+      const rotated = await rotateBlob90(objUrl);
+      if (!rotated) return value;
+      const file = new File([rotated], `${slug(key)}.jpg`, { type: 'image/jpeg' });
+      return await storeMediaFile(file, folder, key);
+    } finally {
+      URL.revokeObjectURL(objUrl);
+    }
+  } catch {
+    return value;
+  }
+}

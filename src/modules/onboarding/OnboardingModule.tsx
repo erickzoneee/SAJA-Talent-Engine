@@ -1225,6 +1225,7 @@ function VideoModuleView({
                 complete={videoComplete}
                 onEnded={() => setRealEnded(true)}
                 onProgress={setRealProgress}
+                onRestart={() => setRealEnded(false)}
               />
             ) : (
               <>
@@ -1236,6 +1237,7 @@ function VideoModuleView({
                   complete={videoComplete}
                   onEnded={() => setRealEnded(true)}
                   onProgress={setRealProgress}
+                  onRestart={() => setRealEnded(false)}
                 />
               ) : (
                 <>
@@ -1253,8 +1255,11 @@ function VideoModuleView({
                   </div>
                 </>
               )}
-              {videoComplete && (
-                <div className={`absolute inset-0 bg-black/80 flex flex-col items-center justify-center ${usingReal ? 'pointer-events-none' : ''}`}>
+              {/* El overlay opaco solo cubre el reproductor de demostracion. Para
+                  el video real se omite: taparia los controles nativos y no
+                  dejaria volver a verlo desde el inicio. */}
+              {videoComplete && !usingReal && (
+                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center">
                   <CheckCircle size={44} className="text-success-500 mb-2" />
                   <p className="text-surface-100 font-semibold">Video visto completo</p>
                   <p className="text-xs text-surface-400">Evidencia registrada con fecha y hora</p>
@@ -1384,7 +1389,7 @@ function VideoModuleView({
                 </p>
                 <button
                   className="btn-success flex items-center gap-2 text-sm"
-                  disabled={!videoComplete}
+                  disabled={!videoComplete && !watchedThisSession}
                   onClick={handleConfirmViewed}
                 >
                   <CheckCircle size={15} />
@@ -2609,6 +2614,7 @@ function VideotecaPlayer({ item, onClose }: { item: VideotecaItem; onClose: () =
               title={item.titulo}
               complete={ended}
               onEnded={() => setEnded(true)}
+              onRestart={() => setEnded(false)}
             />
           </div>
         ) : usingNarration ? (
@@ -2619,6 +2625,7 @@ function VideotecaPlayer({ item, onClose }: { item: VideotecaItem; onClose: () =
             sceneClips={item.sceneClips}
             complete={ended}
             onEnded={() => setEnded(true)}
+            onRestart={() => setEnded(false)}
           />
         ) : (
           <div className="p-5 space-y-3">
