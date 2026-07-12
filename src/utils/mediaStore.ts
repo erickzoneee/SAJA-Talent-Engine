@@ -20,6 +20,26 @@ const BUCKET = 'media';
 const PREFIX = 'sb:'; // marca de "esto es una ruta en Storage"
 const MAX_STORAGE_BYTES = 25 * 1024 * 1024; // 25 MB por archivo hacia Storage
 const SIGNED_TTL = 3600; // 1 hora
+const UPLOAD_TIMEOUT_MS = 45000; // la subida no puede colgar el sistema para siempre
+const SIGN_TIMEOUT_MS = 12000;
+
+// Corre una promesa con tope de tiempo: si tarda mas, rechaza (asi la UI nunca
+// se queda "trabada" esperando una subida/red que no responde).
+function withTimeout<T>(p: PromiseLike<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`timeout:${label}`)), ms);
+    Promise.resolve(p).then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
 
 export function isStoragePath(v?: string): boolean {
   return !!v && v.startsWith(PREFIX);
@@ -49,15 +69,36 @@ function extFor(mime: string): string {
   return 'bin';
 }
 
-function dataUrlToBlob(dataUrl: string): { blob: Blob; mime: string } {
-  const comma = dataUrl.indexOf(',');
-  const head = dataUrl.slice(0, comma);
-  const b64 = dataUrl.slice(comma + 1);
-  const mime = head.match(/data:(.*?);base64/)?.[1] ?? 'application/octet-stream';
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return { blob: new Blob([bytes as BlobPart], { type: mime }), mime };
+// Comprime una imagen a un Blob JPEG (canvas.toBlob) SIN pasar por una cadena
+// base64 gigante — la conversion base64 de archivos grandes bloqueaba el hilo
+// principal y "trababa" la app. Si falla, se sube el archivo original.
+function compressImageToBlob(file: File, maxDim = 1280, quality = 0.72): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      try {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(null);
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob((b) => resolve(b), 'image/jpeg', quality);
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    img.src = url;
+  });
 }
 
 // Sanea un fragmento de ruta para Storage (sin espacios ni acentos raros).
@@ -82,20 +123,40 @@ export async function storeMediaFile(file: File, folder: string, key: string): P
         `El archivo pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. El maximo es de 25 MB.`,
       );
     }
-    const dataUrl = isImage ? await compressImageFile(file) : await fileToBase64(file);
-    const { blob, mime } = dataUrlToBlob(dataUrl);
+    // Se sube el archivo DIRECTO (las imagenes se comprimen a un Blob). No se
+    // pasa por base64 gigante — eso bloqueaba el hilo y trababa la app.
+    let body: Blob = file;
+    let mime = file.type || 'application/octet-stream';
+    if (isImage) {
+      const compressed = await compressImageToBlob(file);
+      if (compressed) {
+        body = compressed;
+        mime = 'image/jpeg';
+      }
+    }
     const path = `${slug(folder) || 'general'}/${slug(key)}-${Date.now()}.${extFor(mime)}`;
-    const { error } = await supabase.storage.from(BUCKET).upload(path, blob, {
-      contentType: mime,
-      upsert: true,
-    });
-    if (error) {
-      // Storage fallo. Para archivos chicos se cae al modo local (base64) sin
-      // molestar; para archivos grandes (que no caben en localStorage) se avisa
-      // claro — normalmente falta crear el bucket "media" o sus permisos.
+
+    let result: { error: { message: string } | null };
+    try {
+      result = await withTimeout(
+        supabase.storage.from(BUCKET).upload(path, body, { contentType: mime, upsert: true }),
+        UPLOAD_TIMEOUT_MS,
+        'upload',
+      );
+    } catch (e) {
+      // Timeout o error de red: NO se cuelga la UI. Para archivos chicos se
+      // guarda local como respaldo; para grandes se avisa claro.
+      if (String(e).includes('timeout') && !isImage && file.size > 4 * 1024 * 1024) {
+        throw new Error('La subida tardo demasiado (revisa tu conexion) y se cancelo. Intenta de nuevo.');
+      }
+      return storeLocalFallback(file, isImage);
+    }
+    if (result.error) {
+      // Storage respondio error (p. ej. falta el bucket). Chicos → base64 local;
+      // grandes → aviso claro para crear el bucket "media".
       if (isImage || file.size <= 4 * 1024 * 1024) return storeLocalFallback(file, isImage);
       throw new Error(
-        `No se pudo subir el archivo a la nube. Revisa que exista el bucket "media" en Supabase con sus permisos. Detalle: ${error.message}`,
+        `No se pudo subir el archivo a la nube. Revisa que exista el bucket "media" en Supabase con sus permisos. Detalle: ${result.error.message}`,
       );
     }
     return `${PREFIX}${path}`;
@@ -131,10 +192,18 @@ export async function resolveMediaSrc(value?: string): Promise<string | null> {
   if (cached && cached.exp > now) return cached.url;
   if (!SUPABASE_ENABLED) return null;
 
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_TTL);
-  if (error || !data?.signedUrl) return null;
-  signedCache.set(path, { url: data.signedUrl, exp: now + (SIGNED_TTL - 120) * 1000 });
-  return data.signedUrl;
+  try {
+    const { data, error } = await withTimeout(
+      supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_TTL),
+      SIGN_TIMEOUT_MS,
+      'sign',
+    );
+    if (error || !data?.signedUrl) return null;
+    signedCache.set(path, { url: data.signedUrl, exp: now + (SIGNED_TTL - 120) * 1000 });
+    return data.signedUrl;
+  } catch {
+    return null; // timeout o red: se muestra placeholder en lugar de colgar
+  }
 }
 
 /** Abre la media (foto o PDF) en una pestana nueva, resolviendo la URL firmada. */

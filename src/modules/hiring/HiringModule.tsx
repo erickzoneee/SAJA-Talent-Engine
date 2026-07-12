@@ -23,6 +23,7 @@ import {
   BadgeCheck,
   FileText,
   Info,
+  Loader2,
   Plus,
   Trash2,
   MapPin,
@@ -580,6 +581,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
   const [reingreso, setReingreso] = useState(!!candidate?.reingreso);
   const [supervisorOverride, setSupervisorOverride] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState<keyof DocumentChecklist | null>(null);
 
   // v2.0: 'No recomendable' requiere autorizacion expresa de Direccion
   const isNotRecommended = candidate?.verdict === 'not_recommended';
@@ -646,6 +648,8 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
   const handleDocPhoto = useCallback(async (key: keyof DocumentChecklist, file: File) => {
     // v2.9: la media se sube a Supabase Storage y se guarda la RUTA (no llena el
     // navegador y viaja a los demas dispositivos). Sin sesion cae a base64 local.
+    // v2.10: con indicador de progreso y timeout (antes parecia trabado).
+    setUploadingDoc((cur) => cur ?? key);
     try {
       const ref = await storeMediaFile(file, candidateId || 'nuevo', key);
       setDocuments((prev) => ({
@@ -654,6 +658,8 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
       }));
     } catch (err) {
       alert(err instanceof Error ? err.message : 'No se pudo procesar el archivo.');
+    } finally {
+      setUploadingDoc(null);
     }
   }, [candidateId]);
 
@@ -818,6 +824,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
                 onPhotoUpload={(file) => handleDocPhoto(doc.key, file)}
                 index={i}
                 fileInputRef={(el) => { fileInputRefs.current[doc.key] = el; }}
+                uploading={uploadingDoc === doc.key}
               />
             ))}
           </div>
@@ -1194,9 +1201,10 @@ interface DocumentRowProps {
   onPhotoUpload: (file: File) => void;
   index: number;
   fileInputRef: (el: HTMLInputElement | null) => void;
+  uploading?: boolean;
 }
 
-function DocumentRow({ doc, checked, photoUrl, onToggle, onPhotoUpload, index, fileInputRef }: DocumentRowProps) {
+function DocumentRow({ doc, checked, photoUrl, onToggle, onPhotoUpload, index, fileInputRef, uploading }: DocumentRowProps) {
   const localFileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
 
@@ -1251,27 +1259,35 @@ function DocumentRow({ doc, checked, photoUrl, onToggle, onPhotoUpload, index, f
       </div>
 
       {/* Document thumbnail (imagen o PDF) */}
-      {photoUrl && <DocThumb url={photoUrl} />}
+      {photoUrl && !uploading && <DocThumb url={photoUrl} />}
 
-      {/* Camera button */}
-      <button
-        type="button"
-        className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-primary-500/20 flex items-center justify-center text-surface-400 hover:text-primary-400 transition-all cursor-pointer shrink-0"
-        onClick={() => cameraRef.current?.click()}
-        title="Tomar foto"
-      >
-        <Camera size={15} />
-      </button>
+      {uploading ? (
+        <span className="flex items-center gap-1.5 text-xs text-primary-300 shrink-0 pr-1">
+          <Loader2 size={14} className="animate-spin" /> Subiendo...
+        </span>
+      ) : (
+        <>
+          {/* Camera button */}
+          <button
+            type="button"
+            className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-primary-500/20 flex items-center justify-center text-surface-400 hover:text-primary-400 transition-all cursor-pointer shrink-0"
+            onClick={() => cameraRef.current?.click()}
+            title="Tomar foto"
+          >
+            <Camera size={15} />
+          </button>
 
-      {/* Upload button */}
-      <button
-        type="button"
-        className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-accent-500/20 flex items-center justify-center text-surface-400 hover:text-accent-400 transition-all cursor-pointer shrink-0"
-        onClick={() => localFileRef.current?.click()}
-        title="Subir archivo (foto o PDF)"
-      >
-        <Upload size={15} />
-      </button>
+          {/* Upload button */}
+          <button
+            type="button"
+            className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-accent-500/20 flex items-center justify-center text-surface-400 hover:text-accent-400 transition-all cursor-pointer shrink-0"
+            onClick={() => localFileRef.current?.click()}
+            title="Subir archivo (foto o PDF)"
+          >
+            <Upload size={15} />
+          </button>
+        </>
+      )}
 
       {/* Hidden inputs */}
       <input
@@ -2507,9 +2523,10 @@ interface DossierDocRowProps {
   onToggle: () => void;
   onPhoto: (file: File) => void;
   onExpand: (url: string) => void;
+  uploading?: boolean;
 }
 
-function DossierDocRow({ doc, index, data, onToggle, onPhoto, onExpand }: DossierDocRowProps) {
+function DossierDocRow({ doc, index, data, onToggle, onPhoto, onExpand, uploading }: DossierDocRowProps) {
   const uploadRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
 
@@ -2560,27 +2577,35 @@ function DossierDocRow({ doc, index, data, onToggle, onPhoto, onExpand }: Dossie
       </div>
 
       {/* Document thumbnail (ampliable — imagen o PDF) */}
-      {data.photoUrl && <DocThumb url={data.photoUrl} onClick={() => onExpand(data.photoUrl!)} />}
+      {data.photoUrl && !uploading && <DocThumb url={data.photoUrl} onClick={() => onExpand(data.photoUrl!)} />}
 
-      {/* Camera */}
-      <button
-        type="button"
-        className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-primary-500/20 flex items-center justify-center text-surface-400 hover:text-primary-400 transition-all cursor-pointer shrink-0"
-        onClick={() => cameraRef.current?.click()}
-        title="Tomar foto"
-      >
-        <Camera size={15} />
-      </button>
+      {uploading ? (
+        <span className="flex items-center gap-1.5 text-xs text-primary-300 shrink-0 pr-1">
+          <Loader2 size={14} className="animate-spin" /> Subiendo...
+        </span>
+      ) : (
+        <>
+          {/* Camera */}
+          <button
+            type="button"
+            className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-primary-500/20 flex items-center justify-center text-surface-400 hover:text-primary-400 transition-all cursor-pointer shrink-0"
+            onClick={() => cameraRef.current?.click()}
+            title="Tomar foto"
+          >
+            <Camera size={15} />
+          </button>
 
-      {/* Upload */}
-      <button
-        type="button"
-        className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-accent-500/20 flex items-center justify-center text-surface-400 hover:text-accent-400 transition-all cursor-pointer shrink-0"
-        onClick={() => uploadRef.current?.click()}
-        title="Subir archivo (foto o PDF)"
-      >
-        <Upload size={15} />
-      </button>
+          {/* Upload */}
+          <button
+            type="button"
+            className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-accent-500/20 flex items-center justify-center text-surface-400 hover:text-accent-400 transition-all cursor-pointer shrink-0"
+            onClick={() => uploadRef.current?.click()}
+            title="Subir archivo (foto o PDF)"
+          >
+            <Upload size={15} />
+          </button>
+        </>
+      )}
 
       {/* Hidden inputs */}
       <input ref={uploadRef} type="file" accept={DOC_UPLOAD_ACCEPT} onChange={handleFile} className="hidden" />
@@ -2594,6 +2619,7 @@ function DossierDocRow({ doc, index, data, onToggle, onPhoto, onExpand }: Dossie
 function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee: Employee; docsCompleted: number; docsTotal: number }) {
   const { updateEmployeeDocument } = useStore();
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
+  const [uploadingKey, setUploadingKey] = useState<keyof DocumentChecklist | null>(null);
   const progressPercent = docsTotal > 0 ? Math.round((docsCompleted / docsTotal) * 100) : 0;
 
   // v2.7: el checklist de documentos obligatorios ahora es EDITABLE desde el
@@ -2611,11 +2637,16 @@ function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee:
 
   const handlePhoto = async (key: keyof DocumentChecklist, file: File) => {
     // v2.9: sube a Storage (viaja entre dispositivos); sin sesion cae a base64.
+    // v2.10: con indicador de progreso y timeout — antes parecia "trabado".
+    if (uploadingKey) return; // evita subidas simultaneas que saturan
+    setUploadingKey(key);
     try {
       const ref = await storeMediaFile(file, employee.id, key);
       updateEmployeeDocument(employee.id, key, { photoUrl: ref, done: true });
     } catch (err) {
       alert(err instanceof Error ? err.message : 'No se pudo procesar el archivo.');
+    } finally {
+      setUploadingKey(null);
     }
   };
 
@@ -2659,6 +2690,7 @@ function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee:
             onToggle={() => handleToggle(doc.key)}
             onPhoto={(file) => handlePhoto(doc.key, file)}
             onExpand={(url) => setExpandedPhoto(url)}
+            uploading={uploadingKey === doc.key}
           />
         ))}
       </div>
@@ -2856,6 +2888,7 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
   const [contractOpen, setContractOpen] = useState(false);
   const [contractDraft, setContractDraft] = useState('');
   const [contractSaved, setContractSaved] = useState(false);
+  const [scanUploading, setScanUploading] = useState<SignedDocKey | null>(null);
   const scanRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const docs = useMemo(() => buildDocuments(employee, settings), [employee, settings]);
@@ -2900,11 +2933,16 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
 
   const handleScanUpload = async (key: SignedDocKey, file: File) => {
     // v2.9: el escaneo firmado se sube a Storage y viaja entre dispositivos.
+    // v2.10: indicador de progreso + timeout (antes se veia trabado).
+    if (scanUploading) return;
+    setScanUploading(key);
     try {
       const ref = await storeMediaFile(file, employee.id, `firmado_${key}`);
       setDocStatus(key, { firmadoUrl: ref, fechaFirmado: new Date().toISOString() });
     } catch (err) {
       alert(err instanceof Error ? err.message : 'No se pudo procesar el archivo.');
+    } finally {
+      setScanUploading(null);
     }
   };
 
@@ -2948,12 +2986,21 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
               {st.generado ? 'Ver / Imprimir' : 'Generar'}
             </button>
             <button
-              className="btn-secondary text-xs px-3.5 py-2 flex items-center gap-1.5"
+              className="btn-secondary text-xs px-3.5 py-2 flex items-center gap-1.5 disabled:opacity-60"
               onClick={() => scanRefs.current[doc.key]?.click()}
               title="Subir documento firmado escaneado"
+              disabled={scanUploading === doc.key}
             >
-              <Upload size={14} />
-              {st.firmadoUrl ? 'Reemplazar' : 'Subir firmado'}
+              {scanUploading === doc.key ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Subiendo...
+                </>
+              ) : (
+                <>
+                  <Upload size={14} />
+                  {st.firmadoUrl ? 'Reemplazar' : 'Subir firmado'}
+                </>
+              )}
             </button>
             <input
               ref={(el) => {
