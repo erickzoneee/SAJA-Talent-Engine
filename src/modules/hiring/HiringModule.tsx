@@ -60,13 +60,13 @@ import {
   generateId,
   formatDate,
   formatDateInput,
-  processDocumentFile,
-  isImageDataUrl,
   calcAge,
   getInitials,
   toUpper,
   isValidRfc,
 } from '../../utils/helpers';
+import { storeMediaFile, isImageMedia, openMedia } from '../../utils/mediaStore';
+import MediaImage, { MediaFrame } from '../../components/MediaImage';
 import { getVerdictLabel, getVerdictColor } from '../../utils/scoring';
 import { getDefaultOnboardingModules } from '../../utils/onboardingModules';
 import { buildDocuments, createEmptySignedDocs, ONBOARDING_DOC_KEYS } from '../../utils/documentsV2';
@@ -75,6 +75,7 @@ import type { DocTemplate } from '../../utils/documentsV2';
 import { buildContractText, printContractText } from '../../utils/contractTemplate';
 import { EXAM_OUTCOME_LABELS } from '../../utils/examBank';
 import { pullNow } from '../../utils/cloudSync';
+import { getMunicipios } from '../../utils/mxLocations';
 
 // ── Animation Variants ──────────────────────────────────────────────────────
 
@@ -147,10 +148,10 @@ const DOC_UPLOAD_ACCEPT = 'image/*,application/pdf';
 // Miniatura de un documento subido: <img> si es imagen, o un icono de archivo
 // (PDF/otros) que igual se puede ampliar/abrir.
 function DocThumb({ url, onClick, size = 40 }: { url: string; onClick?: () => void; size?: number }) {
-  const isImg = isImageDataUrl(url);
+  const isImg = isImageMedia(url);
   const style = { width: size, height: size };
   const inner = isImg ? (
-    <img src={url} alt="" className="w-full h-full object-cover" />
+    <MediaImage value={url} alt="" className="w-full h-full object-cover" />
   ) : (
     <div className="w-full h-full flex flex-col items-center justify-center bg-danger-500/15 text-danger-300 gap-0.5">
       <FileType size={size <= 40 ? 16 : 22} />
@@ -643,18 +644,18 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
   }, []);
 
   const handleDocPhoto = useCallback(async (key: keyof DocumentChecklist, file: File) => {
-    // v2.8: las imagenes se comprimen (como antes); PDF u otros formatos se
-    // guardan tal cual para poder subir constancias/actas que no son foto.
+    // v2.9: la media se sube a Supabase Storage y se guarda la RUTA (no llena el
+    // navegador y viaja a los demas dispositivos). Sin sesion cae a base64 local.
     try {
-      const base64 = await processDocumentFile(file);
+      const ref = await storeMediaFile(file, candidateId || 'nuevo', key);
       setDocuments((prev) => ({
         ...prev,
-        [key]: { ...prev[key], photoUrl: base64, done: true },
+        [key]: { ...prev[key], photoUrl: ref, done: true },
       }));
     } catch (err) {
       alert(err instanceof Error ? err.message : 'No se pudo procesar el archivo.');
     }
-  }, []);
+  }, [candidateId]);
 
   const handleSubmit = useCallback(() => {
     if (!candidate || !canSubmit || saving) return;
@@ -2056,6 +2057,8 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
   const factor = parseFloat(d.factorSdi) || DEFAULT_SDI_FACTOR;
   const sdi = Math.round(dailyNum * factor * 100) / 100;
   const edad = calcAge(d.fechaNacimiento);
+  // v2.9: sugerencias de municipio/alcaldia dependientes del estado elegido
+  const municipios = getMunicipios(d.estado);
   const rfcUpper = d.rfc.trim().toUpperCase();
   const rfcFormatOk = rfcUpper === '' || isValidRfc(rfcUpper);
   const pctPrim = parseFloat(d.benefPrimPct) || 0;
@@ -2235,12 +2238,32 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
             {ESTADOS_MEXICO.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
         </Fld>
-        <Fld label="Ciudad / Alcaldia">
-          <input className="input-field" value={d.ciudad} onChange={(e) => up({ ciudad: e.target.value.toUpperCase() })} />
+        <Fld
+          label="Ciudad / Alcaldia"
+          hint={municipios.length ? 'Elige de la lista del estado o escribe otra.' : undefined}
+        >
+          <input
+            className="input-field"
+            list="muni-suggestions"
+            value={d.ciudad}
+            onChange={(e) => up({ ciudad: e.target.value.toUpperCase() })}
+          />
         </Fld>
-        <Fld label="Municipio">
-          <input className="input-field" value={d.municipio} onChange={(e) => up({ municipio: e.target.value.toUpperCase() })} />
+        <Fld label="Municipio" hint={municipios.length ? 'Sugerencias segun el estado.' : undefined}>
+          <input
+            className="input-field"
+            list="muni-suggestions"
+            value={d.municipio}
+            onChange={(e) => up({ municipio: e.target.value.toUpperCase() })}
+          />
         </Fld>
+        {/* Sugerencias dependientes del estado (datalist compartido). Con
+            datalist se puede elegir de la lista o escribir cualquier otro. */}
+        <datalist id="muni-suggestions">
+          {municipios.map((m) => (
+            <option key={m} value={m} />
+          ))}
+        </datalist>
         <Fld label="Calle">
           <input className="input-field" value={d.calle} onChange={(e) => up({ calle: e.target.value.toUpperCase() })} />
         </Fld>
@@ -2587,10 +2610,10 @@ function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee:
   };
 
   const handlePhoto = async (key: keyof DocumentChecklist, file: File) => {
-    // v2.8: imagenes comprimidas; PDF u otros formatos se guardan tal cual.
+    // v2.9: sube a Storage (viaja entre dispositivos); sin sesion cae a base64.
     try {
-      const base64 = await processDocumentFile(file);
-      updateEmployeeDocument(employee.id, key, { photoUrl: base64, done: true });
+      const ref = await storeMediaFile(file, employee.id, key);
+      updateEmployeeDocument(employee.id, key, { photoUrl: ref, done: true });
     } catch (err) {
       alert(err instanceof Error ? err.message : 'No se pudo procesar el archivo.');
     }
@@ -2650,16 +2673,20 @@ function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee:
             className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"
             onClick={() => setExpandedPhoto(null)}
           >
-            {isImageDataUrl(expandedPhoto) ? (
-              <motion.img
+            {isImageMedia(expandedPhoto) ? (
+              <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.8, opacity: 0 }}
-                src={expandedPhoto}
-                alt="Documento"
-                className="max-w-full max-h-full rounded-2xl shadow-2xl object-contain"
                 onClick={(e) => e.stopPropagation()}
-              />
+                className="max-w-full max-h-full"
+              >
+                <MediaImage
+                  value={expandedPhoto}
+                  alt="Documento"
+                  className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain"
+                />
+              </motion.div>
             ) : (
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
@@ -2672,16 +2699,15 @@ function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee:
                   <span className="text-sm text-surface-300 flex items-center gap-2">
                     <FileType size={16} className="text-danger-400" /> Documento PDF
                   </span>
-                  <a
-                    href={expandedPhoto}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => void openMedia(expandedPhoto)}
                     className="btn-secondary text-xs px-3 py-1.5"
                   >
                     Abrir en pestana nueva
-                  </a>
+                  </button>
                 </div>
-                <iframe src={expandedPhoto} title="Documento PDF" className="flex-1 w-full bg-white" />
+                <MediaFrame value={expandedPhoto} title="Documento PDF" className="flex-1 w-full bg-white" />
               </motion.div>
             )}
           </motion.div>
@@ -2873,10 +2899,10 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
   };
 
   const handleScanUpload = async (key: SignedDocKey, file: File) => {
-    // v2.8: escaneos como imagen se comprimen; un PDF firmado se guarda tal cual.
+    // v2.9: el escaneo firmado se sube a Storage y viaja entre dispositivos.
     try {
-      const base64 = await processDocumentFile(file);
-      setDocStatus(key, { firmadoUrl: base64, fechaFirmado: new Date().toISOString() });
+      const ref = await storeMediaFile(file, employee.id, `firmado_${key}`);
+      setDocStatus(key, { firmadoUrl: ref, fechaFirmado: new Date().toISOString() });
     } catch (err) {
       alert(err instanceof Error ? err.message : 'No se pudo procesar el archivo.');
     }
@@ -2944,21 +2970,20 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
           </div>
         </div>
         {st.firmadoUrl && (
-          isImageDataUrl(st.firmadoUrl) ? (
-            <img
-              src={st.firmadoUrl}
+          isImageMedia(st.firmadoUrl) ? (
+            <MediaImage
+              value={st.firmadoUrl}
               alt={`${doc.titulo} firmado`}
               className="h-16 rounded-lg border border-surface-600/30 object-cover"
             />
           ) : (
-            <a
-              href={st.firmadoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => void openMedia(st.firmadoUrl)}
               className="inline-flex items-center gap-2 text-xs text-danger-300 bg-danger-500/10 border border-danger-500/20 rounded-lg px-3 py-2 hover:bg-danger-500/20 transition-colors"
             >
               <FileType size={14} /> Documento PDF firmado — abrir
-            </a>
+            </button>
           )
         )}
       </div>
