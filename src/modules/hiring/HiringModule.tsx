@@ -23,21 +23,46 @@ import {
   BadgeCheck,
   FileText,
   Info,
+  Plus,
+  Trash2,
+  MapPin,
+  GraduationCap,
+  Users,
+  Heart,
+  Save,
+  FileType,
 } from 'lucide-react';
 import type {
   Employee,
   DocumentChecklist,
   ContractType,
   SignedDocKey,
+  EmployeeStatus,
+  EmployeeExpediente,
+  Beneficiary,
 } from '../../types';
 import type { JobPosition } from '../../types';
-import { JOB_POSITIONS, DEFAULT_SCHEDULES, DEFAULT_AREAS } from '../../types';
+import {
+  JOB_POSITIONS,
+  DEFAULT_SCHEDULES,
+  DEFAULT_AREAS,
+  DEFAULT_SDI_FACTOR,
+  ESTADO_CIVIL_OPTIONS,
+  TIPO_SANGRE_OPTIONS,
+  NIVEL_ESTUDIOS_OPTIONS,
+  CLASE_RIESGO_OPTIONS,
+  PARENTESCO_OPTIONS,
+  BANCO_OPTIONS,
+  ESTADOS_MEXICO,
+} from '../../types';
 import { useStore } from '../../store/useStore';
 import {
   generateId,
   formatDate,
   formatDateInput,
-  compressImageFile,
+  processDocumentFile,
+  isImageDataUrl,
+  calcAge,
   getInitials,
   toUpper,
   isValidRfc,
@@ -114,6 +139,40 @@ const DOCUMENT_ITEMS: DocumentItem[] = [
   { key: 'antecedentesNoPenales', label: 'Antecedentes no penales', mandatory: false, maleOnly: true, note: 'Solo aplica para hombres' },
   { key: 'rfc', label: 'RFC constancia con homoclave', mandatory: true },
 ];
+
+// v2.8: los documentos aceptan foto (imagen) o PDF/otros archivos. El boton de
+// CAMARA sigue restringido a imagen (capture); el de SUBIR ARCHIVO acepta ambos.
+const DOC_UPLOAD_ACCEPT = 'image/*,application/pdf';
+
+// Miniatura de un documento subido: <img> si es imagen, o un icono de archivo
+// (PDF/otros) que igual se puede ampliar/abrir.
+function DocThumb({ url, onClick, size = 40 }: { url: string; onClick?: () => void; size?: number }) {
+  const isImg = isImageDataUrl(url);
+  const style = { width: size, height: size };
+  const inner = isImg ? (
+    <img src={url} alt="" className="w-full h-full object-cover" />
+  ) : (
+    <div className="w-full h-full flex flex-col items-center justify-center bg-danger-500/15 text-danger-300 gap-0.5">
+      <FileType size={size <= 40 ? 16 : 22} />
+      <span className="text-[7px] font-bold tracking-wide">PDF</span>
+    </div>
+  );
+  return onClick ? (
+    <button
+      type="button"
+      style={style}
+      className="rounded-lg overflow-hidden border border-surface-600/30 hover:border-primary-500/40 transition-colors cursor-pointer shrink-0"
+      onClick={onClick}
+      title="Ver documento"
+    >
+      {inner}
+    </button>
+  ) : (
+    <div style={style} className="rounded-lg overflow-hidden border border-surface-600/30 shrink-0">
+      {inner}
+    </div>
+  );
+}
 
 function createEmptyDocuments(): DocumentChecklist {
   return {
@@ -377,6 +436,107 @@ function CandidatesReadyView({ onHire, onViewEmployees }: CandidatesReadyViewPro
   );
 }
 
+// ── Catalog Select (v2.8) ───────────────────────────────────────────────────
+// Selector de catalogo editable: se puede elegir una opcion, AGREGAR nuevas y
+// QUITAR las que no se usan (antes solo se podia agregar). Se usa para el
+// horario y el area tanto en contratacion como en el alta directa. Los cambios
+// escriben en el catalogo global (settings) via onAdd/onRemove.
+
+interface CatalogSelectProps {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  onAdd: (value: string) => void;
+  onRemove: (value: string) => void;
+  placeholder: string;
+  addPlaceholder: string;
+}
+
+function CatalogSelect({
+  icon: Icon,
+  label,
+  value,
+  onChange,
+  options,
+  onAdd,
+  onRemove,
+  placeholder,
+  addPlaceholder,
+}: CatalogSelectProps) {
+  const [manage, setManage] = useState(false);
+  const [newVal, setNewVal] = useState('');
+
+  const handleAdd = () => {
+    const v = toUpper(newVal);
+    if (!v) return;
+    onAdd(v);
+    setNewVal('');
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-surface-300 mb-1.5">
+        <Icon size={14} className="inline mr-1.5 -mt-0.5" />
+        {label}
+      </label>
+      <select className="input-field" value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o} value={o}>{o}</option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="text-xs text-primary-400 hover:text-primary-300 mt-1.5 cursor-pointer flex items-center gap-1"
+        onClick={() => setManage((m) => !m)}
+      >
+        <Plus size={12} /> Agregar o quitar opciones
+      </button>
+      {manage && (
+        <div className="mt-2 p-3 rounded-xl bg-surface-900/50 border border-surface-700/40 space-y-2">
+          {options.length === 0 ? (
+            <p className="text-xs text-surface-500">No hay opciones. Agrega la primera abajo.</p>
+          ) : (
+            options.map((o) => (
+              <div key={o} className="flex items-center gap-2">
+                <span className="flex-1 text-xs text-surface-200 truncate">{o}</span>
+                <button
+                  type="button"
+                  className="p-1 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer shrink-0"
+                  onClick={() => onRemove(o)}
+                  title="Quitar esta opcion"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))
+          )}
+          <div className="flex gap-2 pt-1">
+            <input
+              type="text"
+              className="input-field text-xs"
+              placeholder={addPlaceholder}
+              value={newVal}
+              onChange={(e) => setNewVal(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAdd();
+                }
+              }}
+            />
+            <button type="button" className="btn-primary text-xs px-3 py-1.5 shrink-0" onClick={handleAdd}>
+              Agregar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // VIEW 2 : Hiring Form
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -417,10 +577,6 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
   const [imssNumber, setImssNumber] = useState('');
   const [rfc, setRfc] = useState(candidate?.rfc ?? '');
   const [reingreso, setReingreso] = useState(!!candidate?.reingreso);
-  const [newArea, setNewArea] = useState('');
-  const [showNewArea, setShowNewArea] = useState(false);
-  const [newSchedule, setNewSchedule] = useState('');
-  const [showNewSchedule, setShowNewSchedule] = useState(false);
   const [supervisorOverride, setSupervisorOverride] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -461,26 +617,22 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
   const authOk = !isNotRecommended || (authConfirmed && authMotivo.trim() !== '');
   const canSubmit = (allMandatoryDone || supervisorOverride) && dailyNum > 0 && schedule && hireDate && rfcOk && authOk;
 
-  const handleAddArea = () => {
-    const a = toUpper(newArea);
-    if (!a) return;
-    if (!areaOptions.includes(a)) {
-      updateSettings({ areas: [...areaOptions, a] });
-    }
-    setArea(a);
-    setNewArea('');
-    setShowNewArea(false);
-  };
-
-  const handleAddSchedule = () => {
-    const s = toUpper(newSchedule);
-    if (!s) return;
-    if (!scheduleOptions.includes(s)) {
-      updateSettings({ schedules: [...scheduleOptions, s] });
-    }
+  // v2.8: catalogos de horario/area — agregar Y quitar opciones
+  const addScheduleOption = (s: string) => {
+    if (!scheduleOptions.includes(s)) updateSettings({ schedules: [...scheduleOptions, s] });
     setSchedule(s);
-    setNewSchedule('');
-    setShowNewSchedule(false);
+  };
+  const removeScheduleOption = (s: string) => {
+    updateSettings({ schedules: scheduleOptions.filter((x) => x !== s) });
+    if (schedule === s) setSchedule('');
+  };
+  const addAreaOption = (a: string) => {
+    if (!areaOptions.includes(a)) updateSettings({ areas: [...areaOptions, a] });
+    setArea(a);
+  };
+  const removeAreaOption = (a: string) => {
+    updateSettings({ areas: areaOptions.filter((x) => x !== a) });
+    if (area === a) setArea('');
   };
 
   const handleDocToggle = useCallback((key: keyof DocumentChecklist) => {
@@ -491,13 +643,17 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
   }, []);
 
   const handleDocPhoto = useCallback(async (key: keyof DocumentChecklist, file: File) => {
-    // v2.5: comprimida — una foto cruda de camara congelaba la UI y podia
-    // desbordar el almacenamiento local
-    const base64 = await compressImageFile(file);
-    setDocuments((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], photoUrl: base64, done: true },
-    }));
+    // v2.8: las imagenes se comprimen (como antes); PDF u otros formatos se
+    // guardan tal cual para poder subir constancias/actas que no son foto.
+    try {
+      const base64 = await processDocumentFile(file);
+      setDocuments((prev) => ({
+        ...prev,
+        [key]: { ...prev[key], photoUrl: base64, done: true },
+      }));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'No se pudo procesar el archivo.');
+    }
   }, []);
 
   const handleSubmit = useCallback(() => {
@@ -550,17 +706,27 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
         : undefined,
     };
 
-    addEmployee(newEmployee);
-    updateCandidate(candidate.id, { hired: true });
+    // v2.8: el guardado persiste en localStorage de forma SINCRONA. Si el
+    // almacenamiento esta lleno (muchas fotos/PDF) lanza QuotaExceededError; sin
+    // este try/catch el estado 'saving' quedaba en true para siempre y el boton
+    // se congelaba en "Guardando..." sin explicacion (bug reportado).
+    try {
+      addEmployee(newEmployee);
+      updateCandidate(candidate.id, { hired: true });
 
-    // Candidato 'con reserva' contratado → seguimiento especial automatico (BRD regla 14)
-    if (isReservations) {
-      addAlert({
-        tipo: 'seguimiento_especial',
-        mensaje: `${candidate.fullName} fue contratado 'con reserva' — seguimiento especial activado automaticamente.`,
-        empleadoId: employeeId,
-        destinatarios: ['RH', 'Jefe directo', 'Direccion'],
-      });
+      // Candidato 'con reserva' contratado → seguimiento especial automatico (BRD regla 14)
+      if (isReservations) {
+        addAlert({
+          tipo: 'seguimiento_especial',
+          mensaje: `${candidate.fullName} fue contratado 'con reserva' — seguimiento especial activado automaticamente.`,
+          empleadoId: employeeId,
+          destinatarios: ['RH', 'Jefe directo', 'Direccion'],
+        });
+      }
+    } catch {
+      setSaving(false);
+      alert('No se pudo guardar la contratacion: el almacenamiento del dispositivo esta lleno. Libera espacio (o reduce fotos/PDF de documentos) e intenta de nuevo.');
+      return;
     }
 
     setTimeout(() => {
@@ -732,48 +898,18 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
               />
             </div>
 
-            {/* v2.4 Req 3: horario asignado — 3 tipos de horario (catalogo editable) */}
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1.5">
-                <Clock size={14} className="inline mr-1.5 -mt-0.5" />
-                Horario asignado *
-              </label>
-              <select
-                className="input-field"
-                value={schedule}
-                onChange={(e) => setSchedule(e.target.value)}
-              >
-                <option value="">Seleccionar horario</option>
-                {scheduleOptions.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-              {!showNewSchedule ? (
-                <button
-                  type="button"
-                  className="text-xs text-primary-400 hover:text-primary-300 mt-1.5 cursor-pointer"
-                  onClick={() => setShowNewSchedule(true)}
-                >
-                  + Agregar otro tipo de horario
-                </button>
-              ) : (
-                <div className="flex gap-2 mt-2">
-                  <input
-                    type="text"
-                    className="input-field text-xs"
-                    placeholder="Ej: TURNO NOCTURNO · LUN-SAB 22:00 - 6:00"
-                    value={newSchedule}
-                    onChange={(e) => setNewSchedule(e.target.value)}
-                  />
-                  <button type="button" className="btn-primary text-xs px-3 py-1.5" onClick={handleAddSchedule}>
-                    Agregar
-                  </button>
-                  <button type="button" className="btn-secondary text-xs px-3 py-1.5" onClick={() => setShowNewSchedule(false)}>
-                    X
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* v2.8: horario asignado — catalogo editable (agregar y quitar) */}
+            <CatalogSelect
+              icon={Clock}
+              label="Horario asignado *"
+              value={schedule}
+              onChange={setSchedule}
+              options={scheduleOptions}
+              onAdd={addScheduleOption}
+              onRemove={removeScheduleOption}
+              placeholder="Seleccionar horario"
+              addPlaceholder="Ej: TURNO NOCTURNO · LUN-SAB 22:00 - 6:00"
+            />
 
             {/* Tipo de contrato */}
             <div>
@@ -791,48 +927,18 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
               </select>
             </div>
 
-            {/* v2.4 Req 3: area asignada con opciones + agregar nuevas */}
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1.5">
-                <Building size={14} className="inline mr-1.5 -mt-0.5" />
-                Area asignada
-              </label>
-              <select
-                className="input-field"
-                value={area}
-                onChange={(e) => setArea(e.target.value)}
-              >
-                <option value="">Seleccionar area</option>
-                {areaOptions.map((a) => (
-                  <option key={a} value={a}>{a}</option>
-                ))}
-              </select>
-              {!showNewArea ? (
-                <button
-                  type="button"
-                  className="text-xs text-primary-400 hover:text-primary-300 mt-1.5 cursor-pointer"
-                  onClick={() => setShowNewArea(true)}
-                >
-                  + Agregar nueva area
-                </button>
-              ) : (
-                <div className="flex gap-2 mt-2">
-                  <input
-                    type="text"
-                    className="input-field text-xs"
-                    placeholder="Nombre de la nueva area"
-                    value={newArea}
-                    onChange={(e) => setNewArea(e.target.value)}
-                  />
-                  <button type="button" className="btn-primary text-xs px-3 py-1.5" onClick={handleAddArea}>
-                    Agregar
-                  </button>
-                  <button type="button" className="btn-secondary text-xs px-3 py-1.5" onClick={() => setShowNewArea(false)}>
-                    X
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* v2.8: area asignada — catalogo editable (agregar y quitar) */}
+            <CatalogSelect
+              icon={Building}
+              label="Area asignada"
+              value={area}
+              onChange={setArea}
+              options={areaOptions}
+              onAdd={addAreaOption}
+              onRemove={removeAreaOption}
+              placeholder="Seleccionar area"
+              addPlaceholder="Nombre de la nueva area"
+            />
 
             {/* Supervisor directo */}
             <div>
@@ -1143,12 +1249,8 @@ function DocumentRow({ doc, checked, photoUrl, onToggle, onPhotoUpload, index, f
         </div>
       </div>
 
-      {/* Photo thumbnail */}
-      {photoUrl && (
-        <div className="w-10 h-10 rounded-lg overflow-hidden border border-surface-600/30 shrink-0">
-          <img src={photoUrl} alt="" className="w-full h-full object-cover" />
-        </div>
-      )}
+      {/* Document thumbnail (imagen o PDF) */}
+      {photoUrl && <DocThumb url={photoUrl} />}
 
       {/* Camera button */}
       <button
@@ -1165,7 +1267,7 @@ function DocumentRow({ doc, checked, photoUrl, onToggle, onPhotoUpload, index, f
         type="button"
         className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-accent-500/20 flex items-center justify-center text-surface-400 hover:text-accent-400 transition-all cursor-pointer shrink-0"
         onClick={() => localFileRef.current?.click()}
-        title="Subir archivo"
+        title="Subir archivo (foto o PDF)"
       >
         <Upload size={15} />
       </button>
@@ -1177,7 +1279,7 @@ function DocumentRow({ doc, checked, photoUrl, onToggle, onPhotoUpload, index, f
           fileInputRef(el);
         }}
         type="file"
-        accept="image/*"
+        accept={DOC_UPLOAD_ACCEPT}
         onChange={handleFileChange}
         className="hidden"
       />
@@ -1227,10 +1329,6 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
   const [supervisor, setSupervisor] = useState('');
   const [imssNumber, setImssNumber] = useState('');
   const [rfc, setRfc] = useState('');
-  const [newArea, setNewArea] = useState('');
-  const [showNewArea, setShowNewArea] = useState(false);
-  const [newSchedule, setNewSchedule] = useState('');
-  const [showNewSchedule, setShowNewSchedule] = useState(false);
 
   const scheduleOptions = settings.schedules?.length ? settings.schedules : DEFAULT_SCHEDULES;
   const areaOptions = settings.areas?.length ? settings.areas : DEFAULT_AREAS;
@@ -1256,22 +1354,22 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
   const canSubmit =
     fullName.trim() !== '' && position !== '' && hireDate !== '' && dailyNum > 0 && schedule !== '' && rfcOk;
 
-  const handleAddArea = () => {
-    const a = toUpper(newArea);
-    if (!a) return;
-    if (!areaOptions.includes(a)) updateSettings({ areas: [...areaOptions, a] });
-    setArea(a);
-    setNewArea('');
-    setShowNewArea(false);
-  };
-
-  const handleAddSchedule = () => {
-    const s = toUpper(newSchedule);
-    if (!s) return;
+  // v2.8: catalogos de horario/area — agregar Y quitar opciones
+  const addScheduleOption = (s: string) => {
     if (!scheduleOptions.includes(s)) updateSettings({ schedules: [...scheduleOptions, s] });
     setSchedule(s);
-    setNewSchedule('');
-    setShowNewSchedule(false);
+  };
+  const removeScheduleOption = (s: string) => {
+    updateSettings({ schedules: scheduleOptions.filter((x) => x !== s) });
+    if (schedule === s) setSchedule('');
+  };
+  const addAreaOption = (a: string) => {
+    if (!areaOptions.includes(a)) updateSettings({ areas: [...areaOptions, a] });
+    setArea(a);
+  };
+  const removeAreaOption = (a: string) => {
+    updateSettings({ areas: areaOptions.filter((x) => x !== a) });
+    if (area === a) setArea('');
   };
 
   const handleSubmit = () => {
@@ -1313,7 +1411,16 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
       signedDocsV2: createEmptySignedDocs(),
     };
 
-    addEmployee(newEmployee);
+    // v2.8: guardar puede lanzar QuotaExceededError (localStorage lleno) de
+    // forma sincrona. Sin este try/catch el boton se quedaba en "Guardando..."
+    // para siempre — el bug de "se queda bugueado al registrar un colaborador".
+    try {
+      addEmployee(newEmployee);
+    } catch {
+      setSaving(false);
+      alert('No se pudo registrar al colaborador: el almacenamiento del dispositivo esta lleno. Libera espacio (o reduce fotos/PDF de documentos) e intenta de nuevo.');
+      return;
+    }
     setTimeout(() => {
       setSaving(false);
       onComplete();
@@ -1420,35 +1527,17 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm text-surface-400 mb-1">Horario asignado *</label>
-              <select className="input-field" value={schedule} onChange={(e) => setSchedule(e.target.value)}>
-                <option value="">Seleccionar horario</option>
-                {scheduleOptions.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-              {!showNewSchedule ? (
-                <button className="text-xs text-primary-400 mt-1" onClick={() => setShowNewSchedule(true)}>
-                  + Agregar otro tipo de horario
-                </button>
-              ) : (
-                <div className="flex gap-2 mt-2">
-                  <input
-                    type="text"
-                    className="input-field flex-1"
-                    placeholder="Nuevo horario"
-                    value={newSchedule}
-                    onChange={(e) => setNewSchedule(e.target.value)}
-                  />
-                  <button className="btn-secondary text-xs px-3" onClick={handleAddSchedule}>
-                    Agregar
-                  </button>
-                </div>
-              )}
-            </div>
+            <CatalogSelect
+              icon={Clock}
+              label="Horario asignado *"
+              value={schedule}
+              onChange={setSchedule}
+              options={scheduleOptions}
+              onAdd={addScheduleOption}
+              onRemove={removeScheduleOption}
+              placeholder="Seleccionar horario"
+              addPlaceholder="Ej: TURNO NOCTURNO · LUN-SAB 22:00 - 6:00"
+            />
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -1462,35 +1551,17 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
                   <option value="eventual">Contrato de prueba — 15 dias</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm text-surface-400 mb-1">Area asignada</label>
-                <select className="input-field" value={area} onChange={(e) => setArea(e.target.value)}>
-                  <option value="">Seleccionar area</option>
-                  {areaOptions.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
-                    </option>
-                  ))}
-                </select>
-                {!showNewArea ? (
-                  <button className="text-xs text-primary-400 mt-1" onClick={() => setShowNewArea(true)}>
-                    + Agregar nueva area
-                  </button>
-                ) : (
-                  <div className="flex gap-2 mt-2">
-                    <input
-                      type="text"
-                      className="input-field flex-1"
-                      placeholder="Nueva area"
-                      value={newArea}
-                      onChange={(e) => setNewArea(e.target.value)}
-                    />
-                    <button className="btn-secondary text-xs px-3" onClick={handleAddArea}>
-                      Agregar
-                    </button>
-                  </div>
-                )}
-              </div>
+              <CatalogSelect
+                icon={Building}
+                label="Area asignada"
+                value={area}
+                onChange={setArea}
+                options={areaOptions}
+                onAdd={addAreaOption}
+                onRemove={removeAreaOption}
+                placeholder="Seleccionar area"
+                addPlaceholder="Nombre de la nueva area"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1872,31 +1943,209 @@ function DossierView({ employeeId, onBack }: DossierViewProps) {
 
 // ── Dossier Info Tab ────────────────────────────────────────────────────────
 
-function DossierInfoTab({ employee }: { employee: Employee }) {
-  const contractLabel = employee.contractType === 'eventual' ? 'Contrato de prueba 15 dias' : 'Indefinido';
+// ── Expediente: helpers de UI (seccion y campo) ─────────────────────────────
 
-  const fields = [
-    { label: 'Fecha de ingreso', value: formatDate(employee.hireDate), icon: Calendar },
-    {
-      label: 'Sueldo diario',
-      value: employee.dailySalary
-        ? `$${employee.dailySalary.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
-        : 'No registrado',
-      icon: DollarSign,
-    },
-    { label: 'Sueldo semanal (diario x 7)', value: `$${employee.salary.toLocaleString('es-MX')}`, icon: DollarSign },
-    { label: 'Horario', value: employee.schedule, icon: Clock },
-    { label: 'Tipo de contrato', value: contractLabel, icon: FileCheck },
-    { label: 'Area asignada', value: employee.area, icon: Building },
-    { label: 'Supervisor directo', value: employee.supervisor, icon: User },
-    { label: 'Numero IMSS', value: employee.imssNumber || 'No registrado', icon: Hash },
-    { label: 'RFC', value: employee.rfc || 'No registrado', icon: Hash },
-    { label: 'Reingreso', value: employee.reingreso ? 'SI — YA TRABAJO AQUI ANTES' : 'NO', icon: User },
-    { label: 'Fin periodo de prueba', value: employee.trialEndDate ? formatDate(employee.trialEndDate) : 'N/A', icon: Clock },
-  ];
+function ExpSection({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
+  return (
+    <div className="glass-card p-5">
+      <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4 uppercase tracking-wide">
+        <Icon size={16} className="text-primary-400" />
+        {title}
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">{children}</div>
+    </div>
+  );
+}
+
+function Fld({ label, children, wide, hint }: { label: string; children: React.ReactNode; wide?: boolean; hint?: string }) {
+  return (
+    <div className={wide ? 'md:col-span-2 xl:col-span-3' : ''}>
+      <label className="block text-xs font-medium text-surface-400 mb-1">{label}</label>
+      {children}
+      {hint && <p className="text-[10px] text-surface-500 mt-1">{hint}</p>}
+    </div>
+  );
+}
+
+// Draft plano del expediente completo (todo string/boolean para editar comodo).
+interface ExpDraft {
+  fullName: string;
+  position: JobPosition;
+  hireDate: string;
+  dailySalary: string;
+  schedule: string;
+  area: string;
+  supervisor: string;
+  contractType: ContractType;
+  status: EmployeeStatus;
+  imssNumber: string;
+  rfc: string;
+  reingreso: boolean;
+  nombres: string; apellidoPaterno: string; apellidoMaterno: string; iniciales: string;
+  fechaNacimiento: string; estadoCivil: string; curp: string; tipoSangre: string;
+  estado: string; ciudad: string; municipio: string; calle: string; numeroExterior: string; numeroInterior: string; colonia: string; codigoPostal: string;
+  emailPersonal: string; telefonoMovil: string; telefonoCasa: string;
+  contactoEmergenciaNombre: string; contactoEmergenciaParentesco: string; contactoEmergenciaTelefono: string;
+  nivelEstudios: string; profesion: string;
+  finContrato: string; inicioContrato: string; fechaReingreso: string; altaImss: string; bajaImss: string;
+  esJefe: boolean; esEventual: boolean; clase: string; creditoFonacot: string; motivoBaja: string; observaciones: string;
+  salarioAnterior: string; bono: string; factorSdi: string; banco: string; numeroCuenta: string; clabe: string;
+  benefPrimNombre: string; benefPrimParentesco: string; benefPrimPct: string;
+  benefSecNombre: string; benefSecParentesco: string; benefSecPct: string;
+  observacionesBeneficiarios: string;
+}
+
+function buildExpDraft(e: Employee): ExpDraft {
+  const x = e.expediente ?? {};
+  const bp = x.beneficiarioPrimario ?? {};
+  const bs = x.beneficiarioSecundario ?? {};
+  const s = (v?: string) => v ?? '';
+  const n = (v?: number) => (v === undefined || v === null ? '' : String(v));
+  return {
+    fullName: e.fullName ?? '',
+    position: e.position,
+    hireDate: e.hireDate ?? '',
+    dailySalary: e.dailySalary ? String(e.dailySalary) : '',
+    schedule: e.schedule ?? '',
+    area: e.area ?? '',
+    supervisor: e.supervisor ?? '',
+    contractType: e.contractType ?? 'eventual',
+    status: e.status ?? 'trial',
+    imssNumber: e.imssNumber ?? '',
+    rfc: e.rfc ?? '',
+    reingreso: !!e.reingreso,
+    nombres: s(x.nombres), apellidoPaterno: s(x.apellidoPaterno), apellidoMaterno: s(x.apellidoMaterno), iniciales: s(x.iniciales),
+    fechaNacimiento: s(x.fechaNacimiento), estadoCivil: s(x.estadoCivil), curp: s(x.curp), tipoSangre: s(x.tipoSangre),
+    estado: s(x.estado), ciudad: s(x.ciudad), municipio: s(x.municipio), calle: s(x.calle), numeroExterior: s(x.numeroExterior), numeroInterior: s(x.numeroInterior), colonia: s(x.colonia), codigoPostal: s(x.codigoPostal),
+    emailPersonal: s(x.emailPersonal), telefonoMovil: s(x.telefonoMovil), telefonoCasa: s(x.telefonoCasa),
+    contactoEmergenciaNombre: s(x.contactoEmergenciaNombre), contactoEmergenciaParentesco: s(x.contactoEmergenciaParentesco), contactoEmergenciaTelefono: s(x.contactoEmergenciaTelefono),
+    nivelEstudios: s(x.nivelEstudios), profesion: s(x.profesion),
+    finContrato: s(x.finContrato), inicioContrato: s(x.inicioContrato), fechaReingreso: s(x.fechaReingreso), altaImss: s(x.altaImss), bajaImss: s(x.bajaImss),
+    esJefe: !!x.esJefe, esEventual: !!x.esEventual, clase: s(x.clase), creditoFonacot: s(x.creditoFonacot), motivoBaja: s(x.motivoBaja), observaciones: s(x.observaciones),
+    salarioAnterior: n(x.salarioAnterior), bono: n(x.bono), factorSdi: x.factorSdi ? String(x.factorSdi) : '', banco: s(x.banco), numeroCuenta: s(x.numeroCuenta), clabe: s(x.clabe),
+    benefPrimNombre: s(bp.nombreCompleto), benefPrimParentesco: s(bp.parentesco), benefPrimPct: bp.porcentaje !== undefined ? String(bp.porcentaje) : '',
+    benefSecNombre: s(bs.nombreCompleto), benefSecParentesco: s(bs.parentesco), benefSecPct: bs.porcentaje !== undefined ? String(bs.porcentaje) : '',
+    observacionesBeneficiarios: s(x.observacionesBeneficiarios),
+  };
+}
+
+function DossierInfoTab({ employee }: { employee: Employee }) {
+  const { updateEmployee, settings } = useStore();
+  const scheduleOptions = settings.schedules?.length ? settings.schedules : DEFAULT_SCHEDULES;
+  const areaOptions = settings.areas?.length ? settings.areas : DEFAULT_AREAS;
+
+  const [d, setD] = useState<ExpDraft>(() => buildExpDraft(employee));
+  const [dirty, setDirty] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // Si el expediente cambia por fuera (sync / recarga) y no hay cambios sin
+  // guardar, se refresca el borrador para no mostrar datos viejos.
+  useEffect(() => {
+    if (!dirty) setD(buildExpDraft(employee));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee.id, employee.syncStamp]);
+
+  const up = (patch: Partial<ExpDraft>) => {
+    setD((prev) => ({ ...prev, ...patch }));
+    setDirty(true);
+    setSaved(false);
+  };
+
+  const dailyNum = parseFloat(d.dailySalary) || 0;
+  const weeklySalary = Math.round(dailyNum * 7 * 100) / 100;
+  const factor = parseFloat(d.factorSdi) || DEFAULT_SDI_FACTOR;
+  const sdi = Math.round(dailyNum * factor * 100) / 100;
+  const edad = calcAge(d.fechaNacimiento);
+  const rfcUpper = d.rfc.trim().toUpperCase();
+  const rfcFormatOk = rfcUpper === '' || isValidRfc(rfcUpper);
+  const pctPrim = parseFloat(d.benefPrimPct) || 0;
+  const pctSec = parseFloat(d.benefSecPct) || 0;
+  const totalPct = pctPrim + pctSec;
+
+  const handleSave = () => {
+    const str = (v: string) => (v.trim() === '' ? undefined : v.trim());
+    const num = (v: string) => {
+      const p = parseFloat(v);
+      return Number.isFinite(p) ? p : undefined;
+    };
+    const benef = (nombre: string, parentesco: string, pct: string): Beneficiary | undefined => {
+      if (!nombre.trim() && !parentesco.trim() && !pct.trim()) return undefined;
+      return {
+        nombreCompleto: str(toUpper(nombre)),
+        parentesco: str(parentesco),
+        porcentaje: num(pct),
+      };
+    };
+
+    const expediente: EmployeeExpediente = {
+      nombres: str(toUpper(d.nombres)), apellidoPaterno: str(toUpper(d.apellidoPaterno)), apellidoMaterno: str(toUpper(d.apellidoMaterno)), iniciales: str(toUpper(d.iniciales)),
+      fechaNacimiento: str(d.fechaNacimiento), estadoCivil: str(d.estadoCivil), curp: str(toUpper(d.curp)), tipoSangre: str(d.tipoSangre),
+      estado: str(d.estado), ciudad: str(toUpper(d.ciudad)), municipio: str(toUpper(d.municipio)), calle: str(toUpper(d.calle)), numeroExterior: str(toUpper(d.numeroExterior)), numeroInterior: str(toUpper(d.numeroInterior)), colonia: str(toUpper(d.colonia)), codigoPostal: str(d.codigoPostal),
+      emailPersonal: str(d.emailPersonal.toLowerCase()), telefonoMovil: str(d.telefonoMovil), telefonoCasa: str(d.telefonoCasa),
+      contactoEmergenciaNombre: str(toUpper(d.contactoEmergenciaNombre)), contactoEmergenciaParentesco: str(d.contactoEmergenciaParentesco), contactoEmergenciaTelefono: str(d.contactoEmergenciaTelefono),
+      nivelEstudios: str(d.nivelEstudios), profesion: str(toUpper(d.profesion)),
+      finContrato: str(d.finContrato), inicioContrato: str(d.inicioContrato), fechaReingreso: str(d.fechaReingreso), altaImss: str(d.altaImss), bajaImss: str(d.bajaImss),
+      esJefe: d.esJefe || undefined, esEventual: d.esEventual || undefined, clase: str(d.clase), creditoFonacot: str(toUpper(d.creditoFonacot)), motivoBaja: str(toUpper(d.motivoBaja)), observaciones: str(toUpper(d.observaciones)),
+      salarioAnterior: num(d.salarioAnterior), bono: num(d.bono), factorSdi: num(d.factorSdi), banco: str(d.banco), numeroCuenta: str(d.numeroCuenta), clabe: str(d.clabe),
+      beneficiarioPrimario: benef(d.benefPrimNombre, d.benefPrimParentesco, d.benefPrimPct),
+      beneficiarioSecundario: benef(d.benefSecNombre, d.benefSecParentesco, d.benefSecPct),
+      observacionesBeneficiarios: str(toUpper(d.observacionesBeneficiarios)),
+    };
+
+    try {
+      updateEmployee(employee.id, {
+        fullName: toUpper(d.fullName) || employee.fullName,
+        position: d.position,
+        hireDate: d.hireDate || employee.hireDate,
+        dailySalary: dailyNum || undefined,
+        salary: dailyNum > 0 ? weeklySalary : employee.salary,
+        schedule: toUpper(d.schedule),
+        area: toUpper(d.area),
+        supervisor: toUpper(d.supervisor),
+        contractType: d.contractType,
+        status: d.status,
+        imssNumber: d.imssNumber.trim(),
+        rfc: rfcUpper || undefined,
+        reingreso: d.reingreso || undefined,
+        expediente,
+      });
+    } catch {
+      alert('No se pudieron guardar los cambios: el almacenamiento del dispositivo esta lleno. Libera espacio e intenta de nuevo.');
+      return;
+    }
+    setDirty(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleReset = () => {
+    setD(buildExpDraft(employee));
+    setDirty(false);
+    setSaved(false);
+  };
+
+  const SaveBar = (
+    <div className="flex items-center gap-3">
+      <button className="btn-success flex items-center gap-2" onClick={handleSave} disabled={!dirty}>
+        <Save size={16} />
+        Guardar cambios
+      </button>
+      {dirty && (
+        <button className="btn-secondary text-sm" onClick={handleReset}>
+          Descartar
+        </button>
+      )}
+      {saved && (
+        <span className="text-success-500 text-sm flex items-center gap-1.5">
+          <CheckCircle size={15} /> Guardado
+        </span>
+      )}
+      {dirty && !saved && <span className="text-warning-500 text-xs">Hay cambios sin guardar</span>}
+    </div>
+  );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-8">
       {/* v2.0: avisos del expediente */}
       {employee.seguimientoEspecial && (
         <div className="glass-card p-4 border border-warning-500/40 bg-warning-500/5 flex items-start gap-3">
@@ -1923,27 +2172,302 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
         </div>
       )}
 
-      <div className="glass-card p-6 space-y-1">
-        {fields.map((field, i) => {
-          const FieldIcon = field.icon;
-          return (
-            <div
-              key={i}
-              className={`flex items-center gap-3 py-3 ${
-                i < fields.length - 1 ? 'border-b border-surface-700/20' : ''
-              }`}
-            >
-              <div className="w-8 h-8 rounded-lg bg-surface-700/30 flex items-center justify-center shrink-0">
-                <FieldIcon size={15} className="text-surface-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-surface-500 uppercase tracking-wide">{field.label}</p>
-                <p className="text-sm text-surface-200 font-medium truncate">{field.value}</p>
-              </div>
-            </div>
-          );
-        })}
+      {/* Barra de guardado (arriba) */}
+      <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-surface-400 flex items-center gap-1.5">
+          <Info size={13} className="text-primary-400 shrink-0" />
+          Expediente completo del colaborador. Edita cualquier campo y presiona <b className="text-surface-200">Guardar cambios</b>.
+        </p>
+        {SaveBar}
       </div>
+
+      {/* ─── DATOS PERSONALES ─── */}
+      <ExpSection icon={User} title="Datos personales">
+        <Fld label="Nombre completo *" hint="Se usa en contratos, listados y todo el sistema.">
+          <input className="input-field" value={d.fullName} onChange={(e) => up({ fullName: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="Nombre(s)">
+          <input className="input-field" value={d.nombres} onChange={(e) => up({ nombres: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="Iniciales">
+          <input className="input-field" placeholder="Ej: JAG" value={d.iniciales} onChange={(e) => up({ iniciales: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="Apellido paterno">
+          <input className="input-field" value={d.apellidoPaterno} onChange={(e) => up({ apellidoPaterno: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="Apellido materno">
+          <input className="input-field" value={d.apellidoMaterno} onChange={(e) => up({ apellidoMaterno: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="Fecha de nacimiento">
+          <input type="date" className="input-field" value={d.fechaNacimiento} onChange={(e) => up({ fechaNacimiento: e.target.value })} />
+        </Fld>
+        <Fld label="Edad">
+          <input className="input-field opacity-70" value={edad !== null ? `${edad} anos` : ''} readOnly tabIndex={-1} placeholder="Se calcula" />
+        </Fld>
+        <Fld label="Estado civil">
+          <select className="input-field" value={d.estadoCivil} onChange={(e) => up({ estadoCivil: e.target.value })}>
+            <option value="">-- Seleccionar --</option>
+            {ESTADO_CIVIL_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </Fld>
+        <Fld label="Tipo de sangre">
+          <select className="input-field" value={d.tipoSangre} onChange={(e) => up({ tipoSangre: e.target.value })}>
+            <option value="">-- Seleccionar --</option>
+            {TIPO_SANGRE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </Fld>
+        <Fld label="CURP">
+          <input className="input-field" maxLength={18} value={d.curp} onChange={(e) => up({ curp: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="RFC (con homoclave)" hint={!rfcFormatOk ? 'Formato de RFC invalido (12-13 caracteres).' : undefined}>
+          <input className="input-field" maxLength={13} value={d.rfc} onChange={(e) => up({ rfc: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="NSS (IMSS)">
+          <input className="input-field" value={d.imssNumber} onChange={(e) => up({ imssNumber: e.target.value })} />
+        </Fld>
+      </ExpSection>
+
+      {/* ─── DIRECCION Y CONTACTO ─── */}
+      <ExpSection icon={MapPin} title="Direccion y contacto">
+        <Fld label="Estado">
+          <select className="input-field" value={d.estado} onChange={(e) => up({ estado: e.target.value })}>
+            <option value="">-- Seleccionar --</option>
+            {ESTADOS_MEXICO.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </Fld>
+        <Fld label="Ciudad / Alcaldia">
+          <input className="input-field" value={d.ciudad} onChange={(e) => up({ ciudad: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="Municipio">
+          <input className="input-field" value={d.municipio} onChange={(e) => up({ municipio: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="Calle">
+          <input className="input-field" value={d.calle} onChange={(e) => up({ calle: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="No. Exterior">
+          <input className="input-field" value={d.numeroExterior} onChange={(e) => up({ numeroExterior: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="No. Interior">
+          <input className="input-field" value={d.numeroInterior} onChange={(e) => up({ numeroInterior: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="Colonia">
+          <input className="input-field" value={d.colonia} onChange={(e) => up({ colonia: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="Codigo Postal">
+          <input className="input-field" maxLength={5} value={d.codigoPostal} onChange={(e) => up({ codigoPostal: e.target.value.replace(/\D/g, '') })} />
+        </Fld>
+        <Fld label="Email personal">
+          <input type="email" className="input-field no-uppercase" value={d.emailPersonal} onChange={(e) => up({ emailPersonal: e.target.value })} />
+        </Fld>
+        <Fld label="Telefono movil">
+          <input className="input-field" value={d.telefonoMovil} onChange={(e) => up({ telefonoMovil: e.target.value })} />
+        </Fld>
+        <Fld label="Telefono casa / recados">
+          <input className="input-field" value={d.telefonoCasa} onChange={(e) => up({ telefonoCasa: e.target.value })} />
+        </Fld>
+        <Fld label="Contacto de emergencia — nombre">
+          <input className="input-field" value={d.contactoEmergenciaNombre} onChange={(e) => up({ contactoEmergenciaNombre: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="Contacto de emergencia — parentesco">
+          <select className="input-field" value={d.contactoEmergenciaParentesco} onChange={(e) => up({ contactoEmergenciaParentesco: e.target.value })}>
+            <option value="">-- Seleccionar --</option>
+            {PARENTESCO_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </Fld>
+        <Fld label="Contacto de emergencia — telefono">
+          <input className="input-field" value={d.contactoEmergenciaTelefono} onChange={(e) => up({ contactoEmergenciaTelefono: e.target.value })} />
+        </Fld>
+      </ExpSection>
+
+      {/* ─── FORMACION ACADEMICA ─── */}
+      <ExpSection icon={GraduationCap} title="Formacion academica">
+        <Fld label="Nivel de estudios">
+          <select className="input-field" value={d.nivelEstudios} onChange={(e) => up({ nivelEstudios: e.target.value })}>
+            <option value="">-- Seleccionar --</option>
+            {NIVEL_ESTUDIOS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </Fld>
+        <Fld label="Profesion / Titulo" wide>
+          <input className="input-field" value={d.profesion} onChange={(e) => up({ profesion: e.target.value.toUpperCase() })} />
+        </Fld>
+      </ExpSection>
+
+      {/* ─── INFORMACION LABORAL ─── */}
+      <ExpSection icon={Briefcase} title="Informacion laboral">
+        <Fld label="Fecha de ingreso *">
+          <input type="date" className="input-field" value={d.hireDate} onChange={(e) => up({ hireDate: e.target.value })} />
+        </Fld>
+        <Fld label="Inicio del contrato">
+          <input type="date" className="input-field" value={d.inicioContrato} onChange={(e) => up({ inicioContrato: e.target.value })} />
+        </Fld>
+        <Fld label="Fin de contrato">
+          <input type="date" className="input-field" value={d.finContrato} onChange={(e) => up({ finContrato: e.target.value })} />
+        </Fld>
+        <Fld label="Fecha de reingreso">
+          <input type="date" className="input-field" value={d.fechaReingreso} onChange={(e) => up({ fechaReingreso: e.target.value })} />
+        </Fld>
+        <Fld label="Alta IMSS">
+          <input type="date" className="input-field" value={d.altaImss} onChange={(e) => up({ altaImss: e.target.value })} />
+        </Fld>
+        <Fld label="Baja IMSS">
+          <input type="date" className="input-field" value={d.bajaImss} onChange={(e) => up({ bajaImss: e.target.value })} />
+        </Fld>
+        <Fld label="Puesto">
+          <select className="input-field" value={d.position} onChange={(e) => up({ position: e.target.value as JobPosition })}>
+            {Object.entries(JOB_POSITIONS).map(([key, val]) => (
+              <option key={key} value={key}>{val.name}</option>
+            ))}
+          </select>
+        </Fld>
+        <Fld label="Area / Depto">
+          <select className="input-field" value={d.area} onChange={(e) => up({ area: e.target.value })}>
+            <option value="">-- Seleccionar --</option>
+            {areaOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+            {d.area && !areaOptions.includes(d.area) && <option value={d.area}>{d.area}</option>}
+          </select>
+        </Fld>
+        <Fld label="Clase (riesgo IMSS)">
+          <select className="input-field" value={d.clase} onChange={(e) => up({ clase: e.target.value })}>
+            <option value="">-- Seleccionar --</option>
+            {CLASE_RIESGO_OPTIONS.map((o) => <option key={o} value={o}>Clase {o}</option>)}
+          </select>
+        </Fld>
+        <Fld label="Turno / Horario" wide>
+          <select className="input-field" value={d.schedule} onChange={(e) => up({ schedule: e.target.value })}>
+            <option value="">-- Seleccionar --</option>
+            {scheduleOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+            {d.schedule && !scheduleOptions.includes(d.schedule) && <option value={d.schedule}>{d.schedule}</option>}
+          </select>
+        </Fld>
+        <Fld label="Tipo de contrato">
+          <select className="input-field" value={d.contractType} onChange={(e) => up({ contractType: e.target.value as ContractType })}>
+            <option value="eventual">Contrato de prueba / eventual</option>
+            <option value="indefinido">Indefinido</option>
+          </select>
+        </Fld>
+        <Fld label="Credito FONACOT">
+          <input className="input-field" value={d.creditoFonacot} onChange={(e) => up({ creditoFonacot: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="Supervisor directo">
+          <input className="input-field" value={d.supervisor} onChange={(e) => up({ supervisor: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="Estatus">
+          <select className="input-field" value={d.status} onChange={(e) => up({ status: e.target.value as EmployeeStatus })}>
+            <option value="trial">Periodo de prueba</option>
+            <option value="active">Activo</option>
+            <option value="inactive">Inactivo</option>
+          </select>
+        </Fld>
+        <Fld label="Marcadores" wide>
+          <div className="flex flex-wrap gap-4 pt-1">
+            {[
+              { k: 'esJefe' as const, t: 'Jefe' },
+              { k: 'reingreso' as const, t: 'Re-Ingreso' },
+              { k: 'esEventual' as const, t: 'Eventual' },
+            ].map((c) => (
+              <label key={c.k} className="flex items-center gap-2 cursor-pointer text-sm text-surface-300">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-surface-600 bg-surface-800 text-primary-500"
+                  checked={d[c.k]}
+                  onChange={(e) => up({ [c.k]: e.target.checked } as Partial<ExpDraft>)}
+                />
+                {c.t}
+              </label>
+            ))}
+          </div>
+        </Fld>
+        <Fld label="Motivo de baja" wide hint="Solo si el colaborador causa baja.">
+          <input className="input-field" value={d.motivoBaja} onChange={(e) => up({ motivoBaja: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="Observaciones" wide>
+          <textarea className="input-field min-h-[70px] resize-y" value={d.observaciones} onChange={(e) => up({ observaciones: e.target.value.toUpperCase() })} />
+        </Fld>
+      </ExpSection>
+
+      {/* ─── DATOS ECONOMICOS ─── */}
+      <ExpSection icon={DollarSign} title="Datos economicos">
+        <Fld label="Salario diario bruto ($) *" hint="Base para calculo IMSS.">
+          <input type="number" className="input-field" min="0" step="10" value={d.dailySalary} onChange={(e) => up({ dailySalary: e.target.value })} />
+        </Fld>
+        <Fld label="SDI — Salario Diario Integrado" hint={`Calculado: diario x factor ${factor}`}>
+          <input className="input-field opacity-70" value={dailyNum > 0 ? sdi.toFixed(2) : ''} readOnly tabIndex={-1} placeholder="Se calcula" />
+        </Fld>
+        <Fld label="Sueldo semanal (diario x 7)">
+          <input className="input-field opacity-70" value={dailyNum > 0 ? `$${weeklySalary.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : ''} readOnly tabIndex={-1} placeholder="Se calcula" />
+        </Fld>
+        <Fld label="Salario anterior ($)">
+          <input type="number" className="input-field" min="0" value={d.salarioAnterior} onChange={(e) => up({ salarioAnterior: e.target.value })} />
+        </Fld>
+        <Fld label="Bono ($)">
+          <input type="number" className="input-field" min="0" value={d.bono} onChange={(e) => up({ bono: e.target.value })} />
+        </Fld>
+        <Fld label="Factor (integracion SDI)" hint={`Por defecto ${DEFAULT_SDI_FACTOR}`}>
+          <input type="number" className="input-field" step="0.0001" min="1" placeholder={String(DEFAULT_SDI_FACTOR)} value={d.factorSdi} onChange={(e) => up({ factorSdi: e.target.value })} />
+        </Fld>
+        <Fld label="Banco">
+          <select className="input-field" value={d.banco} onChange={(e) => up({ banco: e.target.value })}>
+            <option value="">-- Seleccionar --</option>
+            {BANCO_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </Fld>
+        <Fld label="Numero de cuenta">
+          <input className="input-field no-uppercase" value={d.numeroCuenta} onChange={(e) => up({ numeroCuenta: e.target.value })} />
+        </Fld>
+        <Fld label="CLABE (18 digitos)">
+          <input className="input-field no-uppercase" maxLength={18} value={d.clabe} onChange={(e) => up({ clabe: e.target.value.replace(/\D/g, '') })} />
+        </Fld>
+      </ExpSection>
+
+      {/* ─── BENEFICIARIOS ─── */}
+      <div className="glass-card p-5">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4 uppercase tracking-wide">
+          <Users size={16} className="text-primary-400" />
+          Beneficiarios
+        </h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded-xl bg-surface-800/40 p-4 space-y-3">
+            <p className="text-xs font-semibold text-surface-200 flex items-center gap-1.5">
+              <Heart size={13} className="text-primary-400" /> Beneficiario primario
+            </p>
+            <input className="input-field" placeholder="Nombre completo" value={d.benefPrimNombre} onChange={(e) => up({ benefPrimNombre: e.target.value.toUpperCase() })} />
+            <div className="grid grid-cols-2 gap-2">
+              <select className="input-field" value={d.benefPrimParentesco} onChange={(e) => up({ benefPrimParentesco: e.target.value })}>
+                <option value="">Parentesco</option>
+                {PARENTESCO_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+              <input type="number" className="input-field" min="0" max="100" placeholder="% asignado" value={d.benefPrimPct} onChange={(e) => up({ benefPrimPct: e.target.value })} />
+            </div>
+          </div>
+          <div className="rounded-xl bg-surface-800/40 p-4 space-y-3">
+            <p className="text-xs font-semibold text-surface-200 flex items-center gap-1.5">
+              <Heart size={13} className="text-accent-400" /> Beneficiario secundario (opcional)
+            </p>
+            <input className="input-field" placeholder="Nombre completo" value={d.benefSecNombre} onChange={(e) => up({ benefSecNombre: e.target.value.toUpperCase() })} />
+            <div className="grid grid-cols-2 gap-2">
+              <select className="input-field" value={d.benefSecParentesco} onChange={(e) => up({ benefSecParentesco: e.target.value })}>
+                <option value="">Parentesco</option>
+                {PARENTESCO_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+              <input type="number" className="input-field" min="0" max="100" placeholder="% asignado" value={d.benefSecPct} onChange={(e) => up({ benefSecPct: e.target.value })} />
+            </div>
+          </div>
+        </div>
+        <div
+          className={`mt-3 p-2.5 rounded-xl text-sm font-semibold text-right ${
+            totalPct === 100 ? 'bg-success-500/15 text-success-400' : totalPct > 0 ? 'bg-warning-500/10 text-warning-500' : 'bg-surface-800/40 text-surface-500'
+          }`}
+        >
+          Total asignado: {totalPct}%{totalPct !== 100 && totalPct > 0 ? ' (debe sumar 100%)' : ''}
+        </div>
+        <div className="mt-3">
+          <label className="block text-xs font-medium text-surface-400 mb-1">Observaciones beneficiarios</label>
+          <textarea className="input-field min-h-[60px] resize-y" value={d.observacionesBeneficiarios} onChange={(e) => up({ observacionesBeneficiarios: e.target.value.toUpperCase() })} />
+        </div>
+      </div>
+
+      {/* Barra de guardado (abajo) */}
+      <div className="glass-card p-4 flex items-center justify-end">{SaveBar}</div>
     </div>
   );
 }
@@ -2012,17 +2536,8 @@ function DossierDocRow({ doc, index, data, onToggle, onPhoto, onExpand }: Dossie
         </div>
       </div>
 
-      {/* Photo thumbnail (ampliable) */}
-      {data.photoUrl && (
-        <button
-          type="button"
-          className="w-10 h-10 rounded-lg overflow-hidden border border-surface-600/30 hover:border-primary-500/40 transition-colors cursor-pointer shrink-0"
-          onClick={() => onExpand(data.photoUrl!)}
-          title="Ver documento"
-        >
-          <img src={data.photoUrl} alt="" className="w-full h-full object-cover" />
-        </button>
-      )}
+      {/* Document thumbnail (ampliable — imagen o PDF) */}
+      {data.photoUrl && <DocThumb url={data.photoUrl} onClick={() => onExpand(data.photoUrl!)} />}
 
       {/* Camera */}
       <button
@@ -2039,13 +2554,13 @@ function DossierDocRow({ doc, index, data, onToggle, onPhoto, onExpand }: Dossie
         type="button"
         className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-accent-500/20 flex items-center justify-center text-surface-400 hover:text-accent-400 transition-all cursor-pointer shrink-0"
         onClick={() => uploadRef.current?.click()}
-        title="Subir archivo"
+        title="Subir archivo (foto o PDF)"
       >
         <Upload size={15} />
       </button>
 
       {/* Hidden inputs */}
-      <input ref={uploadRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+      <input ref={uploadRef} type="file" accept={DOC_UPLOAD_ACCEPT} onChange={handleFile} className="hidden" />
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handleFile} className="hidden" />
     </div>
   );
@@ -2072,10 +2587,13 @@ function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee:
   };
 
   const handlePhoto = async (key: keyof DocumentChecklist, file: File) => {
-    // comprimida (mismo criterio que la contratacion) para no congelar la UI
-    // ni desbordar el almacenamiento local con una foto cruda de camara
-    const base64 = await compressImageFile(file);
-    updateEmployeeDocument(employee.id, key, { photoUrl: base64, done: true });
+    // v2.8: imagenes comprimidas; PDF u otros formatos se guardan tal cual.
+    try {
+      const base64 = await processDocumentFile(file);
+      updateEmployeeDocument(employee.id, key, { photoUrl: base64, done: true });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'No se pudo procesar el archivo.');
+    }
   };
 
   return (
@@ -2132,15 +2650,40 @@ function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee:
             className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"
             onClick={() => setExpandedPhoto(null)}
           >
-            <motion.img
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              src={expandedPhoto}
-              alt="Documento"
-              className="max-w-full max-h-full rounded-2xl shadow-2xl object-contain"
-              onClick={(e) => e.stopPropagation()}
-            />
+            {isImageDataUrl(expandedPhoto) ? (
+              <motion.img
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                src={expandedPhoto}
+                alt="Documento"
+                className="max-w-full max-h-full rounded-2xl shadow-2xl object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="w-full max-w-4xl h-[85vh] bg-surface-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between p-3 border-b border-white/10">
+                  <span className="text-sm text-surface-300 flex items-center gap-2">
+                    <FileType size={16} className="text-danger-400" /> Documento PDF
+                  </span>
+                  <a
+                    href={expandedPhoto}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-secondary text-xs px-3 py-1.5"
+                  >
+                    Abrir en pestana nueva
+                  </a>
+                </div>
+                <iframe src={expandedPhoto} title="Documento PDF" className="flex-1 w-full bg-white" />
+              </motion.div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -2330,10 +2873,13 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
   };
 
   const handleScanUpload = async (key: SignedDocKey, file: File) => {
-    // v2.5: comprimido — los escaneos crudos de camara congelaban la UI y
-    // podian desbordar el almacenamiento local
-    const base64 = await compressImageFile(file);
-    setDocStatus(key, { firmadoUrl: base64, fechaFirmado: new Date().toISOString() });
+    // v2.8: escaneos como imagen se comprimen; un PDF firmado se guarda tal cual.
+    try {
+      const base64 = await processDocumentFile(file);
+      setDocStatus(key, { firmadoUrl: base64, fechaFirmado: new Date().toISOString() });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'No se pudo procesar el archivo.');
+    }
   };
 
   const signedCount = ONBOARDING_DOC_KEYS.filter((k) => status[k].firmadoUrl).length;
@@ -2388,7 +2934,7 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
                 scanRefs.current[doc.key] = el;
               }}
               type="file"
-              accept="image/*"
+              accept={DOC_UPLOAD_ACCEPT}
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -2398,11 +2944,22 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
           </div>
         </div>
         {st.firmadoUrl && (
-          <img
-            src={st.firmadoUrl}
-            alt={`${doc.titulo} firmado`}
-            className="h-16 rounded-lg border border-surface-600/30 object-cover"
-          />
+          isImageDataUrl(st.firmadoUrl) ? (
+            <img
+              src={st.firmadoUrl}
+              alt={`${doc.titulo} firmado`}
+              className="h-16 rounded-lg border border-surface-600/30 object-cover"
+            />
+          ) : (
+            <a
+              href={st.firmadoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-xs text-danger-300 bg-danger-500/10 border border-danger-500/20 rounded-lg px-3 py-2 hover:bg-danger-500/20 transition-colors"
+            >
+              <FileType size={14} /> Documento PDF firmado — abrir
+            </a>
+          )
         )}
       </div>
     );

@@ -295,6 +295,12 @@ export interface Employee {
   contratacionAutorizada?: { por: string; fecha: string; motivo: string };
   recorrido?: TourRecord;
   welcomeVideoSeen?: { fecha: string };
+  // ─── v2.8 (Julio 2026): expediente completo del colaborador ───
+  // Datos adicionales de las "pantallas completas" (datos personales,
+  // direccion, formacion, laboral, economicos y beneficiarios). Es un objeto
+  // opcional para no romper los expedientes ya guardados; se captura/edita en
+  // la pestana Informacion del expediente.
+  expediente?: EmployeeExpediente;
 }
 
 export interface DocumentChecklist {
@@ -446,3 +452,92 @@ export const DEFAULT_AREAS: string[] = [
   'ADMINISTRACION',
   'CONTROL DE CALIDAD',
 ];
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.8 — EXPEDIENTE COMPLETO DEL COLABORADOR
+// Campos adicionales de las "pantallas completas" que deben tener todos los
+// colaboradores. Todos opcionales: el nombre, puesto, sueldo diario, horario,
+// area, RFC, NSS (imssNumber), fecha de ingreso, tipo de contrato y estatus
+// siguen viviendo en los campos de primer nivel de Employee; aqui solo van los
+// datos que no existian antes.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export interface Beneficiary {
+  nombreCompleto?: string;
+  parentesco?: string;
+  porcentaje?: number;
+}
+
+export interface EmployeeExpediente {
+  // Datos personales
+  nombres?: string;
+  apellidoPaterno?: string;
+  apellidoMaterno?: string;
+  iniciales?: string;
+  fechaNacimiento?: string;
+  estadoCivil?: string;
+  curp?: string;
+  tipoSangre?: string;
+  // Direccion y contacto
+  estado?: string;
+  ciudad?: string;
+  municipio?: string;
+  calle?: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
+  colonia?: string;
+  codigoPostal?: string;
+  emailPersonal?: string;
+  telefonoMovil?: string;
+  telefonoCasa?: string;
+  contactoEmergenciaNombre?: string;
+  contactoEmergenciaParentesco?: string;
+  contactoEmergenciaTelefono?: string;
+  // Formacion academica
+  nivelEstudios?: string;
+  profesion?: string;
+  // Informacion laboral (complementa hireDate/contractType/area/schedule/status)
+  finContrato?: string;
+  inicioContrato?: string;
+  fechaReingreso?: string;
+  altaImss?: string;
+  bajaImss?: string;
+  esJefe?: boolean;
+  esEventual?: boolean;
+  clase?: string;
+  creditoFonacot?: string;
+  motivoBaja?: string;
+  observaciones?: string;
+  // Datos economicos (complementa dailySalary/salary)
+  salarioAnterior?: number;
+  bono?: number;
+  factorSdi?: number;
+  banco?: string;
+  numeroCuenta?: string;
+  clabe?: string;
+  // Beneficiarios
+  beneficiarioPrimario?: Beneficiary;
+  beneficiarioSecundario?: Beneficiary;
+  observacionesBeneficiarios?: string;
+}
+
+// Factor de integracion del Salario Diario Integrado (SDI) por defecto.
+export const DEFAULT_SDI_FACTOR = 1.0452;
+
+// ─── Catalogos de opciones para el expediente ───────────────────────────────
+export const ESTADO_CIVIL_OPTIONS = ['Soltero', 'Casado', 'Union libre', 'Divorciado', 'Viudo', 'Separado'] as const;
+export const TIPO_SANGRE_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
+export const NIVEL_ESTUDIOS_OPTIONS = ['Ninguno', 'Primaria', 'Secundaria', 'Preparatoria', 'Tecnico', 'Licenciatura', 'Posgrado'] as const;
+export const CLASE_RIESGO_OPTIONS = ['I', 'II', 'III', 'IV', 'V'] as const;
+export const PARENTESCO_OPTIONS = ['Conyuge', 'Concubino(a)', 'Hijo(a)', 'Padre', 'Madre', 'Hermano(a)', 'Abuelo(a)', 'Otro'] as const;
+export const BANCO_OPTIONS = [
+  'BBVA', 'Banamex', 'Santander', 'Banorte', 'HSBC', 'Scotiabank',
+  'Inbursa', 'Banco Azteca', 'BanCoppel', 'Afirme', 'Banregio', 'STP', 'Otro',
+] as const;
+export const ESTADOS_MEXICO = [
+  'Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche', 'Chiapas',
+  'Chihuahua', 'Ciudad de Mexico', 'Coahuila', 'Colima', 'Durango', 'Estado de Mexico',
+  'Guanajuato', 'Guerrero', 'Hidalgo', 'Jalisco', 'Michoacan', 'Morelos', 'Nayarit',
+  'Nuevo Leon', 'Oaxaca', 'Puebla', 'Queretaro', 'Quintana Roo', 'San Luis Potosi',
+  'Sinaloa', 'Sonora', 'Tabasco', 'Tamaulipas', 'Tlaxcala', 'Veracruz', 'Yucatan', 'Zacatecas',
+] as const;

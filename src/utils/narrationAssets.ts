@@ -53,3 +53,20 @@ const ONBOARDING_SCENES: Record<number, string[]> = {
 export function getOnboardingSceneClips(moduleId: number): string[] {
   return ONBOARDING_SCENES[moduleId] ?? [clip(`onboarding-${moduleId}`)];
 }
+
+// ─── Guion del video informativo de RECEPCION ───────────────────────────────
+// Mismo texto que se muestra en el flujo de reclutamiento (8 bloques). Se
+// centraliza aqui para reutilizarlo en la Videoteca (v2.8), donde cualquier
+// video del sistema se puede volver a ver en cualquier momento.
+export function getReceptionVideoScript(): { titulo: string; texto: string }[] {
+  return [
+    { titulo: 'Bienvenido', texto: 'Gracias por tu interes en trabajar en Jabones y Amenidades de Calidad. Este video corto te explica como trabajamos aqui.' },
+    { titulo: 'Horario', texto: 'Trabajamos de lunes a sabado en jornada completa. La puntualidad es indispensable todos los dias.' },
+    { titulo: 'Dia de pago', texto: 'El pago es semanal: recibes tu pago cada sabado.' },
+    { titulo: 'BPM — Buenas Practicas de Manufactura', texto: 'Fabricamos productos de higiene. Por eso la cofia, el cubrebocas y el lavado de manos son OBLIGATORIOS. Las BPM protegen el producto y a las personas.' },
+    { titulo: 'Reglas basicas', texto: 'Uniforme completo durante toda la jornada. El celular se guarda mientras trabajas. Cada quien mantiene su area limpia y ordenada.' },
+    { titulo: 'Prestaciones', texto: 'Tienes todas las prestaciones de ley desde tu contratacion.' },
+    { titulo: 'Vacaciones', texto: 'Las vacaciones se generan al cumplir tu primer ano. La empresa cierra la ultima semana del ano para mantenimiento.' },
+    { titulo: 'Tu decides', texto: 'Si todo esto te interesa, avisale a recepcion para agendar tu entrevista.' },
+  ];
+}

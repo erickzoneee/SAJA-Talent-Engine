@@ -166,6 +166,52 @@ export function compressImageFile(file: File, maxDim = 1280, quality = 0.72): Pr
   });
 }
 
+/**
+ * v2.8: procesa un archivo de documento del expediente. Las IMAGENES se
+ * comprimen (canvas, como antes); cualquier OTRO formato (PDF, etc.) se guarda
+ * tal cual en base64 para poder subir constancias, actas o comprobantes que no
+ * son foto. Se limita el tamano de los no-imagen porque el almacenamiento local
+ * es de ~5 MB y un PDF grande podria reventarlo y romper el guardado en
+ * silencio; en ese caso se rechaza con un mensaje claro.
+ */
+export const MAX_DOC_FILE_BYTES = 4 * 1024 * 1024; // 4 MB
+
+export function processDocumentFile(file: File): Promise<string> {
+  if (file.type.startsWith('image/')) {
+    return compressImageFile(file);
+  }
+  if (file.size > MAX_DOC_FILE_BYTES) {
+    return Promise.reject(
+      new Error(
+        `El archivo pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. El maximo para documentos que no son imagen es de 4 MB. Comprime el PDF o sube una foto.`,
+      ),
+    );
+  }
+  return fileToBase64(file);
+}
+
+/** true si el data URL guardado es una imagen (para decidir si se muestra <img> o un icono de archivo). */
+export function isImageDataUrl(url?: string): boolean {
+  return !!url && url.startsWith('data:image/');
+}
+
+/** true si el data URL guardado es un PDF. */
+export function isPdfDataUrl(url?: string): boolean {
+  return !!url && url.startsWith('data:application/pdf');
+}
+
+/** Edad en anos cumplidos a partir de una fecha "YYYY-MM-DD" (o vacio si no hay fecha valida). */
+export function calcAge(fechaNacimiento?: string): number | null {
+  if (!fechaNacimiento || !/^\d{4}-\d{2}-\d{2}$/.test(fechaNacimiento)) return null;
+  const birth = new Date(`${fechaNacimiento}T12:00:00`);
+  if (Number.isNaN(birth.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const m = now.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
+  return age >= 0 && age < 120 ? age : null;
+}
+
 export const INCIDENT_LABELS: Record<string, string> = {
   falta_justificada: 'Falta Justificada',
   falta_injustificada: 'Falta Injustificada',

@@ -27,6 +27,9 @@ import {
   FastForward,
   MapPin,
   Ban,
+  Film,
+  X,
+  Info,
 } from 'lucide-react';
 import type { Employee, OnboardingModule as OnboardingModuleType } from '../../types';
 import { JOB_POSITIONS } from '../../types';
@@ -36,6 +39,7 @@ import {
   getQuizQuestions,
   getVideoQuizQuestions,
   getOnboardingVideoScript,
+  getDefaultOnboardingModules,
   videoPassThreshold,
   VIDEO_MAX_ATTEMPTS,
   VIDEO_PASS_PERCENT,
@@ -44,7 +48,7 @@ import { createEmptyTour } from '../../utils/tourChecklist';
 import { ONBOARDING_DOC_KEYS } from '../../utils/documentsV2';
 import { formatDate } from '../../utils/helpers';
 import { parseVideoSource, RealVideoPlayer, NarratedVideoPlayer } from '../../components/VideoPlayer';
-import { getOnboardingSceneClips } from '../../utils/narrationAssets';
+import { getOnboardingSceneClips, getReceptionVideoScript, receptionSceneClips } from '../../utils/narrationAssets';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -113,7 +117,9 @@ type ViewState =
   | { view: 'list' }
   | { view: 'dashboard'; employeeId: string }
   | { view: 'module'; employeeId: string; moduleId: number }
-  | { view: 'completed'; employeeId: string };
+  | { view: 'completed'; employeeId: string }
+  // v2.8: videoteca — todos los videos del sistema, para verlos en cualquier momento
+  | { view: 'videoteca' };
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -130,7 +136,13 @@ export default function OnboardingModule() {
         <motion.div key="list" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
           <EmployeeListView
             onSelectEmployee={(id) => setViewState({ view: 'dashboard', employeeId: id })}
+            onOpenVideoteca={() => setViewState({ view: 'videoteca' })}
           />
+        </motion.div>
+      )}
+      {viewState.view === 'videoteca' && (
+        <motion.div key="videoteca" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+          <VideotecaView onBack={() => setViewState({ view: 'list' })} />
         </motion.div>
       )}
       {viewState.view === 'dashboard' && (
@@ -179,8 +191,10 @@ export default function OnboardingModule() {
 
 function EmployeeListView({
   onSelectEmployee,
+  onOpenVideoteca,
 }: {
   onSelectEmployee: (id: string) => void;
+  onOpenVideoteca: () => void;
 }) {
   const { employees } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
@@ -217,6 +231,11 @@ function EmployeeListView({
             </p>
           </div>
         </div>
+        {/* v2.8: acceso a la videoteca — ver cualquier video del sistema cuando sea */}
+        <button className="btn-secondary flex items-center gap-2" onClick={onOpenVideoteca}>
+          <Film size={16} />
+          Videoteca
+        </button>
       </div>
 
       {/* Search */}
@@ -779,7 +798,7 @@ function ModuleDetailView({
   moduleId: number;
   onBack: () => void;
 }) {
-  const { employees, updateEmployee } = useStore();
+  const { employees } = useStore();
   const employee = employees.find((e) => e.id === employeeId);
 
   if (!employee) return null;
@@ -954,6 +973,8 @@ function VideoModuleView({
   const [selected, setSelected] = useState<number | null>(null);
   const [lastScore, setLastScore] = useState<number | null>(null);
   const [dudasSent, setDudasSent] = useState(!!mod.dudas);
+  // v2.8: volver a ver un video ya completado, sin afectar el avance
+  const [rewatch, setRewatch] = useState(false);
 
   const videoComplete = usingReal || usingNarration ? realEnded : progress >= durationSec;
 
@@ -975,12 +996,14 @@ function VideoModuleView({
     return () => clearInterval(interval);
   }, [playing, speed, videoComplete, durationSec, mod.blocked, usingReal, usingNarration]);
 
-  // Evidencia de visualizacion con timestamp (regla de negocio 4)
+  // Evidencia de visualizacion con timestamp (regla de negocio 4).
+  // Al RE-VER un video ya completado no se vuelve a registrar evidencia ni se
+  // pisa la fecha original: solo es una reproduccion para consulta.
   useEffect(() => {
     if (videoComplete && !viewedRecorded.current) {
       viewedRecorded.current = true;
       setWatchedThisSession(true);
-      updateModule({ viewedAt: new Date().toISOString() });
+      if (!mod.completed) updateModule({ viewedAt: new Date().toISOString() });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoComplete]);
@@ -1013,6 +1036,23 @@ function VideoModuleView({
     setRealEnded(false);
     setPlaying(true);
   };
+
+  // v2.8: reproduce de nuevo un video ya completado sin tocar el avance
+  const startRewatch = () => {
+    viewedRecorded.current = true; // ya esta completado: no volver a registrar
+    setProgress(0);
+    setRealEnded(false);
+    setPlaying(true);
+    setRewatch(true);
+  };
+  const stopRewatch = () => {
+    setRewatch(false);
+    setPlaying(false);
+  };
+
+  // Reproductor visible: cuando el modulo no esta completado (flujo normal) o
+  // cuando se pidio volver a verlo (rewatch). Nunca durante la mini evaluacion.
+  const showPlayer = (!mod.completed || rewatch) && !mod.blocked && !quizStarted;
 
   const handleQuizAnswer = () => {
     if (selected === null) return;
@@ -1074,7 +1114,6 @@ function VideoModuleView({
 
   const fmt = (s: number) => `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
   const pct = (progress / durationSec) * 100;
-  const passed = mod.quizScore !== undefined && mod.quizScore >= passMin;
 
   return (
     <div className="flex flex-col gap-5 overflow-hidden h-full">
@@ -1138,10 +1177,10 @@ function VideoModuleView({
         {mod.completed && (
           <motion.div {...fadeUp} className="glass-card p-5">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-green-500/20 text-green-400 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-xl bg-green-500/20 text-green-400 flex items-center justify-center shrink-0">
                 <CheckCircle size={26} />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="text-sm text-surface-200 font-semibold">
                   {mod.critical
                     ? `Evaluacion aprobada: ${mod.quizScore}/${questions.length} (minimo ${passMin})`
@@ -1152,12 +1191,30 @@ function VideoModuleView({
                   {mod.completedDate && ` · Completado: ${formatDate(mod.completedDate)}`}
                 </p>
               </div>
+              {/* v2.8: volver a ver el video en cualquier momento */}
+              {!rewatch ? (
+                <button className="btn-secondary text-sm flex items-center gap-2 shrink-0" onClick={startRewatch}>
+                  <RotateCcw size={15} />
+                  Volver a ver el video
+                </button>
+              ) : (
+                <button className="btn-secondary text-sm flex items-center gap-2 shrink-0" onClick={stopRewatch}>
+                  <X size={15} />
+                  Cerrar
+                </button>
+              )}
             </div>
+            {rewatch && (
+              <p className="text-xs text-primary-300 mt-3 flex items-center gap-1.5">
+                <Info size={13} className="shrink-0" />
+                Estas volviendo a ver el video. Tu avance y tu evaluacion no cambian.
+              </p>
+            )}
           </motion.div>
         )}
 
-        {/* Reproductor */}
-        {!mod.completed && !mod.blocked && !quizStarted && (
+        {/* Reproductor (flujo normal o re-ver un video ya completado) */}
+        {showPlayer && (
           <motion.div {...fadeUp} className="glass-card overflow-hidden">
             {usingNarration ? (
               <NarratedVideoPlayer
@@ -2393,5 +2450,196 @@ function CompletionScreen({
         </div>
       </div>
     </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.8 — VIDEOTECA
+// Todos los videos del sistema (el informativo de recepcion + los 11 de
+// onboarding) en un solo lugar, para verlos EN CUALQUIER MOMENTO, sin depender
+// de un colaborador ni del avance del onboarding. Usa los mismos reproductores
+// (narrado / real / demostracion) que el resto del sistema.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface VideotecaItem {
+  key: string;
+  titulo: string;
+  subtitulo: string;
+  critical?: boolean;
+  videoUrl?: string;
+  narrationUrl?: string;
+  captions: { titulo: string; texto: string }[];
+  sceneClips: string[];
+}
+
+function VideotecaView({ onBack }: { onBack: () => void }) {
+  const settings = useStore((s) => s.settings);
+  const [selected, setSelected] = useState<VideotecaItem | null>(null);
+
+  const items: VideotecaItem[] = useMemo(() => {
+    return [
+      {
+        key: 'reception',
+        titulo: 'Video de recepcion (informativo)',
+        subtitulo: 'Se muestra a los candidatos en la recepcion',
+        videoUrl: settings.receptionVideoUrl,
+        narrationUrl: settings.receptionNarrationUrl,
+        captions: getReceptionVideoScript(),
+        sceneClips: receptionSceneClips,
+      },
+      ...getDefaultOnboardingModules().map((m) => ({
+        key: `onb-${m.id}`,
+        titulo: `${m.id}. ${m.name}`,
+        subtitulo: `Onboarding · ${m.duration}`,
+        critical: m.critical,
+        videoUrl: settings.onboardingVideoUrls?.[m.id],
+        narrationUrl: settings.onboardingNarrationUrls?.[m.id],
+        captions: getOnboardingVideoScript(m.id),
+        sceneClips: getOnboardingSceneClips(m.id),
+      })),
+    ];
+  }, [settings]);
+
+  return (
+    <div className="flex flex-col gap-5 h-full overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-3 shrink-0">
+        <button
+          onClick={onBack}
+          className="w-9 h-9 rounded-xl glass-light flex items-center justify-center text-surface-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
+            <Film size={20} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-surface-100">Videoteca</h1>
+            <p className="text-sm text-surface-400">
+              {items.length} videos del sistema — disponibles para verlos en cualquier momento
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Grid de videos */}
+      <div className="flex-1 overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {items.map((item, i) => {
+            const hasReal = !!parseVideoSource(item.videoUrl);
+            const hasNarration = !hasReal && !!(item.narrationUrl ?? '').trim();
+            return (
+              <motion.button
+                key={item.key}
+                custom={i}
+                variants={listItem}
+                initial="initial"
+                animate="animate"
+                type="button"
+                onClick={() => setSelected(item)}
+                className="glass-card p-4 text-left group hover:border-primary-500/30 transition-colors"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-500/20 to-accent-500/20 flex items-center justify-center shrink-0 group-hover:from-primary-500/30 group-hover:to-accent-500/30 transition-colors">
+                    <Play size={18} className="text-primary-300" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-surface-100 leading-snug">{item.titulo}</h3>
+                    <p className="text-[11px] text-surface-500 mt-1">{item.subtitulo}</p>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      {item.critical && (
+                        <span className="text-[9px] px-2 py-0.5 rounded-full font-semibold badge-red">CRITICO</span>
+                      )}
+                      <span className="text-[9px] px-2 py-0.5 rounded-full font-semibold badge-blue">
+                        {hasReal ? 'Video' : hasNarration ? 'Narrado' : 'Guion'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Reproductor en modal */}
+      <AnimatePresence>
+        {selected && <VideotecaPlayer item={selected} onClose={() => setSelected(null)} />}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function VideotecaPlayer({ item, onClose }: { item: VideotecaItem; onClose: () => void }) {
+  const source = parseVideoSource(item.videoUrl);
+  const usingReal = !!source;
+  const usingNarration = !usingReal && !!(item.narrationUrl ?? '').trim();
+  const [ended, setEnded] = useState(false);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="glass-card w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-4 border-b border-white/[0.06] flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-base font-bold text-white truncate">{item.titulo}</h3>
+            <p className="text-xs text-surface-500">Videoteca · reproduccion libre</p>
+          </div>
+          <button className="btn-secondary text-sm flex items-center gap-1.5 shrink-0" onClick={onClose}>
+            <X size={15} /> Cerrar
+          </button>
+        </div>
+
+        {usingReal ? (
+          <div className="aspect-video bg-black">
+            <RealVideoPlayer
+              source={source!}
+              title={item.titulo}
+              complete={ended}
+              onEnded={() => setEnded(true)}
+            />
+          </div>
+        ) : usingNarration ? (
+          <NarratedVideoPlayer
+            audioUrl={(item.narrationUrl || '').trim()}
+            captions={item.captions}
+            title={item.titulo}
+            sceneClips={item.sceneClips}
+            complete={ended}
+            onEnded={() => setEnded(true)}
+          />
+        ) : (
+          <div className="p-5 space-y-3">
+            <div className="p-3 rounded-xl bg-warning-500/10 border border-warning-500/20 flex items-start gap-2">
+              <Info size={16} className="text-warning-500 mt-0.5 shrink-0" />
+              <p className="text-xs text-surface-300">
+                Este video aun no tiene una URL de video real ni narracion configurada (Configuracion →
+                Videos del sistema). Mientras tanto, este es el guion del video:
+              </p>
+            </div>
+            <div className="space-y-2">
+              {item.captions.map((c, i) => (
+                <div key={i} className="p-3 rounded-xl bg-surface-800/40">
+                  <p className="text-xs font-semibold text-primary-300">{c.titulo}</p>
+                  <p className="text-sm text-surface-200 mt-1 leading-snug">{c.texto}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
   );
 }
