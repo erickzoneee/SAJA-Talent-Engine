@@ -58,7 +58,7 @@ interface SyncEnvelope {
   keyFp?: string;
 }
 
-interface SyncData {
+export interface SyncData {
   candidates: Candidate[];
   employees: Employee[];
   alerts: SystemAlert[];
@@ -115,6 +115,12 @@ function loadTombstones(): string[] {
 
 function saveTombstones() {
   localStorage.setItem(TOMB_KEY, JSON.stringify([...tombstones]));
+}
+
+/** v2.9: lista de ids eliminados, para que el sync de Supabase propague los
+ *  borrados igual que Pantry (comparten el mismo conjunto de tombstones). */
+export function getTombstones(): string[] {
+  return [...tombstones];
 }
 
 function collectIds(): Set<string> {
@@ -387,7 +393,7 @@ async function pantryPutBasket(cfg: SyncConfig, envelope: SyncEnvelope): Promise
 
 // ─── Empaquetado del estado ──────────────────────────────────────────────────
 
-function collectData(): SyncData {
+export function collectData(): SyncData {
   const s = useStore.getState();
   const t = useTrainingStore.getState();
   return {
@@ -426,7 +432,7 @@ async function openEnvelope(cfg: SyncConfig, envelope: SyncEnvelope): Promise<Sy
   return JSON.parse(new TextDecoder().decode(raw)) as SyncData;
 }
 
-function applyRemote(data: SyncData, remoteTombstones: string[] = [], reschedulePush = true) {
+export function applyRemote(data: SyncData, remoteTombstones: string[] = [], reschedulePush = true) {
   // Union de borrados de todos los dispositivos ANTES del merge
   remoteTombstones.forEach((id) => tombstones.add(id));
   saveTombstones();

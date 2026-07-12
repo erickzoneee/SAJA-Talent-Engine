@@ -18,6 +18,8 @@ import {
   Plus,
   X,
   AlertTriangle,
+  LogOut,
+  Database,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { AppSettings } from '../../types';
@@ -32,6 +34,14 @@ import {
   getSyncStatus,
   subscribeSyncStatus,
 } from '../../utils/cloudSync';
+import { SUPABASE_ENABLED } from '../../utils/supabaseClient';
+import {
+  getSupaStatus,
+  subscribeSupaStatus,
+  supaPullNow,
+  supaPushNow,
+  signOutSupabase,
+} from '../../utils/supabaseSync';
 
 const ONBOARDING_VIDEO_MODULES = getDefaultOnboardingModules();
 
@@ -354,8 +364,10 @@ export default function SettingsModule() {
         </div>
       </motion.div>
 
-      {/* v2.4 Req 7: Sincronizacion entre dispositivos */}
-      <SyncSection />
+      {/* v2.4 Req 7 / v2.9: Sincronizacion entre dispositivos.
+          Con Supabase activo, la nube es una base de datos real protegida por
+          inicio de sesion; si no, se usa el respaldo cifrado con codigo (Pantry). */}
+      {SUPABASE_ENABLED ? <SupabaseSyncSection /> : <SyncSection />}
 
       {/* Videos del Sistema */}
       <motion.div
@@ -461,6 +473,83 @@ export default function SettingsModule() {
 // cualquier tablet/computadora con el codigo de sincronizacion ve los mismos
 // datos. Fotos, firmas y escaneos no viajan: se quedan en cada dispositivo.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// v2.9 — Estado de la sincronizacion con la base de datos real (Supabase).
+function SupabaseSyncSection() {
+  const status = useSyncExternalStore(subscribeSupaStatus, getSupaStatus);
+  const fmtTime = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
+
+  const badge = status.state === 'error'
+    ? 'badge-red'
+    : status.state === 'syncing'
+      ? 'badge-yellow'
+      : status.signedIn
+        ? 'badge-green'
+        : 'badge-blue';
+  const badgeText = !status.signedIn
+    ? 'Sin sesion'
+    : status.state === 'error'
+      ? 'Error'
+      : status.state === 'syncing'
+        ? 'Sincronizando...'
+        : 'Conectado';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.34 }}
+      className="glass-card p-6"
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <Database className="w-5 h-5 text-accent-400" />
+        <h2 className="text-lg font-semibold text-surface-100">Base de Datos en la Nube</h2>
+        <span className={`badge ml-2 ${badge}`}>{badgeText}</span>
+      </div>
+      <p className="text-sm text-surface-400 mb-4">
+        Todos los datos se guardan en una base de datos real protegida por inicio de sesion, y se
+        sincronizan solos entre todos los dispositivos con la sesion iniciada. (Las fotos y escaneos aun
+        se quedan en cada dispositivo.)
+      </p>
+
+      {status.signedIn ? (
+        <div className="space-y-4">
+          <div className="p-3 rounded-xl bg-surface-900/50 border border-surface-700/50">
+            <p className="text-sm text-surface-200">
+              Sesion iniciada como <strong className="text-white">{status.email}</strong>
+            </p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-surface-400 mt-2">
+              <span>Ultimo envio: {fmtTime(status.lastPush)}</span>
+              <span>Ultima descarga: {fmtTime(status.lastPull)}</span>
+              {status.error && (
+                <span className="text-danger-500 flex items-center gap-1">
+                  <AlertTriangle size={12} /> {status.error}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button className="btn-secondary text-xs flex items-center gap-1.5" onClick={() => void supaPullNow()}>
+              <RefreshCw size={13} /> Traer cambios de la nube
+            </button>
+            <button className="btn-secondary text-xs flex items-center gap-1.5" onClick={() => void supaPushNow()}>
+              <Cloud size={13} /> Enviar cambios ahora
+            </button>
+            <button className="btn-danger text-xs flex items-center gap-1.5" onClick={() => void signOutSupabase()}>
+              <LogOut size={13} /> Cerrar sesion en este dispositivo
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="p-4 rounded-xl bg-warning-500/10 border border-warning-500/20 text-sm text-surface-300">
+          Este dispositivo esta trabajando <strong>sin sincronizar</strong>. Para ver los mismos datos en
+          las demas tablets, recarga la app e inicia sesion con la cuenta de la empresa.
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 function SyncSection() {
   const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);

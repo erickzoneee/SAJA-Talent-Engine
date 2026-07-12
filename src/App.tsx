@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useStore } from './store/useStore';
 import { initCloudSync } from './utils/cloudSync';
+import { initSupabaseSync } from './utils/supabaseSync';
+import SupabaseGate from './components/SupabaseGate';
 import Layout from './components/Layout';
 import LoginScreen from './components/LoginScreen';
 import RecruitmentModule from './modules/recruitment/RecruitmentModule';
@@ -30,12 +32,16 @@ function DirectionRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   // v2.4: reanuda la sincronizacion multi-dispositivo si esta configurada
+  // v2.9: initCloudSync mantiene los tombstones (borrados) que reutiliza el
+  // merge; initSupabaseSync es la sincronizacion principal con la base de datos.
   useEffect(() => {
     initCloudSync();
+    initSupabaseSync();
   }, []);
 
   return (
-    <HashRouter>
+    <SupabaseGate>
+      <HashRouter>
       <Routes>
         <Route path="/login" element={<LoginScreen />} />
         <Route
@@ -75,6 +81,7 @@ export default function App() {
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-    </HashRouter>
+      </HashRouter>
+    </SupabaseGate>
   );
 }
