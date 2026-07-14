@@ -144,11 +144,11 @@ export const INTERVIEW_SECTIONS: SectionDef[] = [
     rubros: [
       {
         id: 'disponibilidad',
-        label: 'Disponibilidad (horario, inicio y traslado)',
+        label: 'Disponibilidad (horario e inicio)',
         preguntaSugerida:
-          '¿Puedes trabajar el horario completo de lunes a sabado? ¿Cuando podrias empezar? ¿Como llegarias al trabajo cada dia?',
+          '¿Puedes trabajar el horario completo de lunes a sabado? ¿Cuando podrias empezar?',
         queBuscar:
-          'Confirma sin dudar que puede con el horario, tiene fecha de inicio clara y un traslado realista. Si no puede con el horario, califica 0 — es un no desde el inicio.',
+          'Confirma sin dudar que puede con el horario y tiene una fecha de inicio clara. Si no puede con el horario, califica 0 — es un no desde el inicio.',
       },
     ],
   },

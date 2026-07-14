@@ -30,15 +30,12 @@ import {
   ThumbsDown,
   Award,
   Video,
+  Mail,
+  BookOpen,
+  Calculator,
 } from 'lucide-react';
 import type { Candidate, JobPosition, OptionKey, ExamQuestionSnapshot } from '../../types';
-import {
-  JOB_POSITIONS,
-  ESCOLARIDAD_OPTIONS,
-  TIEMPO_EMPLEO_OPTIONS,
-  DISPONIBILIDAD_OPTIONS,
-  FUENTE_OPTIONS,
-} from '../../types';
+import { JOB_POSITIONS } from '../../types';
 import { useStore } from '../../store/useStore';
 import { useQuestionBank, buildExam } from '../../store/useQuestionBank';
 import {
@@ -140,8 +137,9 @@ const fadeUp = {
 
 type ViewState =
   | { view: 'list' }
+  | { view: 'video'; candidateId?: string }
   | { view: 'ficha' }
-  | { view: 'video'; candidateId: string }
+  | { view: 'fin'; motivo: 'no_interesado' | 'filtro' }
   | { view: 'cita'; candidateId: string }
   | { view: 'detail'; candidateId: string }
   | { view: 'exam'; candidateId: string };
@@ -151,6 +149,10 @@ type ViewState =
 export default function RecruitmentModule() {
   const [viewState, setViewState] = useState<ViewState>({ view: 'list' });
 
+  // v2.13: el flujo se invierte — el candidato PRIMERO ve el video; si le
+  // interesa, entonces se capturan sus datos minimos (nombre/telefono/puesto/
+  // correo) y el filtro de lectura y suma. Si dice que no en cualquier punto,
+  // el proceso termina (pantalla 'fin') sin crear expediente de candidato.
   // v2.4: sin AnimatePresence mode="wait" — un exit atorado con el reproductor
   // de video adentro dejaba la pantalla en negro (mismo fix que en Onboarding).
   return (
@@ -159,8 +161,30 @@ export default function RecruitmentModule() {
         {viewState.view === 'list' && (
           <motion.div key="list" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
             <CandidateListView
-              onNewCandidate={() => setViewState({ view: 'ficha' })}
+              onNewCandidate={() => setViewState({ view: 'video' })}
               onSelectCandidate={(id) => setViewState({ view: 'detail', candidateId: id })}
+            />
+          </motion.div>
+        )}
+        {viewState.view === 'video' && (
+          <motion.div
+            key={`video-${viewState.candidateId ?? 'intake'}`}
+            {...pageTransition}
+            className="flex-1 flex flex-col overflow-hidden"
+          >
+            <VideoInformativoView
+              candidateId={viewState.candidateId}
+              onInterested={(id) =>
+                id
+                  ? setViewState({ view: 'cita', candidateId: id })
+                  : setViewState({ view: 'ficha' })
+              }
+              onDeclined={(id) =>
+                id
+                  ? setViewState({ view: 'detail', candidateId: id })
+                  : setViewState({ view: 'fin', motivo: 'no_interesado' })
+              }
+              onBack={() => setViewState({ view: 'list' })}
             />
           </motion.div>
         )}
@@ -168,17 +192,14 @@ export default function RecruitmentModule() {
           <motion.div key="ficha" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
             <FichaRecepcionView
               onBack={() => setViewState({ view: 'list' })}
-              onCreated={(id) => setViewState({ view: 'video', candidateId: id })}
+              onCreated={(id) => setViewState({ view: 'cita', candidateId: id })}
+              onRejected={() => setViewState({ view: 'fin', motivo: 'filtro' })}
             />
           </motion.div>
         )}
-        {viewState.view === 'video' && (
-          <motion.div key="video" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-            <VideoInformativoView
-              candidateId={viewState.candidateId}
-              onInterested={(id) => setViewState({ view: 'cita', candidateId: id })}
-              onDeclined={() => setViewState({ view: 'list' })}
-            />
+        {viewState.view === 'fin' && (
+          <motion.div key="fin" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
+            <FinRecepcionView motivo={viewState.motivo} onDone={() => setViewState({ view: 'list' })} />
           </motion.div>
         )}
         {viewState.view === 'cita' && (
@@ -431,15 +452,22 @@ function CandidateListView({ onNewCandidate, onSelectCandidate }: CandidateListV
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// VIEW 2 : Ficha de Registro en Recepcion (10 campos — BRD seccion 3)
+// VIEW 2 : Ficha minima de Recepcion (v2.13)
+// Se llega AQUI solo despues de que el candidato vio el video y dijo que le
+// interesa. Se capturan datos minimos (nombre / telefono / puesto / correo) y
+// el filtro de lectura y suma. La escolaridad, ultimo empleo, tiempo, motivo,
+// disponibilidad y fuente ahora se capturan en la ENTREVISTA (Seccion 1).
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 interface FichaRecepcionViewProps {
   onBack: () => void;
   onCreated: (id: string) => void;
+  onRejected: () => void;
 }
 
-function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
+type SiNo = '' | 'si' | 'no';
+
+function FichaRecepcionView({ onBack, onCreated, onRejected }: FichaRecepcionViewProps) {
   // v2.5: traer lo mas reciente de la nube al abrir la ficha, para que la
   // validacion de RFC duplicado vea capturas hechas en otros dispositivos
   useEffect(() => {
@@ -454,22 +482,16 @@ function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
     fullName: '',
     phone: '',
     position: '' as JobPosition | '',
+    email: '',
     rfc: '',
     reingreso: false,
-    escolaridad: '',
-    ultimoTrabajo: '',
-    tiempoUltimoEmpleo: '',
-    motivoSalida: '',
-    disponibilidad: '',
-    disponibilidadOtro: '',
-    source: '',
   });
+  const [sabeLeer, setSabeLeer] = useState<SiNo>('');
+  const [sabeSumar, setSabeSumar] = useState<SiNo>('');
   const [saving, setSaving] = useState(false);
 
   const setField = (key: keyof typeof form, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [key]: value }));
-
-  const today = new Date();
 
   // ─── v2.4 Req 8: validacion de RFC al dar de alta ───
   const rfcUpper = form.rfc.trim().toUpperCase();
@@ -488,21 +510,23 @@ function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
   // Ex-colaborador detectado por RFC → se marca reingreso automaticamente
   const reingresoEfectivo = form.reingreso || !!rfcExEmployee;
 
-  const formValid =
+  const emailProvided = form.email.trim() !== '';
+  const emailOk = emailProvided && /@/.test(form.email);
+
+  const captureValid =
     form.fullName.trim() !== '' &&
     form.phone.trim() !== '' &&
     form.position !== '' &&
-    form.escolaridad !== '' &&
-    form.ultimoTrabajo.trim() !== '' &&
-    form.tiempoUltimoEmpleo !== '' &&
-    form.motivoSalida.trim() !== '' &&
-    form.disponibilidad !== '' &&
-    (form.disponibilidad !== 'Otro' || form.disponibilidadOtro.trim() !== '') &&
-    form.source !== '' &&
+    emailOk &&
     rfcOk;
 
+  const screeningAnswered = sabeLeer !== '' && sabeSumar !== '';
+  const screeningPass = sabeLeer === 'si' && sabeSumar === 'si';
+  // El candidato indico que NO sabe leer y/o sumar → el proceso termina aqui.
+  const rejected = screeningAnswered && !screeningPass;
+
   const handleSave = () => {
-    if (!formValid || saving) return;
+    if (!captureValid || !screeningPass || saving) return;
     setSaving(true);
 
     const id = generateId();
@@ -515,7 +539,9 @@ function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
       applicationDate: now.split('T')[0],
       position: form.position as JobPosition,
       phone: form.phone.trim(),
-      source: toUpper(form.source),
+      email: form.email.trim() || undefined,
+      // La fuente ("¿como se entero de la vacante?") ahora se captura en la entrevista.
+      source: '',
       rfc: rfcUpper || undefined,
       reingreso: reingresoEfectivo || undefined,
       mathCompleted: false,
@@ -523,13 +549,12 @@ function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
       hired: false,
       createdAt: now,
       reception: {
-        escolaridad: toUpper(form.escolaridad),
-        ultimoTrabajo: toUpper(form.ultimoTrabajo),
-        tiempoUltimoEmpleo: toUpper(form.tiempoUltimoEmpleo),
-        motivoSalida: toUpper(form.motivoSalida),
-        disponibilidad: toUpper(form.disponibilidad),
-        disponibilidadOtro: form.disponibilidad === 'Otro' ? toUpper(form.disponibilidadOtro) : undefined,
-        videoCompleto: false,
+        // El candidato vio el video ANTES de esta pantalla y dijo que le interesa.
+        videoCompleto: true,
+        videoTimestamp: now,
+        videoDecision: 'interesado',
+        sabeLeer: true,
+        sabeSumar: true,
       },
     };
 
@@ -537,6 +562,26 @@ function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
     setSaving(false);
     onCreated(id);
   };
+
+  const siNoButtons = (value: SiNo, onSelect: (v: SiNo) => void) => (
+    <div className="flex gap-2">
+      {[
+        { v: 'si' as SiNo, t: 'SI', on: 'bg-success-500/20 border-success-500/60 text-success-500' },
+        { v: 'no' as SiNo, t: 'NO', on: 'bg-danger-500/20 border-danger-500/60 text-danger-400' },
+      ].map((opt) => (
+        <button
+          key={opt.t}
+          type="button"
+          onClick={() => onSelect(opt.v)}
+          className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
+            value === opt.v ? opt.on : 'bg-surface-900/40 border-surface-700 text-surface-400 hover:border-surface-500'
+          }`}
+        >
+          {opt.t}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <>
@@ -546,18 +591,17 @@ function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
           <ArrowLeft size={20} className="text-surface-300" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold gradient-text">Ficha de Registro — Recepcion</h1>
-          <p className="text-sm text-surface-400 mt-0.5">Etapa 0 · sin firma — solo captura de datos</p>
+          <h1 className="text-2xl font-bold gradient-text">Datos del candidato — Recepcion</h1>
+          <p className="text-sm text-surface-400 mt-0.5">Etapa 0 · el candidato ya vio el video y le interesa</p>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pb-6">
         <motion.div {...fadeUp} className="space-y-5 max-w-2xl mx-auto">
           {/* Guion de recepcion */}
-          <div className="glass-card p-4 border-l-4 border-l-primary-500">
+          <div className="glass-card p-4 border-l-4 border-l-success-500">
             <p className="text-sm text-surface-300 italic">
-              "Antes de agendar tu entrevista, te pedimos que llenes una ficha basica y veas un video
-              corto sobre como trabajamos aqui."
+              "Que bueno que te interesa. Ahora solo necesito unos datos para agendar tu entrevista."
             </p>
           </div>
 
@@ -612,10 +656,29 @@ function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
                 </div>
               </div>
 
-              {/* ─── v2.4: RFC (Req 8) y Reingreso (Req 2) ─── */}
+              <div>
+                <label className="block text-sm text-surface-400 mb-1">
+                  <span className="flex items-center gap-1"><Mail size={14} /> Correo electronico *</span>
+                </label>
+                <input
+                  type="email"
+                  inputMode="email"
+                  className="input-field"
+                  placeholder="correo@ejemplo.com"
+                  value={form.email}
+                  onChange={(e) => setField('email', e.target.value)}
+                />
+                {emailProvided && !emailOk && (
+                  <p className="text-xs text-warning-500 mt-1 flex items-center gap-1">
+                    <AlertTriangle size={12} /> Escribe un correo valido (debe llevar @).
+                  </p>
+                )}
+              </div>
+
+              {/* ─── v2.4: RFC (Req 8) y Reingreso (Req 2) — opcionales ─── */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm text-surface-400 mb-1">RFC (con homoclave)</label>
+                  <label className="block text-sm text-surface-400 mb-1">RFC (opcional, con homoclave)</label>
                   <input
                     type="text"
                     className="input-field"
@@ -676,143 +739,64 @@ function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
 
+          {/* ─── v2.13: filtro de lectura y suma (compuerta) ─── */}
+          <div className="glass-card p-5 space-y-4">
+            <h2 className="text-base font-semibold text-surface-200 flex items-center gap-2">
+              <BookOpen size={18} className="text-accent-400" />
+              Filtro basico
+            </h2>
+            <p className="text-xs text-surface-500 -mt-2">
+              Preguntas simples de si o no. Si el candidato dice que NO en alguna, el proceso termina aqui.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-surface-400 mb-1">Escolaridad maxima *</label>
-                <div className="flex flex-wrap gap-2">
-                  {ESCOLARIDAD_OPTIONS.map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setField('escolaridad', opt)}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                        form.escolaridad === opt
-                          ? 'bg-primary-500/20 border-primary-500/60 text-primary-300'
-                          : 'bg-surface-900/40 border-surface-700 text-surface-400 hover:border-surface-500'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
+                <label className="text-sm text-surface-300 mb-2 flex items-center gap-2">
+                  <BookOpen size={15} className="text-primary-400" /> ¿Sabe leer? *
+                </label>
+                {siNoButtons(sabeLeer, setSabeLeer)}
               </div>
-
               <div>
-                <label className="block text-sm text-surface-400 mb-1">Ultimo lugar donde trabajo *</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="Empresa o lugar de su ultimo empleo"
-                  value={form.ultimoTrabajo}
-                  onChange={(e) => setField('ultimoTrabajo', e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-surface-400 mb-1">¿Cuanto tiempo trabajo ahi? *</label>
-                <div className="flex flex-wrap gap-2">
-                  {TIEMPO_EMPLEO_OPTIONS.map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setField('tiempoUltimoEmpleo', opt)}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                        form.tiempoUltimoEmpleo === opt
-                          ? 'bg-primary-500/20 border-primary-500/60 text-primary-300'
-                          : 'bg-surface-900/40 border-surface-700 text-surface-400 hover:border-surface-500'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm text-surface-400 mb-1">¿Por que salio de ese trabajo? *</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="Respuesta corta"
-                  maxLength={120}
-                  value={form.motivoSalida}
-                  onChange={(e) => setField('motivoSalida', e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-surface-400 mb-1">Disponibilidad de horario *</label>
-                <div className="flex flex-wrap gap-2">
-                  {DISPONIBILIDAD_OPTIONS.map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setField('disponibilidad', opt)}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                        form.disponibilidad === opt
-                          ? 'bg-primary-500/20 border-primary-500/60 text-primary-300'
-                          : 'bg-surface-900/40 border-surface-700 text-surface-400 hover:border-surface-500'
-                      }`}
-                    >
-                      {opt === 'Otro' ? 'Otro (especifica)' : opt}
-                    </button>
-                  ))}
-                </div>
-                {form.disponibilidad === 'Otro' && (
-                  <input
-                    type="text"
-                    className="input-field mt-2"
-                    placeholder="Especifica tu disponibilidad"
-                    value={form.disponibilidadOtro}
-                    onChange={(e) => setField('disponibilidadOtro', e.target.value)}
-                  />
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm text-surface-400 mb-1">¿Como se entero de la vacante? *</label>
-                <div className="flex flex-wrap gap-2">
-                  {FUENTE_OPTIONS.map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setField('source', opt)}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                        form.source === opt
-                          ? 'bg-primary-500/20 border-primary-500/60 text-primary-300'
-                          : 'bg-surface-900/40 border-surface-700 text-surface-400 hover:border-surface-500'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm text-surface-400 mb-1">Fecha de registro</label>
-                <input
-                  type="text"
-                  className="input-field opacity-60 cursor-not-allowed"
-                  value={`${formatDate(today)} — automatica, el sistema la pone solo`}
-                  disabled
-                />
+                <label className="text-sm text-surface-300 mb-2 flex items-center gap-2">
+                  <Calculator size={15} className="text-primary-400" /> ¿Sabe sumar? *
+                </label>
+                {siNoButtons(sabeSumar, setSabeSumar)}
               </div>
             </div>
+            {rejected && (
+              <div className="flex items-start gap-2 bg-danger-500/10 border border-danger-500/30 rounded-xl p-3">
+                <AlertTriangle size={16} className="text-danger-500 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-danger-400">
+                  El candidato indico que no sabe leer y/o sumar. Segun el filtro, el proceso termina aqui.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3">
             <button className="btn-secondary flex-1" onClick={onBack}>
               Cancelar
             </button>
-            <button
-              className="btn-primary flex-1 flex items-center justify-center gap-2"
-              disabled={!formValid || saving}
-              onClick={handleSave}
-            >
-              <MonitorPlay size={18} />
-              Guardar y ver video informativo
-            </button>
+            {rejected ? (
+              <button
+                className="btn-danger flex-1 flex items-center justify-center gap-2"
+                onClick={onRejected}
+              >
+                <XCircle size={18} />
+                Finalizar — el proceso no continua
+              </button>
+            ) : (
+              <button
+                className="btn-primary flex-1 flex items-center justify-center gap-2"
+                disabled={!captureValid || !screeningAnswered || saving}
+                onClick={handleSave}
+              >
+                <CalendarClock size={18} />
+                Guardar y agendar entrevista
+              </button>
+            )}
           </div>
         </motion.div>
       </div>
@@ -821,17 +805,52 @@ function FichaRecepcionView({ onBack, onCreated }: FichaRecepcionViewProps) {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// VIEW 2b : Pantalla de cierre (candidato no continua)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function FinRecepcionView({
+  motivo,
+  onDone,
+}: {
+  motivo: 'no_interesado' | 'filtro';
+  onDone: () => void;
+}) {
+  return (
+    <div className="flex-1 flex items-center justify-center px-6">
+      <motion.div {...fadeUp} className="glass-card p-8 max-w-md w-full text-center">
+        <div className="w-20 h-20 rounded-full mx-auto flex items-center justify-center mb-4 bg-surface-800/60 text-surface-300 ring-4 ring-surface-700/40">
+          <CheckCircle size={36} />
+        </div>
+        <h2 className="text-xl font-bold text-surface-100">Gracias por tu tiempo</h2>
+        <p className="text-sm text-surface-400 mt-2">
+          {motivo === 'no_interesado'
+            ? 'Entendido. Si mas adelante te interesa la vacante, con gusto te atendemos de nuevo.'
+            : 'Por ahora el proceso no continua. Agradecemos tu visita.'}
+        </p>
+        <button className="btn-primary w-full mt-6" onClick={onDone}>
+          Volver a recepcion
+        </button>
+      </motion.div>
+    </div>
+  );
+}
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // VIEW 3 : Video Informativo (2:30) + decision del candidato
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 interface VideoInformativoViewProps {
-  candidateId: string;
-  onInterested: (id: string) => void;
-  onDeclined: () => void;
+  /** v2.13: en la captacion nueva NO hay candidato aun (el video es lo primero).
+   *  Si viene definido, es un candidato existente volviendo a ver el video. */
+  candidateId?: string;
+  onInterested: (id?: string) => void;
+  onDeclined: (id?: string) => void;
+  onBack: () => void;
 }
 
-function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoInformativoViewProps) {
-  const candidate = useStore((s) => s.candidates.find((c) => c.id === candidateId));
+function VideoInformativoView({ candidateId, onInterested, onDeclined, onBack }: VideoInformativoViewProps) {
+  const candidate = useStore((s) => (candidateId ? s.candidates.find((c) => c.id === candidateId) : undefined));
   const updateCandidate = useStore((s) => s.updateCandidate);
   const receptionVideoUrl = useStore((s) => s.settings.receptionVideoUrl);
   const receptionNarrationUrl = useStore((s) => s.settings.receptionNarrationUrl);
@@ -859,25 +878,30 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
     return () => clearInterval(interval);
   }, [playing, speed, complete, usingReal, usingNarration]);
 
-  // Registrar visualizacion completa (una sola vez)
+  // Registrar visualizacion completa (una sola vez) — solo para un candidato
+  // existente (revisita). En la captacion nueva aun no hay candidato.
   useEffect(() => {
-    if (complete && !completedRef.current && candidate) {
+    if (complete && !completedRef.current) {
       completedRef.current = true;
       setWatchedOnce(true);
-      updateCandidate(candidateId, {
-        reception: {
-          ...candidate.reception!,
-          videoCompleto: true,
-          // Conservar la marca de tiempo de la PRIMERA vez que se completo el
-          // video (volver a verlo no debe sobrescribir la evidencia original).
-          videoTimestamp: candidate.reception!.videoTimestamp ?? new Date().toISOString(),
-        },
-      });
+      if (candidateId && candidate?.reception) {
+        updateCandidate(candidateId, {
+          reception: {
+            ...candidate.reception,
+            videoCompleto: true,
+            // Conservar la marca de tiempo de la PRIMERA vez que se completo el
+            // video (volver a verlo no debe sobrescribir la evidencia original).
+            videoTimestamp: candidate.reception.videoTimestamp ?? new Date().toISOString(),
+          },
+        });
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [complete]);
 
-  if (!candidate || !candidate.reception) {
+  // Un candidato existente que no se encontro es un error; la captacion nueva
+  // (sin candidateId) es valida y sigue sin candidato.
+  if (candidateId && !candidate) {
     return (
       <div className="flex items-center justify-center h-full text-surface-400">
         Candidato no encontrado
@@ -895,16 +919,20 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
   const fmt = (s: number) => `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
 
   const handleDecision = (decision: 'interesado' | 'lo_pensara') => {
-    updateCandidate(candidateId, {
-      reception: {
-        ...candidate.reception!,
-        videoCompleto: true,
-        videoTimestamp: candidate.reception!.videoTimestamp ?? new Date().toISOString(),
-        videoDecision: decision,
-      },
-    });
+    // Candidato existente (revisita): se guarda la decision. Captacion nueva:
+    // no hay candidato todavia, la decision solo dirige el flujo.
+    if (candidateId && candidate?.reception) {
+      updateCandidate(candidateId, {
+        reception: {
+          ...candidate.reception,
+          videoCompleto: true,
+          videoTimestamp: candidate.reception.videoTimestamp ?? new Date().toISOString(),
+          videoDecision: decision,
+        },
+      });
+    }
     if (decision === 'interesado') onInterested(candidateId);
-    else onDeclined();
+    else onDeclined(candidateId);
   };
 
   return (
@@ -914,15 +942,15 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
             recepcion quedaba atrapada en esta pantalla sin poder regresar */}
         <button
           className="p-2 rounded-xl hover:bg-surface-800 transition-colors"
-          onClick={onDeclined}
-          title="Regresar a la lista (el candidato queda con video pendiente)"
+          onClick={onBack}
+          title="Regresar a la lista"
         >
           <ArrowLeft size={20} className="text-surface-300" />
         </button>
         <div>
           <h1 className="text-2xl font-bold gradient-text">Video Informativo</h1>
           <p className="text-sm text-surface-400 mt-0.5">
-            {candidate.fullName} · 2:30 min · asi trabajamos aqui
+            {candidate ? `${candidate.fullName} · ` : 'Nuevo candidato · '}2:30 min · asi trabajamos aqui
           </p>
         </div>
       </div>
@@ -1074,7 +1102,7 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
                 className="glass-card p-5 space-y-4"
               >
                 <p className="text-center text-surface-200 font-medium">
-                  Si todo esto te interesa, avisale a recepcion.
+                  Ya viste como trabajamos aqui. ¿Te interesa la vacante?
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
@@ -1082,18 +1110,20 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined }: VideoIn
                     onClick={() => handleDecision('interesado')}
                   >
                     <ThumbsUp size={18} />
-                    Si me interesa, quiero agendar entrevista
+                    Si me interesa
                   </button>
                   <button
                     className="btn-secondary flex items-center justify-center gap-2 py-4"
                     onClick={() => handleDecision('lo_pensara')}
                   >
                     <ThumbsDown size={18} />
-                    Gracias, lo voy a pensar
+                    No me interesa, gracias
                   </button>
                 </div>
                 <p className="text-[11px] text-surface-500 text-center">
-                  El sistema guarda si el candidato vio el video completo y que boton selecciono.
+                  {candidate
+                    ? 'El sistema guarda si el candidato vio el video completo y que boton selecciono.'
+                    : 'Si te interesa, a continuacion se capturan tus datos para agendar la entrevista.'}
                 </p>
               </motion.div>
             )}
@@ -1290,32 +1320,61 @@ function CandidateDetail({ candidateId, onBack, onStartExam, onWatchVideo, onSch
                   </span>
                   {candidate.age ? <span>{candidate.age} anios</span> : null}
                 </div>
-                <p className="text-xs text-surface-500 mt-1">Se entero por: {candidate.source}</p>
+                {candidate.email && (
+                  <p className="text-xs text-surface-500 mt-1 flex items-center gap-1">
+                    <Mail size={11} /> {candidate.email}
+                  </p>
+                )}
+                <p className="text-xs text-surface-500 mt-1">
+                  Se entero por: {candidate.source || candidate.interviewV2?.fuente || '—'}
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Ficha de recepcion */}
-          {r && (
-            <div className="glass-card p-5">
-              <h3 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
-                <FileText size={16} className="text-primary-400" />
-                Ficha de Recepcion (Etapa 0)
-              </h3>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <DetailRow label="Escolaridad" value={r.escolaridad} />
-                <DetailRow label="Ultimo trabajo" value={r.ultimoTrabajo} />
-                <DetailRow label="Tiempo ahi" value={r.tiempoUltimoEmpleo} />
-                <DetailRow label="Motivo de salida" value={r.motivoSalida} />
-                <DetailRow
-                  label="Disponibilidad"
-                  value={r.disponibilidad.toUpperCase() === 'OTRO' ? `OTRO: ${r.disponibilidadOtro ?? ''}` : r.disponibilidad}
-                />
-                <DetailRow label="RFC" value={candidate.rfc ?? ''} />
-                <DetailRow label="Reingreso" value={candidate.reingreso ? 'SI — YA TRABAJO AQUI ANTES' : 'NO'} />
+          {/* Ficha de recepcion — v2.13: los datos de historial laboral se
+              capturan ahora en la entrevista; aqui se muestran de donde existan.
+              Se muestra si hay reception O si ya hubo entrevista (candidatos
+              legacy sin reception que si tienen datos capturados en la entrevista). */}
+          {(r || iv) && (() => {
+            const escolaridad = iv?.escolaridad ?? r?.escolaridad;
+            const ultimoTrabajo = iv?.ultimoTrabajo ?? r?.ultimoTrabajo;
+            const tiempo = iv?.tiempoUltimoEmpleo ?? r?.tiempoUltimoEmpleo;
+            const motivo = iv?.motivoSalida ?? r?.motivoSalida;
+            const dispo =
+              iv?.disponibilidadHorario !== undefined
+                ? iv.disponibilidadHorario
+                  ? 'SI'
+                  : 'NO'
+                : r?.disponibilidad
+                  ? r.disponibilidad.toUpperCase() === 'OTRO'
+                    ? `OTRO: ${r.disponibilidadOtro ?? ''}`
+                    : r.disponibilidad
+                  : '';
+            const filtro =
+              r?.sabeLeer === undefined && r?.sabeSumar === undefined
+                ? ''
+                : `Leer: ${r?.sabeLeer ? 'SI' : 'NO'} · Sumar: ${r?.sabeSumar ? 'SI' : 'NO'}`;
+            return (
+              <div className="glass-card p-5">
+                <h3 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
+                  <FileText size={16} className="text-primary-400" />
+                  Ficha de Recepcion (Etapa 0)
+                </h3>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <DetailRow label="Correo" value={candidate.email ?? ''} />
+                  <DetailRow label="Filtro lectura/suma" value={filtro} />
+                  <DetailRow label="Escolaridad" value={escolaridad ?? ''} />
+                  <DetailRow label="Ultimo trabajo" value={ultimoTrabajo ?? ''} />
+                  <DetailRow label="Tiempo ahi" value={tiempo ?? ''} />
+                  <DetailRow label="Motivo de salida" value={motivo ?? ''} />
+                  <DetailRow label="Disponibilidad" value={dispo} />
+                  <DetailRow label="RFC" value={candidate.rfc ?? ''} />
+                  <DetailRow label="Reingreso" value={candidate.reingreso ? 'SI — YA TRABAJO AQUI ANTES' : 'NO'} />
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Video informativo */}
           {r && (

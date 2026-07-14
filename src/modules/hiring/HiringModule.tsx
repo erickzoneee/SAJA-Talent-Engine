@@ -72,7 +72,7 @@ import MediaImage, { MediaFrame } from '../../components/MediaImage';
 import { getVerdictLabel, getVerdictColor } from '../../utils/scoring';
 import { getDefaultOnboardingModules } from '../../utils/onboardingModules';
 import { buildDocuments, createEmptySignedDocs, ONBOARDING_DOC_KEYS } from '../../utils/documentsV2';
-import { escapeHtml, printHtmlDocument } from '../../utils/printDoc';
+import { printSignedDocument } from '../../utils/printDoc';
 import type { DocTemplate } from '../../utils/documentsV2';
 import { buildContractText, printContractText } from '../../utils/contractTemplate';
 import { EXAM_OUTCOME_LABELS } from '../../utils/examBank';
@@ -2907,39 +2907,6 @@ function DossierOnboardingTab({ employee, completed, total }: { employee: Employ
 // RH sube el escaneado al expediente digital.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-function printDocumentV2(doc: DocTemplate, companyName: string) {
-  // Impresion via iframe oculto: funciona aunque el navegador bloquee popups.
-  // Todo el texto libre (nombres, domicilios, horarios) va escapado para que
-  // un "<" o "&" capturado no corte el texto del documento impreso.
-  const parrafosHtml = doc.parrafos
-    .map((p) =>
-      p === 'A T E N T A M E N T E'
-        ? `<p class="centrado">${escapeHtml(p)}</p>`
-        : `<p>${escapeHtml(p)}</p>`,
-    )
-    .join('');
-  printHtmlDocument(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(doc.titulo)}</title>
-  <style>
-    body { font-family: Georgia, 'Times New Roman', serif; margin: 56px; color: #111; }
-    .empresa { text-align: center; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #444; }
-    h1 { font-size: 19px; text-align: center; text-transform: uppercase; margin: 8px 0 4px; }
-    .meta { text-align: center; font-size: 11px; color: #666; margin-bottom: 28px; }
-    p { font-size: 13px; line-height: 1.75; text-align: justify; margin: 10px 0; }
-    .centrado { text-align: center; letter-spacing: 2px; margin: 28px 0; }
-    .firmas { display: flex; justify-content: space-between; gap: 60px; margin-top: 100px; }
-    .firma { flex: 1; text-align: center; font-size: 12px; border-top: 1px solid #111; padding-top: 8px; }
-  </style></head><body>
-    <div class="empresa">${escapeHtml(companyName)}</div>
-    <h1>${escapeHtml(doc.titulo)}</h1>
-    <div class="meta">${escapeHtml(doc.cuando)} · ${escapeHtml(doc.tantos)}</div>
-    ${parrafosHtml}
-    <div class="firmas">
-      <div class="firma">${escapeHtml(doc.firmaIzquierda)}<br/>Nombre y firma</div>
-      <div class="firma">${escapeHtml(doc.firmaDerecha)}<br/>Nombre y firma</div>
-    </div>
-  </body></html>`);
-}
-
 function SignedDocsSection({ employee }: { employee: Employee }) {
   const { settings, updateEmployee } = useStore();
   const [previewDoc, setPreviewDoc] = useState<DocTemplate | null>(null);
@@ -3154,7 +3121,7 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
                 <div className="flex items-center gap-2">
                   <button
                     className="btn-primary text-sm flex items-center gap-2"
-                    onClick={() => printDocumentV2(previewDoc, settings.companyName)}
+                    onClick={() => printSignedDocument(previewDoc, settings.companyName)}
                   >
                     <FileCheck size={15} />
                     Imprimir
@@ -3166,9 +3133,11 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
               </div>
               <div className="flex-1 overflow-y-auto p-6 bg-white/[0.02]">
                 <div className="bg-surface-50 text-surface-900 rounded-xl p-8 font-serif">
-                  <p className="text-center text-[10px] uppercase tracking-widest text-surface-500 mb-1">
-                    {settings.companyName}
-                  </p>
+                  {!previewDoc.plain && (
+                    <p className="text-center text-[10px] uppercase tracking-widest text-surface-500 mb-1">
+                      {settings.companyName}
+                    </p>
+                  )}
                   <h4 className="text-center font-bold uppercase text-base mb-6">{previewDoc.titulo}</h4>
                   {previewDoc.parrafos.map((p, idx) => (
                     <p

@@ -31,7 +31,8 @@ import {
   generateId,
   getInitials,
 } from '../../utils/helpers';
-import { escapeHtml, printHtmlDocument } from '../../utils/printDoc';
+import { escapeHtml, printHtmlDocument, printSignedDocument } from '../../utils/printDoc';
+import { buildDocuments } from '../../utils/documentsV2';
 import StarRating from '../../components/StarRating';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -397,6 +398,8 @@ function ExitRegistrationView({
   const [form, setForm] = useState<ExitFormState>(createEmptyForm);
   const [showPreview, setShowPreview] = useState(false);
   const [suggestedType, setSuggestedType] = useState<LetterType | null>(null);
+  // v2.13: carta de renuncia voluntaria (solo para renuncia)
+  const [renunciaPreview, setRenunciaPreview] = useState(false);
 
   // Compute employee history summary
   const history = useMemo(() => {
@@ -422,6 +425,17 @@ function ExitRegistrationView({
       months,
     };
   }, [employee]);
+
+  // v2.13: documento de renuncia voluntaria (sin logo ni datos de la empresa),
+  // autollenado con el nombre, puesto y la fecha de baja seleccionada.
+  const renunciaDoc = useMemo(() => {
+    if (!employee) return undefined;
+    const empForDoc: Employee = {
+      ...employee,
+      exitData: { ...(employee.exitData ?? ({} as ExitData)), exitDate: form.exitDate },
+    };
+    return buildDocuments(empForDoc, settings).find((d) => d.key === 'renunciaVoluntaria');
+  }, [employee, settings, form.exitDate]);
 
   // When exitType changes, compute suggested letter
   const computeSuggestedLetter = useCallback(() => {
@@ -681,6 +695,102 @@ function ExitRegistrationView({
               </div>
             </div>
           </div>
+
+          {/* v2.13: Carta de renuncia voluntaria — solo para renuncia. Va SIN
+              logo ni datos de la empresa (la persona la escribe para renunciar). */}
+          {form.exitType === 'renuncia' && renunciaDoc && (
+            <div className="glass-card p-6 space-y-3">
+              <h2 className="text-lg font-semibold text-surface-100 flex items-center gap-2">
+                <FileText size={18} className="text-primary-400" />
+                Carta de Renuncia Voluntaria
+              </h2>
+              <p className="text-xs text-surface-500 leading-relaxed">
+                Carta que el propio colaborador escribe para renunciar. Va sin logo ni datos de la
+                empresa; autollenada con nombre, puesto y la fecha de baja. El colaborador la firma.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="btn-secondary text-sm flex items-center gap-2"
+                  onClick={() => setRenunciaPreview(true)}
+                >
+                  <Eye size={14} /> Ver carta
+                </button>
+                <button
+                  className="btn-primary text-sm flex items-center gap-2"
+                  onClick={() => printSignedDocument(renunciaDoc, settings.companyName)}
+                >
+                  <Printer size={14} /> Imprimir renuncia
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de vista previa de la renuncia (sin membrete) */}
+          <AnimatePresence>
+            {renunciaPreview && renunciaDoc && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6"
+                onClick={() => setRenunciaPreview(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="glass-card w-full max-w-2xl max-h-[85vh] flex flex-col"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="p-5 border-b border-white/[0.06] flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-white">{renunciaDoc.titulo}</h3>
+                      <p className="text-xs text-surface-500">Sin logo ni datos de la empresa · autollenada</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="btn-primary text-sm flex items-center gap-2"
+                        onClick={() => printSignedDocument(renunciaDoc, settings.companyName)}
+                      >
+                        <Printer size={15} />
+                        Imprimir
+                      </button>
+                      <button className="btn-secondary text-sm" onClick={() => setRenunciaPreview(false)}>
+                        Cerrar
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-6 bg-white/[0.02]">
+                    <div className="bg-surface-50 text-surface-900 rounded-xl p-8 font-serif">
+                      <h4 className="text-center font-bold uppercase text-base mb-6">{renunciaDoc.titulo}</h4>
+                      {renunciaDoc.parrafos.map((p, idx) => (
+                        <p
+                          key={idx}
+                          className={`text-[13px] leading-relaxed mb-3 ${
+                            p === 'A T E N T A M E N T E' ? 'text-center tracking-widest my-6' : 'text-justify'
+                          }`}
+                        >
+                          {p}
+                        </p>
+                      ))}
+                      <div className="flex gap-10 mt-16">
+                        <div className="flex-1 text-center border-t border-surface-900 pt-2 text-xs">
+                          {renunciaDoc.firmaIzquierda}
+                          <br />
+                          Nombre y firma
+                        </div>
+                        <div className="flex-1 text-center border-t border-surface-900 pt-2 text-xs">
+                          {renunciaDoc.firmaDerecha}
+                          <br />
+                          Nombre y firma
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Letter Type Selection */}
           <div className="glass-card p-6 space-y-4">

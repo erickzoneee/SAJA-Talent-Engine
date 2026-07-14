@@ -23,6 +23,8 @@ export interface Candidate {
   position: JobPosition;
   age?: number;
   phone: string;
+  /** v2.13: correo del candidato, capturado en recepcion despues del video. */
+  email?: string;
   neighborhood?: string;
   source: string;
   // ─── v2.4: RFC del candidato (validado al dar de alta) y reingreso ───
@@ -56,13 +58,22 @@ export const FUENTE_OPTIONS = ['Recomendado', 'Bolsa de trabajo', 'Cartel en pue
 
 export type VideoDecision = 'interesado' | 'lo_pensara';
 
+// v2.13: la ficha de recepcion se reduce al minimo. El video se ve PRIMERO;
+// si el candidato dice que le interesa se capturan nombre/telefono/puesto/correo
+// y se responde el filtro de lectura y suma. La escolaridad, ultimo empleo,
+// tiempo, motivo de salida, disponibilidad y fuente se capturan AHORA en la
+// entrevista (Seccion 1), no aqui. Los campos viejos quedan OPCIONALES para no
+// romper candidatos ya guardados.
 export interface ReceptionData {
-  escolaridad: string;
-  ultimoTrabajo: string;
-  tiempoUltimoEmpleo: string;
-  motivoSalida: string;
-  disponibilidad: string;
+  escolaridad?: string;
+  ultimoTrabajo?: string;
+  tiempoUltimoEmpleo?: string;
+  motivoSalida?: string;
+  disponibilidad?: string;
   disponibilidadOtro?: string;
+  // v2.13: filtro previo de lectura y suma (auto-declarado, si/no)
+  sabeLeer?: boolean;
+  sabeSumar?: boolean;
   videoCompleto: boolean;
   videoDecision?: VideoDecision;
   videoTimestamp?: string;
@@ -80,11 +91,33 @@ export interface ReceptionData {
 
 export type RubricScore = 0 | 1 | 2 | 3;
 
+// v2.13: resultado de los juegos-quiz de la 2a mitad de la entrevista
+// (conocimientos generales + matematicas).
+export interface InterviewQuizResult {
+  general: number;
+  generalTotal: number;
+  mate: number;
+  mateTotal: number;
+  aciertos: number;
+  totalPreguntas: number;
+}
+
 export interface InterviewV2Data {
   entrevistador: string;
   fecha: string;
   puntualidadEntrevista: string;
-  comoLlego: string;
+  // v2.13: transporte/traslado eliminado — queda opcional solo por compat.
+  comoLlego?: string;
+  // ─── v2.13: datos que antes se capturaban en recepcion y ahora en la
+  // entrevista (Seccion 1). Todos opcionales para no romper entrevistas viejas. ───
+  escolaridad?: string;
+  ultimoTrabajo?: string;
+  tiempoUltimoEmpleo?: string;
+  motivoSalida?: string;
+  /** Disponibilidad de horario, ahora si/no. */
+  disponibilidadHorario?: boolean;
+  /** ¿Como se entero de la vacante? (fuente). */
+  fuente?: string;
   scores: Record<string, RubricScore>;
   observacionesSeccion: Record<string, string>;
   observacionesFinales: string;
@@ -92,6 +125,8 @@ export interface InterviewV2Data {
   porcentaje: number;
   diagnostico: Verdict;
   alertas: string[];
+  // v2.13: 2a mitad de la entrevista (juegos-quiz)
+  quiz?: InterviewQuizResult;
   decision?: 'agendar_inicio' | 'no_continuar';
   decisionRegistro?: {
     fecha: string;
