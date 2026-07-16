@@ -469,6 +469,8 @@ export interface AppSettings {
   schedules?: string[];
   /** Areas asignables (editables; se pueden agregar nuevas). */
   areas?: string[];
+  /** v2.14: supervisores directos asignables (lista desplegable editable). */
+  supervisors?: string[];
 }
 
 // ─── v2.4: valores por defecto de los catalogos de contratacion ─────────────
@@ -486,6 +488,15 @@ export const DEFAULT_AREAS: string[] = [
   'MANTENIMIENTO',
   'ADMINISTRACION',
   'CONTROL DE CALIDAD',
+];
+
+// v2.14: supervisores directos que aparecen en la lista desplegable. Salen de
+// los puestos a los que reporta cada vacante (JOB_POSITIONS.reportsTo); RH
+// puede agregar o quitar los que necesite desde la misma lista.
+export const DEFAULT_SUPERVISORS: string[] = [
+  'DIRECCION GENERAL',
+  'ENCARGADO DE PRODUCCION',
+  'ASISTENTE DE DIRECCION',
 ];
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -533,13 +544,20 @@ export interface EmployeeExpediente {
   profesion?: string;
   // Informacion laboral (complementa hireDate/contractType/area/schedule/status)
   finContrato?: string;
+  /** v2.14: siempre igual a la fecha de ingreso (ya no se captura aparte). */
   inicioContrato?: string;
+  /** @deprecated v2.14: ya no se captura; se conserva por los expedientes viejos. */
   fechaReingreso?: string;
   altaImss?: string;
+  /** @deprecated v2.14: ya no se captura; la baja se maneja en Egreso. */
   bajaImss?: string;
+  /** @deprecated v2.14: se quitaron los marcadores de la ficha. */
   esJefe?: boolean;
+  /** @deprecated v2.14: se quitaron los marcadores de la ficha. */
   esEventual?: boolean;
+  /** @deprecated v2.14: ya no se captura la clase de riesgo IMSS. */
   clase?: string;
+  /** v2.14: "Creditos vigentes" — FONACOT / INFONAVIT / NINGUNO. */
   creditoFonacot?: string;
   motivoBaja?: string;
   observaciones?: string;
@@ -564,6 +582,8 @@ export const ESTADO_CIVIL_OPTIONS = ['Soltero', 'Casado', 'Union libre', 'Divorc
 export const TIPO_SANGRE_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
 export const NIVEL_ESTUDIOS_OPTIONS = ['Ninguno', 'Primaria', 'Secundaria', 'Preparatoria', 'Tecnico', 'Licenciatura', 'Posgrado'] as const;
 export const CLASE_RIESGO_OPTIONS = ['I', 'II', 'III', 'IV', 'V'] as const;
+// v2.14: creditos vigentes del colaborador (antes era el texto libre "Credito FONACOT").
+export const CREDITO_VIGENTE_OPTIONS = ['FONACOT', 'INFONAVIT', 'NINGUNO'] as const;
 export const PARENTESCO_OPTIONS = ['Conyuge', 'Concubino(a)', 'Hijo(a)', 'Padre', 'Madre', 'Hermano(a)', 'Abuelo(a)', 'Otro'] as const;
 export const BANCO_OPTIONS = [
   'BBVA', 'Banamex', 'Santander', 'Banorte', 'HSBC', 'Scotiabank',

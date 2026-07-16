@@ -35,6 +35,7 @@ import {
   FileType,
 } from 'lucide-react';
 import type {
+  Candidate,
   Employee,
   DocumentChecklist,
   ContractType,
@@ -48,11 +49,12 @@ import {
   JOB_POSITIONS,
   DEFAULT_SCHEDULES,
   DEFAULT_AREAS,
+  DEFAULT_SUPERVISORS,
   DEFAULT_SDI_FACTOR,
   ESTADO_CIVIL_OPTIONS,
   TIPO_SANGRE_OPTIONS,
   NIVEL_ESTUDIOS_OPTIONS,
-  CLASE_RIESGO_OPTIONS,
+  CREDITO_VIGENTE_OPTIONS,
   PARENTESCO_OPTIONS,
   BANCO_OPTIONS,
   ESTADOS_MEXICO,
@@ -66,6 +68,8 @@ import {
   getInitials,
   toUpper,
   isValidRfc,
+  splitFullName,
+  joinFullName,
 } from '../../utils/helpers';
 import { storeMediaFile, isImageMedia, openMedia } from '../../utils/mediaStore';
 import MediaImage, { MediaFrame } from '../../components/MediaImage';
@@ -189,6 +193,27 @@ function createEmptyDocuments(): DocumentChecklist {
     cartasRecomendacion: { done: false },
     antecedentesNoPenales: { done: false, onlyMale: true },
     rfc: { done: false },
+  };
+}
+
+// v2.14: el expediente nace con lo que YA se capturo antes — el nombre partido
+// en nombre(s)/apellidos y el telefono y correo de recepcion — para que RH no
+// tenga que volver a escribirlos. El inicio del contrato es siempre la fecha de
+// ingreso capturada aqui.
+function buildInitialExpediente(
+  fullName: string,
+  hireDate: string,
+  contacto?: { phone?: string; email?: string },
+): EmployeeExpediente {
+  const partes = splitFullName(fullName);
+  const email = contacto?.email?.trim().toLowerCase();
+  return {
+    nombres: partes.nombres || undefined,
+    apellidoPaterno: partes.apellidoPaterno || undefined,
+    apellidoMaterno: partes.apellidoMaterno || undefined,
+    inicioContrato: hireDate || undefined,
+    telefonoMovil: contacto?.phone?.trim() || undefined,
+    emailPersonal: email || undefined,
   };
 }
 
@@ -551,17 +576,20 @@ interface HiringFormViewProps {
 }
 
 function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps) {
-  // v2.5: traer lo mas reciente de la nube al abrir, para que la validacion
-  // de RFC duplicado vea contrataciones hechas en otros dispositivos
+  // v2.5: traer lo mas reciente de la nube al abrir, para trabajar contra las
+  // contrataciones hechas en otros dispositivos
   useEffect(() => {
     void pullNow();
   }, []);
 
-  const { candidates, employees, addEmployee, updateCandidate, getNextExpedientNumber, settings, updateSettings, authRole, addAlert } = useStore();
+  const { candidates, addEmployee, updateCandidate, getNextExpedientNumber, settings, updateSettings, authRole, addAlert } = useStore();
   const candidate = candidates.find((c) => c.id === candidateId);
 
   const scheduleOptions = settings.schedules?.length ? settings.schedules : DEFAULT_SCHEDULES;
   const areaOptions = settings.areas?.length ? settings.areas : DEFAULT_AREAS;
+  // Si RH deja el catalogo vacio a proposito se respeta vacio: con ?.length los
+  // supervisores por defecto reaparecian solos despues de quitarlos.
+  const supervisorOptions = settings.supervisors ?? DEFAULT_SUPERVISORS;
 
   const [documents, setDocuments] = useState<DocumentChecklist>(createEmptyDocuments);
   const [hireDate, setHireDate] = useState(formatDateInput(new Date()));
@@ -576,9 +604,15 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
     const catalogo = (useStore.getState().settings.areas?.length ? useStore.getState().settings.areas! : DEFAULT_AREAS);
     return catalogo.find((a) => sugerida.toUpperCase().includes(a)) ?? '';
   });
-  const [supervisor, setSupervisor] = useState(candidate ? JOB_POSITIONS[candidate.position]?.reportsTo ?? '' : '');
+  // v2.14: el supervisor directo se elige de un catalogo editable. Se sugiere el
+  // del puesto ("Encargado de Produccion / Direccion") buscando cual opcion del
+  // catalogo aparece en esa sugerencia.
+  const [supervisor, setSupervisor] = useState(() => {
+    const sugerido = candidate ? JOB_POSITIONS[candidate.position]?.reportsTo ?? '' : '';
+    const catalogo = useStore.getState().settings.supervisors ?? DEFAULT_SUPERVISORS;
+    return catalogo.find((s) => sugerido.toUpperCase().includes(s)) ?? '';
+  });
   const [imssNumber, setImssNumber] = useState('');
-  const [rfc, setRfc] = useState(candidate?.rfc ?? '');
   const [reingreso, setReingreso] = useState(!!candidate?.reingreso);
   const [supervisorOverride, setSupervisorOverride] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -605,21 +639,9 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
   const dailyNum = parseFloat(dailySalary) || 0;
   const weeklySalary = Math.round(dailyNum * 7 * 100) / 100;
 
-  // v2.4 Req 8: RFC no puede estar ACTIVO ya en el sistema
-  const rfcUpper = rfc.trim().toUpperCase();
-  const rfcFormatOk = rfcUpper === '' || isValidRfc(rfcUpper);
-  const rfcActiveEmployee = rfcUpper
-    ? employees.find((e) => (e.rfc ?? '') === rfcUpper && e.status !== 'inactive')
-    : undefined;
-  const rfcExEmployee = !rfcActiveEmployee && rfcUpper
-    ? employees.find((e) => (e.rfc ?? '') === rfcUpper && e.status === 'inactive')
-    : undefined;
-  const rfcOk = rfcFormatOk && !rfcActiveEmployee;
-  const reingresoEfectivo = reingreso || !!rfcExEmployee;
-
   const allMandatoryDone = mandatoryCompleted === mandatoryTotal;
   const authOk = !isNotRecommended || (authConfirmed && authMotivo.trim() !== '');
-  const canSubmit = (allMandatoryDone || supervisorOverride) && dailyNum > 0 && schedule && hireDate && rfcOk && authOk;
+  const canSubmit = (allMandatoryDone || supervisorOverride) && dailyNum > 0 && schedule && hireDate && authOk;
 
   // v2.8: catalogos de horario/area — agregar Y quitar opciones
   const addScheduleOption = (s: string) => {
@@ -637,6 +659,14 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
   const removeAreaOption = (a: string) => {
     updateSettings({ areas: areaOptions.filter((x) => x !== a) });
     if (area === a) setArea('');
+  };
+  const addSupervisorOption = (s: string) => {
+    if (!supervisorOptions.includes(s)) updateSettings({ supervisors: [...supervisorOptions, s] });
+    setSupervisor(s);
+  };
+  const removeSupervisorOption = (s: string) => {
+    updateSettings({ supervisors: supervisorOptions.filter((x) => x !== s) });
+    if (supervisor === s) setSupervisor('');
   };
 
   const handleDocToggle = useCallback((key: keyof DocumentChecklist) => {
@@ -689,11 +719,16 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
       area: toUpper(area),
       supervisor: toUpper(supervisor),
       imssNumber: imssNumber.trim(),
-      rfc: rfcUpper || undefined,
-      reingreso: reingresoEfectivo || undefined,
+      reingreso: reingreso || undefined,
       bankDetails: '',
       status: 'trial',
       documents,
+      // v2.14: el nombre partido y el contacto capturado en recepcion pasan solos
+      // al expediente (el RFC se captura alla, ya no aqui).
+      expediente: buildInitialExpediente(candidate.fullName, hireDate, {
+        phone: candidate.phone,
+        email: candidate.email,
+      }),
       onboardingProgress: {
         modules: getDefaultOnboardingModules(),
         certificateGenerated: false,
@@ -741,7 +776,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
       setSaving(false);
       onComplete();
     }, 500);
-  }, [candidate, canSubmit, saving, hireDate, weeklySalary, dailyNum, schedule, contractType, area, supervisor, imssNumber, rfcUpper, reingresoEfectivo, documents, addEmployee, updateCandidate, getNextExpedientNumber, onComplete, isReservations, isNotRecommended, authMotivo, settings.directorName, addAlert]);
+  }, [candidate, canSubmit, saving, hireDate, weeklySalary, dailyNum, schedule, contractType, area, supervisor, imssNumber, reingreso, documents, addEmployee, updateCandidate, getNextExpedientNumber, onComplete, isReservations, isNotRecommended, authMotivo, settings.directorName, addAlert]);
 
   if (!candidate) {
     return (
@@ -949,20 +984,18 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
               addPlaceholder="Nombre de la nueva area"
             />
 
-            {/* Supervisor directo */}
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1.5">
-                <User size={14} className="inline mr-1.5 -mt-0.5" />
-                Supervisor directo
-              </label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="Nombre del supervisor"
-                value={supervisor}
-                onChange={(e) => setSupervisor(e.target.value)}
-              />
-            </div>
+            {/* v2.14: supervisor directo — catalogo editable (agregar y quitar) */}
+            <CatalogSelect
+              icon={User}
+              label="Supervisor directo"
+              value={supervisor}
+              onChange={setSupervisor}
+              options={supervisorOptions}
+              onAdd={addSupervisorOption}
+              onRemove={removeSupervisorOption}
+              placeholder="Seleccionar supervisor"
+              addPlaceholder="Nombre o puesto del supervisor"
+            />
 
             {/* Numero IMSS */}
             <div className="md:col-span-2">
@@ -986,42 +1019,8 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
               </p>
             </div>
 
-            {/* v2.4 Req 8: RFC validado contra el sistema */}
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1.5">
-                <Hash size={14} className="inline mr-1.5 -mt-0.5" />
-                RFC (con homoclave)
-              </label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="Ej. BUMD830914JK0"
-                maxLength={13}
-                value={rfc}
-                onChange={(e) => setRfc(e.target.value.toUpperCase())}
-              />
-              {!rfcFormatOk && (
-                <p className="text-xs text-danger-500 mt-1 flex items-center gap-1">
-                  <AlertTriangle size={12} /> Formato de RFC invalido (12-13 caracteres del SAT).
-                </p>
-              )}
-              {rfcActiveEmployee && (
-                <p className="text-xs text-danger-500 mt-1 flex items-center gap-1">
-                  <AlertTriangle size={12} />
-                  Este RFC ya esta ACTIVO en el sistema: {rfcActiveEmployee.fullName} (expediente #
-                  {String(rfcActiveEmployee.expedientNumber).padStart(3, '0')}). No se puede contratar dos veces.
-                </p>
-              )}
-              {rfcExEmployee && (
-                <p className="text-xs text-warning-500 mt-1 flex items-center gap-1">
-                  <CheckCircle size={12} />
-                  RFC de ex-colaborador ({rfcExEmployee.fullName}) — se marcara como REINGRESO.
-                </p>
-              )}
-            </div>
-
             {/* v2.4 Req 2: reingreso */}
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-surface-300 mb-1.5">
                 <User size={14} className="inline mr-1.5 -mt-0.5" />
                 ¿Es reingreso?
@@ -1033,7 +1032,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
                     type="button"
                     onClick={() => setReingreso(opt.v)}
                     className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all cursor-pointer ${
-                      reingresoEfectivo === opt.v
+                      reingreso === opt.v
                         ? opt.v
                           ? 'bg-warning-500/20 border-warning-500/60 text-warning-500'
                           : 'bg-primary-500/20 border-primary-500/60 text-primary-300'
@@ -1180,8 +1179,6 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
               {dailyNum <= 0 ? 'Ingrese el sueldo diario. ' : ''}
               {!schedule ? 'Seleccione el horario asignado. ' : ''}
               {!hireDate ? 'Seleccione la fecha de ingreso. ' : ''}
-              {!rfcFormatOk ? 'El RFC no tiene formato valido. ' : ''}
-              {rfcActiveEmployee ? 'El RFC ya esta activo en el sistema. ' : ''}
               {!allMandatoryDone && !supervisorOverride ? 'Complete los documentos obligatorios o active la omision de supervisor. ' : ''}
               {!authOk ? 'Se requiere autorizacion expresa de Direccion (motivo + confirmacion).' : ''}
             </p>
@@ -1329,10 +1326,10 @@ interface DirectRegistrationViewProps {
 }
 
 function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewProps) {
-  const { employees, settings, addEmployee, getNextExpedientNumber, updateSettings } = useStore();
+  const { settings, addEmployee, getNextExpedientNumber, updateSettings } = useStore();
   const [saving, setSaving] = useState(false);
 
-  // Datos frescos de la nube antes de validar RFC duplicado
+  // Datos frescos de la nube antes de registrar
   useEffect(() => {
     void pullNow();
   }, []);
@@ -1346,21 +1343,15 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
   const [area, setArea] = useState('');
   const [supervisor, setSupervisor] = useState('');
   const [imssNumber, setImssNumber] = useState('');
-  const [rfc, setRfc] = useState('');
 
   const scheduleOptions = settings.schedules?.length ? settings.schedules : DEFAULT_SCHEDULES;
   const areaOptions = settings.areas?.length ? settings.areas : DEFAULT_AREAS;
+  // Si RH deja el catalogo vacio a proposito se respeta vacio: con ?.length los
+  // supervisores por defecto reaparecian solos despues de quitarlos.
+  const supervisorOptions = settings.supervisors ?? DEFAULT_SUPERVISORS;
 
   const dailyNum = parseFloat(dailySalary) || 0;
   const weeklySalary = Math.round(dailyNum * 7 * 100) / 100;
-
-  // Mismas validaciones de RFC que la contratacion normal
-  const rfcUpper = rfc.trim().toUpperCase();
-  const rfcFormatOk = rfcUpper === '' || isValidRfc(rfcUpper);
-  const rfcActiveEmployee = rfcUpper
-    ? employees.find((e) => (e.rfc ?? '') === rfcUpper && e.status !== 'inactive')
-    : undefined;
-  const rfcOk = rfcFormatOk && !rfcActiveEmployee;
 
   // Colaborador existente: si su ingreso real fue hace mas de 30 dias, entra
   // directo como ACTIVO (ya paso el periodo de prueba en la vida real)
@@ -1370,7 +1361,7 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
   const willBeActive = daysSinceHire > 30;
 
   const canSubmit =
-    fullName.trim() !== '' && position !== '' && hireDate !== '' && dailyNum > 0 && schedule !== '' && rfcOk;
+    fullName.trim() !== '' && position !== '' && hireDate !== '' && dailyNum > 0 && schedule !== '';
 
   // v2.8: catalogos de horario/area — agregar Y quitar opciones
   const addScheduleOption = (s: string) => {
@@ -1388,6 +1379,14 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
   const removeAreaOption = (a: string) => {
     updateSettings({ areas: areaOptions.filter((x) => x !== a) });
     if (area === a) setArea('');
+  };
+  const addSupervisorOption = (s: string) => {
+    if (!supervisorOptions.includes(s)) updateSettings({ supervisors: [...supervisorOptions, s] });
+    setSupervisor(s);
+  };
+  const removeSupervisorOption = (s: string) => {
+    updateSettings({ supervisors: supervisorOptions.filter((x) => x !== s) });
+    if (supervisor === s) setSupervisor('');
   };
 
   const handleSubmit = () => {
@@ -1411,10 +1410,11 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
       area: toUpper(area),
       supervisor: toUpper(supervisor || (position ? JOB_POSITIONS[position as JobPosition]?.reportsTo ?? '' : '')),
       imssNumber: imssNumber.trim(),
-      rfc: rfcUpper || undefined,
       bankDetails: '',
       status: willBeActive ? 'active' : 'trial',
       documents: createEmptyDocuments(),
+      // v2.14: el nombre queda partido en nombre(s)/apellidos desde el arranque.
+      expediente: buildInitialExpediente(fullName, hireDate),
       onboardingProgress: {
         modules: getDefaultOnboardingModules(),
         certificateGenerated: false,
@@ -1583,16 +1583,17 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm text-surface-400 mb-1">Supervisor directo</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="Nombre del supervisor"
-                  value={supervisor}
-                  onChange={(e) => setSupervisor(e.target.value.toUpperCase())}
-                />
-              </div>
+              <CatalogSelect
+                icon={User}
+                label="Supervisor directo"
+                value={supervisor}
+                onChange={setSupervisor}
+                options={supervisorOptions}
+                onAdd={addSupervisorOption}
+                onRemove={removeSupervisorOption}
+                placeholder="Seleccionar supervisor"
+                addPlaceholder="Nombre o puesto del supervisor"
+              />
               <div>
                 <label className="block text-sm text-surface-400 mb-1">Numero IMSS</label>
                 <input
@@ -1603,30 +1604,6 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
                   onChange={(e) => setImssNumber(e.target.value)}
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm text-surface-400 mb-1">RFC (con homoclave)</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="Ej. BUMD830914JK0"
-                maxLength={13}
-                value={rfc}
-                onChange={(e) => setRfc(e.target.value.toUpperCase())}
-              />
-              {!rfcFormatOk && (
-                <p className="text-xs text-danger-500 mt-1 flex items-center gap-1">
-                  <AlertTriangle size={12} /> Formato de RFC invalido (12-13 caracteres del SAT).
-                </p>
-              )}
-              {rfcActiveEmployee && (
-                <p className="text-xs text-danger-500 mt-1 flex items-center gap-1">
-                  <AlertTriangle size={12} />
-                  Este RFC ya esta ACTIVO en el sistema: {rfcActiveEmployee.fullName} (expediente #
-                  {String(rfcActiveEmployee.expedientNumber).padStart(3, '0')}). No se puede registrar dos veces.
-                </p>
-              )}
             </div>
           </div>
 
@@ -1653,8 +1630,6 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
               {!hireDate ? 'Selecciona la fecha de ingreso real. ' : ''}
               {dailyNum <= 0 ? 'Captura el sueldo diario. ' : ''}
               {schedule === '' ? 'Selecciona el horario. ' : ''}
-              {!rfcFormatOk ? 'El RFC no tiene formato valido. ' : ''}
-              {rfcActiveEmployee ? 'El RFC ya esta activo en el sistema. ' : ''}
             </p>
           )}
         </div>
@@ -2043,6 +2018,98 @@ function Fld({ label, children, wide, hint }: { label: string; children: React.R
   );
 }
 
+// v2.14: selector de catalogo para el expediente: mismo comportamiento que
+// CatalogSelect (elegir, agregar y quitar opciones) pero sin encabezado propio,
+// porque la etiqueta la pone <Fld>.
+interface ExpCatalogSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  onAdd: (value: string) => void;
+  onRemove: (value: string) => void;
+  placeholder: string;
+  addPlaceholder: string;
+}
+
+function ExpCatalogSelect({
+  value,
+  onChange,
+  options,
+  onAdd,
+  onRemove,
+  placeholder,
+  addPlaceholder,
+}: ExpCatalogSelectProps) {
+  const [manage, setManage] = useState(false);
+  const [newVal, setNewVal] = useState('');
+
+  const handleAdd = () => {
+    const v = toUpper(newVal);
+    if (!v) return;
+    onAdd(v);
+    setNewVal('');
+  };
+
+  return (
+    <>
+      <select className="input-field" value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o} value={o}>{o}</option>
+        ))}
+        {/* Lo que ya estaba guardado y no esta en el catalogo se sigue viendo */}
+        {value && !options.includes(value) && <option value={value}>{value}</option>}
+      </select>
+      <button
+        type="button"
+        className="text-[10px] text-primary-400 hover:text-primary-300 mt-1 cursor-pointer flex items-center gap-1"
+        onClick={() => setManage((m) => !m)}
+      >
+        <Plus size={11} /> Agregar o quitar opciones
+      </button>
+      {manage && (
+        <div className="mt-2 p-3 rounded-xl bg-surface-900/50 border border-surface-700/40 space-y-2">
+          {options.length === 0 ? (
+            <p className="text-xs text-surface-500">No hay opciones. Agrega la primera abajo.</p>
+          ) : (
+            options.map((o) => (
+              <div key={o} className="flex items-center gap-2">
+                <span className="flex-1 text-xs text-surface-200 truncate">{o}</span>
+                <button
+                  type="button"
+                  className="p-1 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer shrink-0"
+                  onClick={() => onRemove(o)}
+                  title="Quitar esta opcion"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))
+          )}
+          <div className="flex gap-2 pt-1">
+            <input
+              type="text"
+              className="input-field text-xs"
+              placeholder={addPlaceholder}
+              value={newVal}
+              onChange={(e) => setNewVal(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAdd();
+                }
+              }}
+            />
+            <button type="button" className="btn-primary text-xs px-3 py-1.5 shrink-0" onClick={handleAdd}>
+              Agregar
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // Draft plano del expediente completo (todo string/boolean para editar comodo).
 interface ExpDraft {
   fullName: string;
@@ -2063,7 +2130,10 @@ interface ExpDraft {
   emailPersonal: string; telefonoMovil: string; telefonoCasa: string;
   contactoEmergenciaNombre: string; contactoEmergenciaParentesco: string; contactoEmergenciaTelefono: string;
   nivelEstudios: string; profesion: string;
-  finContrato: string; inicioContrato: string; fechaReingreso: string; altaImss: string; bajaImss: string;
+  // v2.14: el inicio del contrato ya no se captura — es siempre la fecha de
+  // ingreso. Reingreso, baja IMSS, clase de riesgo y marcadores salieron de la
+  // ficha; se conservan aqui solo para no borrar lo que ya estaba guardado.
+  finContrato: string; fechaReingreso: string; altaImss: string; bajaImss: string;
   esJefe: boolean; esEventual: boolean; clase: string; creditoFonacot: string; motivoBaja: string; observaciones: string;
   salarioAnterior: string; bono: string; factorSdi: string; banco: string; numeroCuenta: string; clabe: string;
   benefPrimNombre: string; benefPrimParentesco: string; benefPrimPct: string;
@@ -2071,12 +2141,29 @@ interface ExpDraft {
   observacionesBeneficiarios: string;
 }
 
-function buildExpDraft(e: Employee): ExpDraft {
+function buildExpDraft(e: Employee, candidate?: Candidate): ExpDraft {
   const x = e.expediente ?? {};
   const bp = x.beneficiarioPrimario ?? {};
   const bs = x.beneficiarioSecundario ?? {};
   const s = (v?: string) => v ?? '';
   const n = (v?: number) => (v === undefined || v === null ? '' : String(v));
+  // v2.14: el nombre completo se arma con las partes, pero de v2.8 a v2.13 el
+  // nombre completo era el bueno y las partes eran campos sueltos y opcionales,
+  // asi que muchos expedientes quedaron a medias (solo el nombre de pila, o sin
+  // apellido materno). Si lo capturado NO reconstruye el nombre completo
+  // guardado, manda el nombre completo y se vuelve a partir entero — si no, al
+  // guardar se perderian los apellidos. Si SI lo reconstruye (incluida la ficha
+  // de quien de verdad no tiene apellido materno) se respeta tal cual y no se
+  // inventa nada.
+  const norm = (v: string) => toUpper(v).split(/\s+/).filter(Boolean).join(' ');
+  const partesCapturadas = joinFullName(x.nombres, x.apellidoPaterno, x.apellidoMaterno);
+  const partes = norm(partesCapturadas) === norm(e.fullName ?? '')
+    ? { nombres: s(x.nombres), apellidoPaterno: s(x.apellidoPaterno), apellidoMaterno: s(x.apellidoMaterno) }
+    : splitFullName(e.fullName ?? '');
+  // El telefono y el correo de recepcion solo se jalan la PRIMERA vez (mientras
+  // la ficha no tenga expediente guardado). Si se jalaran en cada lectura,
+  // borrar un telefono mal capturado seria imposible: volveria a aparecer.
+  const nuncaGuardado = !e.expediente;
   return {
     fullName: e.fullName ?? '',
     position: e.position,
@@ -2090,13 +2177,18 @@ function buildExpDraft(e: Employee): ExpDraft {
     imssNumber: e.imssNumber ?? '',
     rfc: e.rfc ?? '',
     reingreso: !!e.reingreso,
-    nombres: s(x.nombres), apellidoPaterno: s(x.apellidoPaterno), apellidoMaterno: s(x.apellidoMaterno), iniciales: s(x.iniciales),
+    nombres: partes.nombres,
+    apellidoPaterno: partes.apellidoPaterno,
+    apellidoMaterno: partes.apellidoMaterno,
+    iniciales: s(x.iniciales),
     fechaNacimiento: s(x.fechaNacimiento), estadoCivil: s(x.estadoCivil), curp: s(x.curp), tipoSangre: s(x.tipoSangre),
     estado: s(x.estado), ciudad: s(x.ciudad), municipio: s(x.municipio), calle: s(x.calle), numeroExterior: s(x.numeroExterior), numeroInterior: s(x.numeroInterior), colonia: s(x.colonia), codigoPostal: s(x.codigoPostal),
-    emailPersonal: s(x.emailPersonal), telefonoMovil: s(x.telefonoMovil), telefonoCasa: s(x.telefonoCasa),
+    emailPersonal: s(x.emailPersonal) || (nuncaGuardado ? (candidate?.email ?? '') : ''),
+    telefonoMovil: s(x.telefonoMovil) || (nuncaGuardado ? (candidate?.phone ?? '') : ''),
+    telefonoCasa: s(x.telefonoCasa),
     contactoEmergenciaNombre: s(x.contactoEmergenciaNombre), contactoEmergenciaParentesco: s(x.contactoEmergenciaParentesco), contactoEmergenciaTelefono: s(x.contactoEmergenciaTelefono),
     nivelEstudios: s(x.nivelEstudios), profesion: s(x.profesion),
-    finContrato: s(x.finContrato), inicioContrato: s(x.inicioContrato), fechaReingreso: s(x.fechaReingreso), altaImss: s(x.altaImss), bajaImss: s(x.bajaImss),
+    finContrato: s(x.finContrato), fechaReingreso: s(x.fechaReingreso), altaImss: s(x.altaImss), bajaImss: s(x.bajaImss),
     esJefe: !!x.esJefe, esEventual: !!x.esEventual, clase: s(x.clase), creditoFonacot: s(x.creditoFonacot), motivoBaja: s(x.motivoBaja), observaciones: s(x.observaciones),
     salarioAnterior: n(x.salarioAnterior), bono: n(x.bono), factorSdi: x.factorSdi ? String(x.factorSdi) : '', banco: s(x.banco), numeroCuenta: s(x.numeroCuenta), clabe: s(x.clabe),
     benefPrimNombre: s(bp.nombreCompleto), benefPrimParentesco: s(bp.parentesco), benefPrimPct: bp.porcentaje !== undefined ? String(bp.porcentaje) : '',
@@ -2106,18 +2198,26 @@ function buildExpDraft(e: Employee): ExpDraft {
 }
 
 function DossierInfoTab({ employee }: { employee: Employee }) {
-  const { updateEmployee, settings } = useStore();
+  const { updateEmployee, updateSettings, settings, candidates } = useStore();
   const scheduleOptions = settings.schedules?.length ? settings.schedules : DEFAULT_SCHEDULES;
   const areaOptions = settings.areas?.length ? settings.areas : DEFAULT_AREAS;
+  // Si RH deja el catalogo vacio a proposito se respeta vacio: con ?.length los
+  // supervisores por defecto reaparecian solos despues de quitarlos.
+  const supervisorOptions = settings.supervisors ?? DEFAULT_SUPERVISORS;
+  // v2.14: candidato de origen — de ahi salen el telefono y el correo que ya se
+  // capturaron en recepcion.
+  const candidate = employee.candidateId
+    ? candidates.find((c) => c.id === employee.candidateId)
+    : undefined;
 
-  const [d, setD] = useState<ExpDraft>(() => buildExpDraft(employee));
+  const [d, setD] = useState<ExpDraft>(() => buildExpDraft(employee, candidate));
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
 
   // Si el expediente cambia por fuera (sync / recarga) y no hay cambios sin
   // guardar, se refresca el borrador para no mostrar datos viejos.
   useEffect(() => {
-    if (!dirty) setD(buildExpDraft(employee));
+    if (!dirty) setD(buildExpDraft(employee, candidate));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee.id, employee.syncStamp]);
 
@@ -2127,11 +2227,28 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
     setSaved(false);
   };
 
+  // v2.14: catalogo de supervisores directos — agregar y quitar opciones
+  const addSupervisorOption = (s: string) => {
+    if (!supervisorOptions.includes(s)) updateSettings({ supervisors: [...supervisorOptions, s] });
+    up({ supervisor: s });
+  };
+  const removeSupervisorOption = (s: string) => {
+    updateSettings({ supervisors: supervisorOptions.filter((x) => x !== s) });
+    if (d.supervisor === s) up({ supervisor: '' });
+  };
+
   const dailyNum = parseFloat(d.dailySalary) || 0;
   const weeklySalary = Math.round(dailyNum * 7 * 100) / 100;
   const factor = parseFloat(d.factorSdi) || DEFAULT_SDI_FACTOR;
   const sdi = Math.round(dailyNum * factor * 100) / 100;
   const edad = calcAge(d.fechaNacimiento);
+  // v2.14: el nombre completo se ARMA con nombre(s) + apellidos — es el que usan
+  // el contrato y todo el sistema. Si aun no hay partes capturadas se respeta el
+  // nombre guardado.
+  const fullNameCompuesto = joinFullName(d.nombres, d.apellidoPaterno, d.apellidoMaterno) || toUpper(d.fullName);
+  // Sin nombre y apellido paterno no se puede armar un nombre completo decente:
+  // se bloquea el guardado antes de que un nombre a medias llegue al contrato.
+  const nombreOk = d.nombres.trim() !== '' && d.apellidoPaterno.trim() !== '';
   // v2.9: sugerencias de municipio/alcaldia dependientes del estado elegido
   const municipios = getMunicipios(d.estado);
   const rfcUpper = d.rfc.trim().toUpperCase();
@@ -2141,6 +2258,7 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
   const totalPct = pctPrim + pctSec;
 
   const handleSave = () => {
+    if (!nombreOk) return;
     const str = (v: string) => (v.trim() === '' ? undefined : v.trim());
     const num = (v: string) => {
       const p = parseFloat(v);
@@ -2162,7 +2280,8 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
       emailPersonal: str(d.emailPersonal.toLowerCase()), telefonoMovil: str(d.telefonoMovil), telefonoCasa: str(d.telefonoCasa),
       contactoEmergenciaNombre: str(toUpper(d.contactoEmergenciaNombre)), contactoEmergenciaParentesco: str(d.contactoEmergenciaParentesco), contactoEmergenciaTelefono: str(d.contactoEmergenciaTelefono),
       nivelEstudios: str(d.nivelEstudios), profesion: str(toUpper(d.profesion)),
-      finContrato: str(d.finContrato), inicioContrato: str(d.inicioContrato), fechaReingreso: str(d.fechaReingreso), altaImss: str(d.altaImss), bajaImss: str(d.bajaImss),
+      // v2.14: el inicio del contrato es la misma fecha de ingreso (ya no se captura aparte)
+      finContrato: str(d.finContrato), inicioContrato: str(d.hireDate), fechaReingreso: str(d.fechaReingreso), altaImss: str(d.altaImss), bajaImss: str(d.bajaImss),
       esJefe: d.esJefe || undefined, esEventual: d.esEventual || undefined, clase: str(d.clase), creditoFonacot: str(toUpper(d.creditoFonacot)), motivoBaja: str(toUpper(d.motivoBaja)), observaciones: str(toUpper(d.observaciones)),
       salarioAnterior: num(d.salarioAnterior), bono: num(d.bono), factorSdi: num(d.factorSdi), banco: str(d.banco), numeroCuenta: str(d.numeroCuenta), clabe: str(d.clabe),
       beneficiarioPrimario: benef(d.benefPrimNombre, d.benefPrimParentesco, d.benefPrimPct),
@@ -2172,7 +2291,7 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
 
     try {
       updateEmployee(employee.id, {
-        fullName: toUpper(d.fullName) || employee.fullName,
+        fullName: fullNameCompuesto || employee.fullName,
         position: d.position,
         hireDate: d.hireDate || employee.hireDate,
         dailySalary: dailyNum || undefined,
@@ -2197,17 +2316,22 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
   };
 
   const handleReset = () => {
-    setD(buildExpDraft(employee));
+    setD(buildExpDraft(employee, candidate));
     setDirty(false);
     setSaved(false);
   };
 
   const SaveBar = (
     <div className="flex items-center gap-3">
-      <button className="btn-success flex items-center gap-2" onClick={handleSave} disabled={!dirty}>
+      <button className="btn-success flex items-center gap-2" onClick={handleSave} disabled={!dirty || !nombreOk}>
         <Save size={16} />
         Guardar cambios
       </button>
+      {!nombreOk && (
+        <span className="text-warning-500 text-xs">
+          Captura Nombre(s) y Apellido paterno: con ellos se arma el nombre completo.
+        </span>
+      )}
       {dirty && (
         <button className="btn-secondary text-sm" onClick={handleReset}>
           Descartar
@@ -2261,20 +2385,22 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
 
       {/* ─── DATOS PERSONALES ─── */}
       <ExpSection icon={User} title="Datos personales">
-        <Fld label="Nombre completo *" hint="Se usa en contratos, listados y todo el sistema.">
-          <input className="input-field" value={d.fullName} onChange={(e) => up({ fullName: e.target.value.toUpperCase() })} />
+        {/* v2.14: el nombre completo ya no se escribe — se arma con las tres
+            partes de abajo, que es lo que sale en el contrato y en el sistema. */}
+        <Fld label="Nombre completo" wide hint="Se arma solo con Nombre(s) + Apellido paterno + Apellido materno. Es el que se usa en contratos, listados y todo el sistema.">
+          <input className="input-field opacity-70" value={fullNameCompuesto} readOnly tabIndex={-1} />
         </Fld>
-        <Fld label="Nombre(s)">
+        <Fld label="Nombre(s) *">
           <input className="input-field" value={d.nombres} onChange={(e) => up({ nombres: e.target.value.toUpperCase() })} />
         </Fld>
-        <Fld label="Iniciales">
-          <input className="input-field" placeholder="Ej: JAG" value={d.iniciales} onChange={(e) => up({ iniciales: e.target.value.toUpperCase() })} />
-        </Fld>
-        <Fld label="Apellido paterno">
+        <Fld label="Apellido paterno *">
           <input className="input-field" value={d.apellidoPaterno} onChange={(e) => up({ apellidoPaterno: e.target.value.toUpperCase() })} />
         </Fld>
         <Fld label="Apellido materno">
           <input className="input-field" value={d.apellidoMaterno} onChange={(e) => up({ apellidoMaterno: e.target.value.toUpperCase() })} />
+        </Fld>
+        <Fld label="Iniciales">
+          <input className="input-field" placeholder="Ej: JAG" value={d.iniciales} onChange={(e) => up({ iniciales: e.target.value.toUpperCase() })} />
         </Fld>
         <Fld label="Fecha de nacimiento">
           <input type="date" className="input-field" value={d.fechaNacimiento} onChange={(e) => up({ fechaNacimiento: e.target.value })} />
@@ -2391,24 +2517,19 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
       </ExpSection>
 
       {/* ─── INFORMACION LABORAL ─── */}
+      {/* v2.14: de aqui sale la informacion del contrato, por eso se captura una
+          sola vez. Salieron de la ficha: fecha de reingreso, baja IMSS, clase de
+          riesgo IMSS y los marcadores. El inicio del contrato es la fecha de
+          ingreso, no un dato aparte. */}
       <ExpSection icon={Briefcase} title="Informacion laboral">
-        <Fld label="Fecha de ingreso *">
+        <Fld label="Fecha de ingreso *" hint="Es tambien el inicio del contrato.">
           <input type="date" className="input-field" value={d.hireDate} onChange={(e) => up({ hireDate: e.target.value })} />
-        </Fld>
-        <Fld label="Inicio del contrato">
-          <input type="date" className="input-field" value={d.inicioContrato} onChange={(e) => up({ inicioContrato: e.target.value })} />
         </Fld>
         <Fld label="Fin de contrato">
           <input type="date" className="input-field" value={d.finContrato} onChange={(e) => up({ finContrato: e.target.value })} />
         </Fld>
-        <Fld label="Fecha de reingreso">
-          <input type="date" className="input-field" value={d.fechaReingreso} onChange={(e) => up({ fechaReingreso: e.target.value })} />
-        </Fld>
         <Fld label="Alta IMSS">
           <input type="date" className="input-field" value={d.altaImss} onChange={(e) => up({ altaImss: e.target.value })} />
-        </Fld>
-        <Fld label="Baja IMSS">
-          <input type="date" className="input-field" value={d.bajaImss} onChange={(e) => up({ bajaImss: e.target.value })} />
         </Fld>
         <Fld label="Puesto">
           <select className="input-field" value={d.position} onChange={(e) => up({ position: e.target.value as JobPosition })}>
@@ -2424,12 +2545,6 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
             {d.area && !areaOptions.includes(d.area) && <option value={d.area}>{d.area}</option>}
           </select>
         </Fld>
-        <Fld label="Clase (riesgo IMSS)">
-          <select className="input-field" value={d.clase} onChange={(e) => up({ clase: e.target.value })}>
-            <option value="">-- Seleccionar --</option>
-            {CLASE_RIESGO_OPTIONS.map((o) => <option key={o} value={o}>Clase {o}</option>)}
-          </select>
-        </Fld>
         <Fld label="Turno / Horario" wide>
           <select className="input-field" value={d.schedule} onChange={(e) => up({ schedule: e.target.value })}>
             <option value="">-- Seleccionar --</option>
@@ -2443,11 +2558,27 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
             <option value="indefinido">Indefinido</option>
           </select>
         </Fld>
-        <Fld label="Credito FONACOT">
-          <input className="input-field" value={d.creditoFonacot} onChange={(e) => up({ creditoFonacot: e.target.value.toUpperCase() })} />
+        <Fld label="Creditos vigentes">
+          <select className="input-field" value={d.creditoFonacot} onChange={(e) => up({ creditoFonacot: e.target.value })}>
+            <option value="">-- Seleccionar --</option>
+            {CREDITO_VIGENTE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+            {/* Antes era texto libre ("Credito FONACOT"): lo ya capturado se sigue
+                viendo hasta que RH elija una de las opciones nuevas. */}
+            {d.creditoFonacot && !(CREDITO_VIGENTE_OPTIONS as readonly string[]).includes(d.creditoFonacot) && (
+              <option value={d.creditoFonacot}>{d.creditoFonacot} (capturado antes)</option>
+            )}
+          </select>
         </Fld>
         <Fld label="Supervisor directo">
-          <input className="input-field" value={d.supervisor} onChange={(e) => up({ supervisor: e.target.value.toUpperCase() })} />
+          <ExpCatalogSelect
+            value={d.supervisor}
+            onChange={(v) => up({ supervisor: v })}
+            options={supervisorOptions}
+            onAdd={addSupervisorOption}
+            onRemove={removeSupervisorOption}
+            placeholder="-- Seleccionar --"
+            addPlaceholder="Nombre o puesto del supervisor"
+          />
         </Fld>
         <Fld label="Estatus">
           <select className="input-field" value={d.status} onChange={(e) => up({ status: e.target.value as EmployeeStatus })}>
@@ -2455,25 +2586,6 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
             <option value="active">Activo</option>
             <option value="inactive">Inactivo</option>
           </select>
-        </Fld>
-        <Fld label="Marcadores" wide>
-          <div className="flex flex-wrap gap-4 pt-1">
-            {[
-              { k: 'esJefe' as const, t: 'Jefe' },
-              { k: 'reingreso' as const, t: 'Re-Ingreso' },
-              { k: 'esEventual' as const, t: 'Eventual' },
-            ].map((c) => (
-              <label key={c.k} className="flex items-center gap-2 cursor-pointer text-sm text-surface-300">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-surface-600 bg-surface-800 text-primary-500"
-                  checked={d[c.k]}
-                  onChange={(e) => up({ [c.k]: e.target.checked } as Partial<ExpDraft>)}
-                />
-                {c.t}
-              </label>
-            ))}
-          </div>
         </Fld>
         <Fld label="Motivo de baja" wide hint="Solo si el colaborador causa baja.">
           <input className="input-field" value={d.motivoBaja} onChange={(e) => up({ motivoBaja: e.target.value.toUpperCase() })} />
@@ -2973,8 +3085,9 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
   };
 
   const signedCount = ONBOARDING_DOC_KEYS.filter((k) => status[k].firmadoUrl).length;
-  const onboardingDocs = docs.filter((d) => d.key !== 'renunciaVoluntaria');
-  const exitDocs = docs.filter((d) => d.key === 'renunciaVoluntaria');
+  // v2.14: la renuncia voluntaria NO aparece aqui — es tema del egreso y se
+  // genera desde el modulo de Egreso, al momento de la baja.
+  const onboardingDocs = docs.filter((d) => ONBOARDING_DOC_KEYS.includes(d.key));
 
   const renderDocRow = (doc: DocTemplate, prefijo: string) => {
     const st = status[doc.key];
@@ -3077,22 +3190,13 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
       <p className="text-xs text-surface-500 mb-4 leading-relaxed">
         Regla de oro: el colaborador firma SOLO estos 5 documentos fisicos durante su ingreso. Todo lo
         demas se cubre con video + confirmacion digital. RH imprime, explica cada documento en voz alta,
-        recaba la firma y sube el escaneado. La renuncia voluntaria se imprime unicamente al momento de
-        la baja.
+        recaba la firma y sube el escaneado. La renuncia voluntaria no va aqui: es tema del egreso y se
+        genera desde ese modulo al momento de la baja.
       </p>
 
       <div className="space-y-3">
         {onboardingDocs.map((doc, i) => renderDocRow(doc, `${i + 1}. `))}
       </div>
-
-      {exitDocs.length > 0 && (
-        <div className="mt-6">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-surface-500 mb-2">
-            Documento de baja (no cuenta para el onboarding)
-          </p>
-          <div className="space-y-3">{exitDocs.map((doc) => renderDocRow(doc, ''))}</div>
-        </div>
-      )}
 
       {/* Modal de vista del documento */}
       <AnimatePresence>
@@ -3233,8 +3337,10 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
                 />
               </div>
               <p className="px-5 pb-4 text-[11px] text-surface-500">
-                Los espacios ____________________ son datos que el sistema no captura (domicilio, CURP,
-                estado civil, testigos): puedes escribirlos aqui mismo o llenarlos a mano ya impreso.
+                El contrato se llena con la pestana Informacion del expediente (datos personales,
+                direccion e informacion laboral): lo que ya esta capturado no se vuelve a escribir. Los
+                espacios ____________________ son lo que el sistema no captura (nacionalidad, testigos):
+                puedes escribirlos aqui mismo o llenarlos a mano ya impreso.
               </p>
             </motion.div>
           </motion.div>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Candidate, Employee, AppSettings, SystemAlert, DocumentChecklist } from '../types';
-import { DEFAULT_SCHEDULES, DEFAULT_AREAS } from '../types';
+import { DEFAULT_SCHEDULES, DEFAULT_AREAS, DEFAULT_SUPERVISORS } from '../types';
 import { generateId } from '../utils/helpers';
 
 interface AppState {
@@ -46,6 +46,11 @@ interface AppState {
 
   // Utility
   getNextExpedientNumber: () => number;
+
+  // v2.14: deja el sistema en limpio para empezar a capturar informacion real.
+  // Borra candidatos, colaboradores y alertas; conserva la configuracion, los
+  // catalogos, el banco de preguntas y los procesos de capacitacion.
+  clearOperationalData: () => void;
 }
 
 // Narraciones (audio TTS) incluidas en el repo. Se alojan localmente para que
@@ -85,6 +90,7 @@ const defaultSettings: AppSettings = {
   onboardingNarrationUrls: { ...defaultOnboardingNarrationUrls },
   schedules: [...DEFAULT_SCHEDULES],
   areas: [...DEFAULT_AREAS],
+  supervisors: [...DEFAULT_SUPERVISORS],
 };
 
 export const useStore = create<AppState>()(
@@ -196,16 +202,23 @@ export const useStore = create<AppState>()(
         if (employees.length === 0) return 1;
         return Math.max(...employees.map((e) => e.expedientNumber)) + 1;
       },
+
+      // El borrado se propaga solo: cloudSync vigila los ids que desaparecen y
+      // los marca como eliminados (tombstones), asi la nube y los demas
+      // dispositivos tampoco los reviven en el siguiente merge.
+      clearOperationalData: () =>
+        set({ candidates: [], employees: [], alerts: [] }),
     }),
     {
       name: 'saja-talent-engine-storage',
-      version: 5,
+      version: 6,
       // v2 → inyecta las narraciones por defecto en expedientes ya guardados
       // (sin pisar lo que Direccion haya configurado a mano).
       // v3 → agrega la narracion del video 11 (Presentacion de la empresa).
       // v4 → catalogos de horarios (3 turnos) y areas asignables.
       // v5 → renuncia voluntaria como 6to documento firmable: se rellena la
       // llave en expedientes guardados para que el sync siempre suba 6 llaves.
+      // v6 → catalogo de supervisores directos (lista desplegable editable).
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as { settings?: AppSettings; employees?: Employee[] } | null;
         if (state?.settings && version < 2) {
@@ -238,6 +251,11 @@ export const useStore = create<AppState>()(
             if (e.signedDocsV2 && !e.signedDocsV2.renunciaVoluntaria) {
               e.signedDocsV2.renunciaVoluntaria = { generado: false };
             }
+          }
+        }
+        if (state?.settings && version < 6) {
+          if (!state.settings.supervisors || state.settings.supervisors.length === 0) {
+            state.settings.supervisors = [...DEFAULT_SUPERVISORS];
           }
         }
         return state as AppState;

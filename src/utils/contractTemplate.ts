@@ -1,6 +1,6 @@
 import type { AppSettings, Employee } from '../types';
 import { JOB_POSITIONS } from '../types';
-import { cantidadEnLetra } from './helpers';
+import { calcAge, cantidadEnLetra } from './helpers';
 import { escapeHtml, printHtmlDocument } from './printDoc';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -29,6 +29,18 @@ function diasNaturales(inicio: string, fin: string): number {
   return Math.max(0, Math.round((b - a) / 86400000));
 }
 
+// v2.14: el domicilio del trabajador se arma con la direccion del expediente;
+// si no hay nada capturado, queda la linea en blanco para llenarla a mano.
+function domicilioTrabajador(employee: Employee): string {
+  const x = employee.expediente ?? {};
+  const calle = [x.calle, x.numeroExterior && `No. ${x.numeroExterior}`, x.numeroInterior && `INT. ${x.numeroInterior}`]
+    .filter(Boolean)
+    .join(' ');
+  const partes = [calle, x.colonia, x.codigoPostal && `C.P. ${x.codigoPostal}`, x.municipio || x.ciudad, x.estado]
+    .filter((p) => p && String(p).trim() !== '');
+  return partes.length ? partes.join(', ').toUpperCase() : BLANK;
+}
+
 export function buildContractText(employee: Employee, settings: AppSettings): string {
   const empresa = (settings.companyName || 'JABONES Y AMENIDADES DE CALIDAD, S.A. DE C.V.').toUpperCase();
   const rfcEmpresa = (settings.companyRfc || 'JAC140710A85').toUpperCase();
@@ -43,6 +55,16 @@ export function buildContractText(employee: Employee, settings: AppSettings): st
   const rfcTrabajador = (employee.rfc || BLANK).toUpperCase();
   const nss = employee.imssNumber || BLANK;
 
+  // v2.14: el resto de las declaraciones sale del expediente (Datos personales,
+  // Direccion e Informacion laboral) — antes iban en blanco y RH las escribia a
+  // mano aunque ya estuvieran capturadas.
+  const exp = employee.expediente ?? {};
+  const edadCalculada = calcAge(exp.fechaNacimiento);
+  const edad = edadCalculada !== null ? String(edadCalculada) : BLANK;
+  const estadoCivil = (exp.estadoCivil || BLANK).toUpperCase();
+  const curp = (exp.curp || BLANK).toUpperCase();
+  const domicilio_trabajador = domicilioTrabajador(employee);
+
   const semanal = employee.salary || 0;
   const diario = employee.dailySalary ?? (semanal > 0 ? Math.round((semanal / 7) * 100) / 100 : 0);
   const salarioTexto = semanal > 0
@@ -54,8 +76,11 @@ export function buildContractText(employee: Employee, settings: AppSettings): st
 
   const esDeterminado = employee.contractType === 'eventual';
   const inicio = fechaLarga(employee.hireDate);
-  const fin = esDeterminado && employee.trialEndDate ? fechaLarga(employee.trialEndDate) : '';
-  const dias = esDeterminado && employee.trialEndDate ? diasNaturales(employee.hireDate, employee.trialEndDate) : 0;
+  // El fin de contrato capturado en Informacion laboral manda sobre el fin del
+  // periodo de prueba calculado.
+  const finContrato = exp.finContrato || employee.trialEndDate;
+  const fin = esDeterminado && finContrato ? fechaLarga(finContrato) : '';
+  const dias = esDeterminado && finContrato ? diasNaturales(employee.hireDate, finContrato) : 0;
   const hoy = fechaLarga(new Date());
 
   const tipoTitulo = esDeterminado ? 'POR TIEMPO DETERMINADO' : 'POR TIEMPO INDETERMINADO';
@@ -81,9 +106,9 @@ Que ${empresa} es una empresa legalmente constituida conforme a las leyes mexica
 
 II. DECLARA EL TRABAJADOR:
 
-Que es de nacionalidad ${BLANK}, de ${BLANK} anos de edad, estado civil ${BLANK}, con domicilio en ${BLANK}.
+Que es de nacionalidad ${BLANK}, de ${edad} anos de edad, estado civil ${estadoCivil}, con domicilio en ${domicilio_trabajador}.
 
-Que su RFC es ${rfcTrabajador}, su CURP es ${BLANK}, y su Numero de Seguridad Social (NSS) es ${nss}.
+Que su RFC es ${rfcTrabajador}, su CURP es ${curp}, y su Numero de Seguridad Social (NSS) es ${nss}.
 
 Que cuenta con la capacidad y aptitudes necesarias para desempenar el puesto y que acepta prestar sus servicios personales subordinados en los terminos del presente contrato. Que proporciona sus datos personales para fines laborales, administrativos, fiscales y de seguridad social, conforme al aviso de privacidad que se le entregue.
 

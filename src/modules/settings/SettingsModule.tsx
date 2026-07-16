@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { AppSettings } from '../../types';
-import { DEFAULT_SCHEDULES, DEFAULT_AREAS } from '../../types';
+import { DEFAULT_SCHEDULES, DEFAULT_AREAS, DEFAULT_SUPERVISORS } from '../../types';
 import { toUpper } from '../../utils/helpers';
 import { getDefaultOnboardingModules } from '../../utils/onboardingModules';
 import {
@@ -86,10 +86,14 @@ export default function SettingsModule() {
   };
 
   // ─── v2.4 Req 3: catalogos editables de horarios y areas ───
+  // ─── v2.14: se suma el catalogo de supervisores directos ───
   const schedules = form.schedules?.length ? form.schedules : DEFAULT_SCHEDULES;
   const areas = form.areas?.length ? form.areas : DEFAULT_AREAS;
+  // Vacio a proposito se respeta vacio (ver supervisorOptions en HiringModule).
+  const supervisors = form.supervisors ?? DEFAULT_SUPERVISORS;
   const [newSchedule, setNewSchedule] = useState('');
   const [newArea, setNewArea] = useState('');
+  const [newSupervisor, setNewSupervisor] = useState('');
 
   const addSchedule = () => {
     const s = toUpper(newSchedule);
@@ -108,6 +112,15 @@ export default function SettingsModule() {
   };
   const removeArea = (a: string) =>
     setForm((prev) => ({ ...prev, areas: areas.filter((x) => x !== a) }));
+
+  const addSupervisor = () => {
+    const s = toUpper(newSupervisor);
+    if (!s || supervisors.includes(s)) return;
+    setForm((prev) => ({ ...prev, supervisors: [...supervisors, s] }));
+    setNewSupervisor('');
+  };
+  const removeSupervisor = (s: string) =>
+    setForm((prev) => ({ ...prev, supervisors: supervisors.filter((x) => x !== s) }));
 
   return (
     <motion.div
@@ -288,11 +301,11 @@ export default function SettingsModule() {
       >
         <div className="flex items-center gap-2 mb-1">
           <Clock className="w-5 h-5 text-primary-400" />
-          <h2 className="text-lg font-semibold text-surface-100">Horarios y Areas Asignables</h2>
+          <h2 className="text-lg font-semibold text-surface-100">Horarios, Areas y Supervisores</h2>
         </div>
         <p className="text-sm text-surface-400 mb-5">
-          Opciones que aparecen al contratar. Puedes agregar o quitar; recuerda presionar
-          &quot;Guardar Cambios&quot; al final.
+          Opciones que aparecen al contratar y en el expediente. Puedes agregar o quitar; recuerda
+          presionar &quot;Guardar Cambios&quot; al final.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -361,8 +374,45 @@ export default function SettingsModule() {
               </button>
             </div>
           </div>
+
+          {/* v2.14: supervisores directos */}
+          <div>
+            <p className="text-xs uppercase tracking-wider text-surface-500 mb-2">
+              Supervisores directos ({supervisors.length})
+            </p>
+            <div className="space-y-2">
+              {supervisors.map((s) => (
+                <div key={s} className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-800/40 border border-surface-700/30">
+                  <Shield size={14} className="text-success-500 shrink-0" />
+                  <span className="flex-1 text-sm text-surface-200">{s}</span>
+                  <button
+                    className="p-1 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer"
+                    onClick={() => removeSupervisor(s)}
+                    title="Quitar supervisor"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-3">
+              <input
+                className="input-field text-xs"
+                placeholder="Nombre o puesto del supervisor"
+                value={newSupervisor}
+                onChange={(e) => setNewSupervisor(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addSupervisor()}
+              />
+              <button className="btn-primary text-xs px-3 flex items-center gap-1" onClick={addSupervisor}>
+                <Plus size={13} /> Agregar
+              </button>
+            </div>
+          </div>
         </div>
       </motion.div>
+
+      {/* v2.14: dejar el sistema en limpio para capturar informacion real */}
+      <ResetDataSection />
 
       {/* v2.4 Req 7 / v2.9: Sincronizacion entre dispositivos.
           Con Supabase activo, la nube es una base de datos real protegida por
@@ -473,6 +523,165 @@ export default function SettingsModule() {
 // cualquier tablet/computadora con el codigo de sincronizacion ve los mismos
 // datos. Fotos, firmas y escaneos no viajan: se quedan en cada dispositivo.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.14 — DEJAR EL SISTEMA EN LIMPIO
+// Borra las capturas de prueba (candidatos, colaboradores y alertas) para
+// empezar a registrar informacion real. Conserva la configuracion, los
+// catalogos, el banco de preguntas y los procesos de capacitacion.
+// El borrado viaja a la nube y a los demas dispositivos: cloudSync marca como
+// eliminados los ids que desaparecen, asi el merge ya no los revive.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const CONFIRM_WORD = 'BORRAR';
+
+function ResetDataSection() {
+  const { candidates, employees, alerts, settings, authRole, clearOperationalData } = useStore();
+  const [open, setOpen] = useState(false);
+  const [pin, setPin] = useState('');
+  const [word, setWord] = useState('');
+  const [working, setWorking] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+
+  const total = candidates.length + employees.length + alerts.length;
+  const pinOk = authRole === 'direction' || pin === settings.directionPin;
+  const canReset = pinOk && toUpper(word) === CONFIRM_WORD && total > 0 && !working;
+
+  const handleReset = async () => {
+    if (!canReset) return;
+    setWorking(true);
+    setError('');
+    try {
+      clearOperationalData();
+      // Subir de inmediato para que la nube y las demas tablets queden igual.
+      // supaPushNow/pushNow NUNCA lanzan: se tragan el error y solo lo dejan en
+      // su estado. Por eso se revisa el estado despues de empujar — si no, esta
+      // pantalla cantaba "listo" aunque el borrado no hubiera salido de aqui.
+      if (SUPABASE_ENABLED) {
+        if (!getSupaStatus().signedIn) {
+          throw new Error(
+            'Los datos se borraron SOLO en este dispositivo: no hay sesion iniciada en la nube. Inicia sesion con la cuenta de la empresa para que el borrado se aplique tambien en la nube y en las demas tablets.',
+          );
+        }
+        await supaPushNow();
+        const st = getSupaStatus();
+        if (st.state === 'error') {
+          throw new Error(
+            `Los datos se borraron en este dispositivo, pero no se pudo avisar a la nube (${st.error ?? 'sin conexion'}). Se reintentara solo al recuperar internet; no captures informacion real en las otras tablets hasta que esta diga "Conectado".`,
+          );
+        }
+      } else {
+        await pushNow();
+        const st = getSyncStatus();
+        if (st.state === 'error') {
+          throw new Error(
+            `Los datos se borraron en este dispositivo, pero no se pudo subir el borrado al respaldo (${st.error ?? 'sin conexion'}). Se reintentara solo al recuperar internet.`,
+          );
+        }
+      }
+      setDone(true);
+      setPin('');
+      setWord('');
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo subir el borrado a la nube.');
+      setOpen(false);
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.36 }}
+      className="glass-card p-6 border border-danger-500/30"
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <AlertTriangle className="w-5 h-5 text-danger-400" />
+        <h2 className="text-lg font-semibold text-surface-100">Empezar en Limpio</h2>
+      </div>
+      <p className="text-sm text-surface-400 mb-4">
+        Borra las capturas de prueba para comenzar a registrar informacion real: candidatos,
+        colaboradores y alertas. <strong className="text-surface-300">No</strong> se tocan la
+        configuracion, los catalogos, el banco de preguntas ni la capacitacion. Con la sesion de la
+        nube iniciada, el borrado se aplica tambien en la nube y en las demas tablets. No se puede
+        deshacer.
+      </p>
+
+      <div className="flex flex-wrap gap-2 mb-4 text-xs">
+        <span className="badge badge-blue">{candidates.length} candidatos</span>
+        <span className="badge badge-blue">{employees.length} colaboradores</span>
+        <span className="badge badge-blue">{alerts.length} alertas</span>
+      </div>
+
+      {done && (
+        <p className="text-success-500 text-sm flex items-center gap-1.5 mb-3">
+          <CheckCircle size={15} /> Sistema en limpio — listo para capturar informacion real.
+        </p>
+      )}
+      {error && <p className="text-danger-400 text-xs mb-3">{error}</p>}
+
+      {total === 0 ? (
+        <p className="text-xs text-surface-500">
+          No hay candidatos, colaboradores ni alertas capturados: el sistema ya esta en limpio.
+        </p>
+      ) : !open ? (
+        <button className="btn-danger text-sm flex items-center gap-2" onClick={() => setOpen(true)}>
+          <Trash2 size={15} />
+          Borrar los datos y empezar en limpio
+        </button>
+      ) : (
+        <div className="space-y-3 p-4 rounded-xl bg-danger-500/5 border border-danger-500/20">
+          {authRole !== 'direction' && (
+            <div>
+              <label className="block text-xs text-surface-400 mb-1">PIN de Direccion</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                className="input-field text-sm"
+                placeholder="PIN de Direccion"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+              />
+            </div>
+          )}
+          <div>
+            <label className="block text-xs text-surface-400 mb-1">
+              Escribe <strong className="text-danger-400">{CONFIRM_WORD}</strong> para confirmar
+            </label>
+            <input
+              className="input-field text-sm"
+              placeholder={CONFIRM_WORD}
+              value={word}
+              onChange={(e) => setWord(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button className="btn-danger text-sm flex items-center gap-2" disabled={!canReset} onClick={() => void handleReset()}>
+              <Trash2 size={15} />
+              {working ? 'Borrando...' : `Borrar ${total} registros definitivamente`}
+            </button>
+            <button
+              className="btn-secondary text-sm"
+              onClick={() => {
+                setOpen(false);
+                setPin('');
+                setWord('');
+                setError('');
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+          {!pinOk && pin !== '' && <p className="text-danger-400 text-xs">El PIN de Direccion no es correcto.</p>}
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 // v2.9 — Estado de la sincronizacion con la base de datos real (Supabase).
 function SupabaseSyncSection() {

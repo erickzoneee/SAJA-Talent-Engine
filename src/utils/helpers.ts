@@ -109,6 +109,65 @@ export function addBusinessDays(startDate: Date, days: number): Date {
   return result;
 }
 
+// ─── v2.14: nombre completo = nombre(s) + apellido paterno + apellido materno ─
+// El expediente captura las partes por separado y el nombre completo se ARMA
+// con ellas (antes el sistema tomaba como nombre completo solo lo escrito en
+// recepcion, que muchas veces era nada mas el nombre de pila y asi salia en el
+// contrato). Para las fichas que ya existen se parte el nombre guardado.
+
+const PARTICULAS_APELLIDO = new Set(['DE', 'DEL', 'LA', 'LAS', 'LOS', 'Y', 'SAN', 'SANTA', 'MC', 'VAN', 'VON']);
+
+export interface NombrePartes {
+  nombres: string;
+  apellidoPaterno: string;
+  apellidoMaterno: string;
+}
+
+/** Une las partes en el nombre completo, ignorando las que esten vacias. */
+export function joinFullName(nombres?: string, apellidoPaterno?: string, apellidoMaterno?: string): string {
+  return [nombres, apellidoPaterno, apellidoMaterno]
+    .map((p) => (p ?? '').trim())
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
+ * Parte un nombre completo al estilo mexicano: los dos ultimos bloques son los
+ * apellidos y lo demas es el nombre. Respeta las particulas pegadas al
+ * apellido ("DE LA CRUZ", "SAN MARTIN").
+ */
+export function splitFullName(fullName: string): NombrePartes {
+  const tokens = toUpper(fullName).split(/\s+/).filter(Boolean);
+  const vacio: NombrePartes = { nombres: '', apellidoPaterno: '', apellidoMaterno: '' };
+  if (tokens.length === 0) return vacio;
+  if (tokens.length === 1) return { ...vacio, nombres: tokens[0] };
+  if (tokens.length === 2) return { nombres: tokens[0], apellidoPaterno: tokens[1], apellidoMaterno: '' };
+
+  // Retrocede sobre las particulas que forman parte del apellido que termina en `fin`.
+  const inicioApellido = (fin: number): number => {
+    let start = fin;
+    while (start - 1 > 0 && PARTICULAS_APELLIDO.has(tokens[start - 1])) start--;
+    return start;
+  };
+
+  const inicioMaterno = inicioApellido(tokens.length - 1);
+  const finPaterno = inicioMaterno - 1;
+  // Sin espacio para nombre + dos apellidos: el ultimo bloque es el paterno.
+  if (finPaterno < 1) {
+    return {
+      nombres: tokens.slice(0, tokens.length - 1).join(' '),
+      apellidoPaterno: tokens[tokens.length - 1],
+      apellidoMaterno: '',
+    };
+  }
+  const inicioPaterno = Math.max(1, inicioApellido(finPaterno));
+  return {
+    nombres: tokens.slice(0, inicioPaterno).join(' '),
+    apellidoPaterno: tokens.slice(inicioPaterno, inicioMaterno).join(' '),
+    apellidoMaterno: tokens.slice(inicioMaterno).join(' '),
+  };
+}
+
 export function getInitials(name: string): string {
   return name
     .split(' ')
