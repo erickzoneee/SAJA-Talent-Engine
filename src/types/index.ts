@@ -1,4 +1,10 @@
-export type JobPosition = 'AG' | 'AM' | 'AO' | 'EC';
+// v2.15: los 4 puestos base del sistema (los usan reclutamiento, examen de
+// admision y la analitica). El tipo se ensancha con `(string & {})` para
+// admitir PUESTOS PERSONALIZADOS que RH agrega en el alta/expediente sin perder
+// el autocompletado de los 4 codigos base. Los codigos siguen guardandose para
+// los puestos base; solo los personalizados se guardan como su etiqueta.
+export type JobPositionCode = 'AG' | 'AM' | 'AO' | 'EC';
+export type JobPosition = JobPositionCode | (string & {});
 
 export const JOB_POSITIONS: Record<JobPosition, { name: string; area: string; minAge: number; reportsTo: string }> = {
   AG: { name: 'Ayudante General', area: 'Produccion / Acondicionamiento', minAge: 18, reportsTo: 'Encargado de Produccion / Direccion' },
@@ -471,6 +477,8 @@ export interface AppSettings {
   areas?: string[];
   /** v2.14: supervisores directos asignables (lista desplegable editable). */
   supervisors?: string[];
+  /** v2.15: puestos PERSONALIZADOS que RH agrega (ademas de los 4 base). */
+  positions?: string[];
 }
 
 // ─── v2.4: valores por defecto de los catalogos de contratacion ─────────────

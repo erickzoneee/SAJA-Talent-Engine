@@ -57,7 +57,6 @@ import {
   CREDITO_VIGENTE_OPTIONS,
   PARENTESCO_OPTIONS,
   BANCO_OPTIONS,
-  ESTADOS_MEXICO,
 } from '../../types';
 import { useStore } from '../../store/useStore';
 import {
@@ -561,6 +560,218 @@ function CatalogSelect({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Puesto (v2.15) ──────────────────────────────────────────────────────────
+// Etiqueta de un puesto: nombre del catalogo base si es uno de los 4 codigos,
+// o el valor tal cual si es un puesto personalizado que RH agrego.
+function positionLabel(position: string): string {
+  return JOB_POSITIONS[position as JobPosition]?.name ?? position;
+}
+
+// Los 4 puestos base SIEMPRE disponibles (se guardan por codigo AG/AM/AO/EC).
+const BUILTIN_POSITION_OPTIONS = Object.entries(JOB_POSITIONS).map(([value, v]) => ({
+  value,
+  label: v.name,
+}));
+
+// Selector de PUESTO editable: muestra los 4 puestos base + los personalizados
+// del catalogo (settings.positions) y permite AGREGAR y QUITAR los
+// personalizados (como los demas catalogos). Los base no se pueden quitar
+// porque los usan reclutamiento, el examen y la analitica.
+interface PositionSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  customOptions: string[];
+  onAddCustom: (value: string) => void;
+  onRemoveCustom: (value: string) => void;
+  label?: string;
+  icon?: React.ElementType;
+  placeholder?: string;
+}
+
+function PositionSelect({
+  value,
+  onChange,
+  customOptions,
+  onAddCustom,
+  onRemoveCustom,
+  label,
+  icon: Icon,
+  placeholder = 'Seleccionar puesto',
+}: PositionSelectProps) {
+  const [manage, setManage] = useState(false);
+  const [newVal, setNewVal] = useState('');
+
+  const handleAdd = () => {
+    const v = toUpper(newVal);
+    if (!v) return;
+    onAddCustom(v);
+    onChange(v);
+    setNewVal('');
+  };
+
+  const known = new Set([...BUILTIN_POSITION_OPTIONS.map((o) => o.value), ...customOptions]);
+
+  return (
+    <div>
+      {label && (
+        <label className="block text-sm font-medium text-surface-300 mb-1.5">
+          {Icon && <Icon size={14} className="inline mr-1.5 -mt-0.5" />}
+          {label}
+        </label>
+      )}
+      <select className="input-field" value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{placeholder}</option>
+        {BUILTIN_POSITION_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+        {customOptions.map((o) => (
+          <option key={o} value={o}>{o}</option>
+        ))}
+        {/* Lo ya guardado que no este en el catalogo se sigue viendo */}
+        {value && !known.has(value) && <option value={value}>{positionLabel(value)}</option>}
+      </select>
+      <button
+        type="button"
+        className="text-xs text-primary-400 hover:text-primary-300 mt-1.5 cursor-pointer flex items-center gap-1"
+        onClick={() => setManage((m) => !m)}
+      >
+        <Plus size={12} /> Agregar o quitar puestos
+      </button>
+      {manage && (
+        <div className="mt-2 p-3 rounded-xl bg-surface-900/50 border border-surface-700/40 space-y-2">
+          <p className="text-[11px] text-surface-500">
+            Los 4 puestos base del sistema siempre estan disponibles. Aqui agregas o quitas los
+            personalizados.
+          </p>
+          {customOptions.length === 0 ? (
+            <p className="text-xs text-surface-500">Aun no hay puestos personalizados. Agrega el primero abajo.</p>
+          ) : (
+            customOptions.map((o) => (
+              <div key={o} className="flex items-center gap-2">
+                <span className="flex-1 text-xs text-surface-200 truncate">{o}</span>
+                <button
+                  type="button"
+                  className="p-1 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer shrink-0"
+                  onClick={() => onRemoveCustom(o)}
+                  title="Quitar este puesto"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))
+          )}
+          <div className="flex gap-2 pt-1">
+            <input
+              type="text"
+              className="input-field text-xs"
+              placeholder="Nombre del nuevo puesto"
+              value={newVal}
+              onChange={(e) => setNewVal(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAdd();
+                }
+              }}
+            />
+            <button type="button" className="btn-primary text-xs px-3 py-1.5 shrink-0" onClick={handleAdd}>
+              Agregar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Foto de perfil (v2.15) ──────────────────────────────────────────────────
+// Sube la foto del colaborador (camara o archivo) para mostrarla en lugar de
+// sus iniciales. Se guarda con storeMediaFile (igual que los escaneos de
+// documentos): con sesion en la nube sube a Supabase Storage y guarda la RUTA
+// "sb:..." (viaja en la sincronizacion y NO llena el navegador); sin sesion cae
+// a base64 local. Se muestra con <MediaImage> para resolver la ruta firmada. Si
+// no hay foto se muestran las iniciales.
+interface ProfilePhotoPickerProps {
+  photoUrl?: string;
+  name: string;
+  folder: string;
+  onChange: (value: string) => void;
+  size?: number;
+}
+
+function ProfilePhotoPicker({ photoUrl, name, folder, onChange, size = 72 }: ProfilePhotoPickerProps) {
+  const camRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+
+  const handle = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    try {
+      const ref = await storeMediaFile(file, folder || 'perfil', 'foto-perfil');
+      onChange(ref);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'No se pudo procesar la imagen. Intenta con otra foto.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const dim = { width: size, height: size };
+  return (
+    <div className="flex items-center gap-4">
+      <div style={dim} className="rounded-xl overflow-hidden border border-surface-600/30 shrink-0">
+        {busy ? (
+          <div className="w-full h-full flex items-center justify-center bg-surface-800/60">
+            <Loader2 className="animate-spin text-primary-400" size={20} />
+          </div>
+        ) : photoUrl ? (
+          <MediaImage value={photoUrl} alt={name} className="w-full h-full object-cover" />
+        ) : (
+          <div className={`w-full h-full bg-gradient-to-br ${getAvatarGradient(name || 'NN')} flex items-center justify-center text-white font-bold`}>
+            {getInitials(name || 'NN')}
+          </div>
+        )}
+      </div>
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className="btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-3"
+            onClick={() => camRef.current?.click()}
+          >
+            <Camera size={14} /> Tomar foto
+          </button>
+          <button
+            type="button"
+            className="btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-3"
+            onClick={() => fileRef.current?.click()}
+          >
+            <Upload size={14} /> Subir foto
+          </button>
+          {photoUrl && !busy && (
+            <button
+              type="button"
+              className="btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-3"
+              onClick={() => onChange('')}
+              title="Quitar foto"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
+        <p className="text-[11px] text-surface-500">
+          Foto del colaborador (opcional). Si no subes una, se muestran sus iniciales.
+        </p>
+      </div>
+      <input ref={camRef} type="file" accept="image/*" capture="user" onChange={handle} className="hidden" />
+      <input ref={fileRef} type="file" accept="image/*" onChange={handle} className="hidden" />
     </div>
   );
 }
@@ -1334,8 +1545,13 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
     void pullNow();
   }, []);
 
+  // v2.15: id estable para agrupar la foto de perfil antes de guardar y para el
+  // expediente al registrar (asi el submit no genera un id distinto).
+  const [empId] = useState(() => generateId());
   const [fullName, setFullName] = useState('');
-  const [position, setPosition] = useState<JobPosition | ''>('');
+  // v2.15: el puesto es un catalogo editable (string), no un enum fijo.
+  const [position, setPosition] = useState<string>('');
+  const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
   const [hireDate, setHireDate] = useState('');
   const [dailySalary, setDailySalary] = useState('');
   const [schedule, setSchedule] = useState('');
@@ -1349,6 +1565,8 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
   // Si RH deja el catalogo vacio a proposito se respeta vacio: con ?.length los
   // supervisores por defecto reaparecian solos despues de quitarlos.
   const supervisorOptions = settings.supervisors ?? DEFAULT_SUPERVISORS;
+  // v2.15: puestos personalizados editables (los 4 base siempre disponibles).
+  const positionOptions = settings.positions ?? [];
 
   const dailyNum = parseFloat(dailySalary) || 0;
   const weeklySalary = Math.round(dailyNum * 7 * 100) / 100;
@@ -1388,6 +1606,14 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
     updateSettings({ supervisors: supervisorOptions.filter((x) => x !== s) });
     if (supervisor === s) setSupervisor('');
   };
+  // v2.15: alta/baja de puestos personalizados en el catalogo global
+  const addPositionOption = (p: string) => {
+    if (!positionOptions.includes(p)) updateSettings({ positions: [...positionOptions, p] });
+  };
+  const removePositionOption = (p: string) => {
+    updateSettings({ positions: positionOptions.filter((x) => x !== p) });
+    if (position === p) setPosition('');
+  };
 
   const handleSubmit = () => {
     if (!canSubmit || saving || !hireDateObj) return;
@@ -1397,7 +1623,7 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
     trialEnd.setDate(trialEnd.getDate() + 30);
 
     const newEmployee: Employee = {
-      id: generateId(),
+      id: empId,
       candidateId: '', // sin proceso de reclutamiento: es un colaborador existente
       expedientNumber: getNextExpedientNumber(),
       fullName: toUpper(fullName),
@@ -1410,6 +1636,8 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
       area: toUpper(area),
       supervisor: toUpper(supervisor || (position ? JOB_POSITIONS[position as JobPosition]?.reportsTo ?? '' : '')),
       imssNumber: imssNumber.trim(),
+      // v2.15: foto del colaborador (opcional) — se muestra en vez de iniciales
+      photoUrl,
       bankDetails: '',
       status: willBeActive ? 'active' : 'trial',
       documents: createEmptyDocuments(),
@@ -1473,6 +1701,14 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
           <div className="glass-card p-5 space-y-4">
             <h3 className="text-base font-semibold text-white">Datos del colaborador</h3>
 
+            {/* v2.15: foto del colaborador (en vez de iniciales) */}
+            <ProfilePhotoPicker
+              photoUrl={photoUrl}
+              name={fullName}
+              folder={empId}
+              onChange={(v) => setPhotoUrl(v || undefined)}
+            />
+
             <div>
               <label className="block text-sm text-surface-400 mb-1">Nombre completo *</label>
               <input
@@ -1485,21 +1721,15 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm text-surface-400 mb-1">Puesto *</label>
-                <select
-                  className="input-field"
-                  value={position}
-                  onChange={(e) => setPosition(e.target.value as JobPosition | '')}
-                >
-                  <option value="">Seleccionar puesto</option>
-                  {Object.entries(JOB_POSITIONS).map(([key, val]) => (
-                    <option key={key} value={key}>
-                      {val.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* v2.15: puesto como catalogo editable (agregar/quitar puestos) */}
+              <PositionSelect
+                label="Puesto *"
+                value={position}
+                onChange={setPosition}
+                customOptions={positionOptions}
+                onAddCustom={addPositionOption}
+                onRemoveCustom={removePositionOption}
+              />
               <div>
                 <label className="block text-sm text-surface-400 mb-1">Fecha de ingreso REAL *</label>
                 <input
@@ -1817,8 +2047,8 @@ function EmployeeListView({ onBack, onViewDossier, onDirectRegister }: EmployeeL
               >
                 {/* Avatar */}
                 {employee.photoUrl ? (
-                  <img
-                    src={employee.photoUrl}
+                  <MediaImage
+                    value={employee.photoUrl}
                     alt={employee.fullName}
                     className="w-12 h-12 rounded-xl object-cover border border-surface-600/30"
                   />
@@ -1922,8 +2152,8 @@ function DossierView({ employeeId, onBack }: DossierViewProps) {
         </button>
         <div className="flex items-center gap-4 flex-1">
           {employee.photoUrl ? (
-            <img
-              src={employee.photoUrl}
+            <MediaImage
+              value={employee.photoUrl}
               alt={employee.fullName}
               className="w-14 h-14 rounded-xl object-cover border border-surface-600/30"
             />
@@ -2114,6 +2344,8 @@ function ExpCatalogSelect({
 interface ExpDraft {
   fullName: string;
   position: JobPosition;
+  // v2.15: foto de perfil (data URL) — se muestra en vez de las iniciales
+  photoUrl: string;
   hireDate: string;
   dailySalary: string;
   schedule: string;
@@ -2167,6 +2399,7 @@ function buildExpDraft(e: Employee, candidate?: Candidate): ExpDraft {
   return {
     fullName: e.fullName ?? '',
     position: e.position,
+    photoUrl: e.photoUrl ?? '',
     hireDate: e.hireDate ?? '',
     dailySalary: e.dailySalary ? String(e.dailySalary) : '',
     schedule: e.schedule ?? '',
@@ -2236,6 +2469,15 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
     updateSettings({ supervisors: supervisorOptions.filter((x) => x !== s) });
     if (d.supervisor === s) up({ supervisor: '' });
   };
+  // v2.15: catalogo de puestos personalizados — agregar y quitar
+  const positionOptions = settings.positions ?? [];
+  const addPositionOption = (p: string) => {
+    if (!positionOptions.includes(p)) updateSettings({ positions: [...positionOptions, p] });
+  };
+  const removePositionOption = (p: string) => {
+    updateSettings({ positions: positionOptions.filter((x) => x !== p) });
+    if (d.position === p) up({ position: '' });
+  };
 
   const dailyNum = parseFloat(d.dailySalary) || 0;
   const weeklySalary = Math.round(dailyNum * 7 * 100) / 100;
@@ -2249,8 +2491,22 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
   // Sin nombre y apellido paterno no se puede armar un nombre completo decente:
   // se bloquea el guardado antes de que un nombre a medias llegue al contrato.
   const nombreOk = d.nombres.trim() !== '' && d.apellidoPaterno.trim() !== '';
-  // v2.9: sugerencias de municipio/alcaldia dependientes del estado elegido
-  const municipios = getMunicipios(d.estado);
+  // v2.15: la direccion se limita a Ciudad de Mexico y Estado de Mexico. Con
+  // CDMX se habilita la ALCALDIA; con Estado de Mexico se habilita el MUNICIPIO.
+  const CDMX = 'Ciudad de Mexico';
+  const EDOMEX = 'Estado de Mexico';
+  const ESTADO_OPTIONS = [CDMX, EDOMEX];
+  const alcaldias = getMunicipios(CDMX);
+  const municipiosEdoMex = getMunicipios(EDOMEX);
+  const esCdmx = d.estado === CDMX;
+  const esEdoMex = d.estado === EDOMEX;
+  // Al cambiar de estado se limpia el campo que deja de aplicar (para no
+  // arrastrar una alcaldia con Estado de Mexico ni un municipio con CDMX).
+  const onEstadoChange = (nuevo: string) => {
+    if (nuevo === CDMX) up({ estado: nuevo, municipio: '' });
+    else if (nuevo === EDOMEX) up({ estado: nuevo, ciudad: '' });
+    else up({ estado: nuevo });
+  };
   const rfcUpper = d.rfc.trim().toUpperCase();
   const rfcFormatOk = rfcUpper === '' || isValidRfc(rfcUpper);
   const pctPrim = parseFloat(d.benefPrimPct) || 0;
@@ -2276,7 +2532,11 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
     const expediente: EmployeeExpediente = {
       nombres: str(toUpper(d.nombres)), apellidoPaterno: str(toUpper(d.apellidoPaterno)), apellidoMaterno: str(toUpper(d.apellidoMaterno)), iniciales: str(toUpper(d.iniciales)),
       fechaNacimiento: str(d.fechaNacimiento), estadoCivil: str(d.estadoCivil), curp: str(toUpper(d.curp)), tipoSangre: str(d.tipoSangre),
-      estado: str(d.estado), ciudad: str(toUpper(d.ciudad)), municipio: str(toUpper(d.municipio)), calle: str(toUpper(d.calle)), numeroExterior: str(toUpper(d.numeroExterior)), numeroInterior: str(toUpper(d.numeroInterior)), colonia: str(toUpper(d.colonia)), codigoPostal: str(d.codigoPostal),
+      // v2.15: alcaldia (ciudad) y municipio salen de una lista Titulo-Case; NO
+      // se pasan a MAYUSCULAS al guardar para que sigan coincidiendo con la
+      // opcion del catalogo (si se pasaban, la opcion se duplicaba en MAYUSCULAS).
+      // Se ven en mayusculas igual por el text-transform del CSS.
+      estado: str(d.estado), ciudad: str(d.ciudad), municipio: str(d.municipio), calle: str(toUpper(d.calle)), numeroExterior: str(toUpper(d.numeroExterior)), numeroInterior: str(toUpper(d.numeroInterior)), colonia: str(toUpper(d.colonia)), codigoPostal: str(d.codigoPostal),
       emailPersonal: str(d.emailPersonal.toLowerCase()), telefonoMovil: str(d.telefonoMovil), telefonoCasa: str(d.telefonoCasa),
       contactoEmergenciaNombre: str(toUpper(d.contactoEmergenciaNombre)), contactoEmergenciaParentesco: str(d.contactoEmergenciaParentesco), contactoEmergenciaTelefono: str(d.contactoEmergenciaTelefono),
       nivelEstudios: str(d.nivelEstudios), profesion: str(toUpper(d.profesion)),
@@ -2293,6 +2553,8 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
       updateEmployee(employee.id, {
         fullName: fullNameCompuesto || employee.fullName,
         position: d.position,
+        // v2.15: foto de perfil (vacio => sin foto, se muestran iniciales)
+        photoUrl: d.photoUrl || undefined,
         hireDate: d.hireDate || employee.hireDate,
         dailySalary: dailyNum || undefined,
         salary: dailyNum > 0 ? weeklySalary : employee.salary,
@@ -2385,6 +2647,15 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
 
       {/* ─── DATOS PERSONALES ─── */}
       <ExpSection icon={User} title="Datos personales">
+        {/* v2.15: foto del colaborador — se muestra en vez de las iniciales */}
+        <div className="md:col-span-2 xl:col-span-3">
+          <ProfilePhotoPicker
+            photoUrl={d.photoUrl || undefined}
+            name={fullNameCompuesto}
+            folder={employee.id}
+            onChange={(v) => up({ photoUrl: v })}
+          />
+        </div>
         {/* v2.14: el nombre completo ya no se escribe — se arma con las tres
             partes de abajo, que es lo que sale en el contrato y en el sistema. */}
         <Fld label="Nombre completo" wide hint="Se arma solo con Nombre(s) + Apellido paterno + Apellido materno. Es el que se usa en contratos, listados y todo el sistema.">
@@ -2434,37 +2705,43 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
       {/* ─── DIRECCION Y CONTACTO ─── */}
       <ExpSection icon={MapPin} title="Direccion y contacto">
         <Fld label="Estado">
-          <select className="input-field" value={d.estado} onChange={(e) => up({ estado: e.target.value })}>
+          <select className="input-field" value={d.estado} onChange={(e) => onEstadoChange(e.target.value)}>
             <option value="">-- Seleccionar --</option>
-            {ESTADOS_MEXICO.map((o) => <option key={o} value={o}>{o}</option>)}
+            {ESTADO_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+            {/* Un estado distinto ya guardado se conserva hasta que RH elija otro */}
+            {d.estado && !ESTADO_OPTIONS.includes(d.estado) && <option value={d.estado}>{d.estado}</option>}
           </select>
         </Fld>
         <Fld
-          label="Ciudad / Alcaldia"
-          hint={municipios.length ? 'Elige de la lista del estado o escribe otra.' : undefined}
+          label="Alcaldia"
+          hint={esCdmx ? 'Elige la alcaldia de la Ciudad de Mexico.' : 'Selecciona "Ciudad de Mexico" como estado para habilitar la alcaldia.'}
         >
-          <input
-            className="input-field"
-            list="muni-suggestions"
+          <select
+            className={`input-field ${esCdmx ? '' : 'opacity-50'}`}
             value={d.ciudad}
-            onChange={(e) => up({ ciudad: e.target.value.toUpperCase() })}
-          />
+            disabled={!esCdmx}
+            onChange={(e) => up({ ciudad: e.target.value })}
+          >
+            <option value="">-- Seleccionar --</option>
+            {alcaldias.map((o) => <option key={o} value={o}>{o}</option>)}
+            {d.ciudad && !alcaldias.includes(d.ciudad) && <option value={d.ciudad}>{d.ciudad}</option>}
+          </select>
         </Fld>
-        <Fld label="Municipio" hint={municipios.length ? 'Sugerencias segun el estado.' : undefined}>
-          <input
-            className="input-field"
-            list="muni-suggestions"
+        <Fld
+          label="Municipio"
+          hint={esEdoMex ? 'Elige el municipio del Estado de Mexico.' : 'Selecciona "Estado de Mexico" como estado para habilitar el municipio.'}
+        >
+          <select
+            className={`input-field ${esEdoMex ? '' : 'opacity-50'}`}
             value={d.municipio}
-            onChange={(e) => up({ municipio: e.target.value.toUpperCase() })}
-          />
+            disabled={!esEdoMex}
+            onChange={(e) => up({ municipio: e.target.value })}
+          >
+            <option value="">-- Seleccionar --</option>
+            {municipiosEdoMex.map((o) => <option key={o} value={o}>{o}</option>)}
+            {d.municipio && !municipiosEdoMex.includes(d.municipio) && <option value={d.municipio}>{d.municipio}</option>}
+          </select>
         </Fld>
-        {/* Sugerencias dependientes del estado (datalist compartido). Con
-            datalist se puede elegir de la lista o escribir cualquier otro. */}
-        <datalist id="muni-suggestions">
-          {municipios.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
         <Fld label="Calle">
           <input className="input-field" value={d.calle} onChange={(e) => up({ calle: e.target.value.toUpperCase() })} />
         </Fld>
@@ -2532,11 +2809,14 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
           <input type="date" className="input-field" value={d.altaImss} onChange={(e) => up({ altaImss: e.target.value })} />
         </Fld>
         <Fld label="Puesto">
-          <select className="input-field" value={d.position} onChange={(e) => up({ position: e.target.value as JobPosition })}>
-            {Object.entries(JOB_POSITIONS).map(([key, val]) => (
-              <option key={key} value={key}>{val.name}</option>
-            ))}
-          </select>
+          {/* v2.15: puesto como catalogo editable (agregar/quitar puestos) */}
+          <PositionSelect
+            value={d.position}
+            onChange={(v) => up({ position: v })}
+            customOptions={positionOptions}
+            onAddCustom={addPositionOption}
+            onRemoveCustom={removePositionOption}
+          />
         </Fld>
         <Fld label="Area / Depto">
           <select className="input-field" value={d.area} onChange={(e) => up({ area: e.target.value })}>
@@ -2587,9 +2867,9 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
             <option value="inactive">Inactivo</option>
           </select>
         </Fld>
-        <Fld label="Motivo de baja" wide hint="Solo si el colaborador causa baja.">
-          <input className="input-field" value={d.motivoBaja} onChange={(e) => up({ motivoBaja: e.target.value.toUpperCase() })} />
-        </Fld>
+        {/* v2.15: "Motivo de baja" se quito del expediente — la baja y su motivo
+            se manejan en el modulo de Egreso. El dato guardado (si existe) se
+            conserva y no se borra al guardar el expediente. */}
         <Fld label="Observaciones" wide>
           <textarea className="input-field min-h-[70px] resize-y" value={d.observaciones} onChange={(e) => up({ observaciones: e.target.value.toUpperCase() })} />
         </Fld>

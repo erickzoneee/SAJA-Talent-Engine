@@ -91,6 +91,9 @@ const defaultSettings: AppSettings = {
   schedules: [...DEFAULT_SCHEDULES],
   areas: [...DEFAULT_AREAS],
   supervisors: [...DEFAULT_SUPERVISORS],
+  // v2.15: puestos personalizados (los 4 base viven en JOB_POSITIONS; aqui solo
+  // los que RH agrega a mano). Vacio por defecto.
+  positions: [],
 };
 
 export const useStore = create<AppState>()(
