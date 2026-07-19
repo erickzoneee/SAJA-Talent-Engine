@@ -828,6 +828,15 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
   const [supervisorOverride, setSupervisorOverride] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState<keyof DocumentChecklist | null>(null);
+  // v2.17: el contrato individual se GENERA aqui, al completar la contratacion, y
+  // queda registrado en Documentos para subir el firmado.
+  const [contractOpen, setContractOpen] = useState(false);
+  const [contractText, setContractText] = useState('');
+  const [contractSaved, setContractSaved] = useState(false);
+  // v2.17: true SOLO si RH escribio a mano en el textarea del contrato. Si no,
+  // el contrato SIEMPRE se rearma con los datos actuales (evita imprimir/guardar
+  // un contrato viejo cuando RH cambia sueldo/fecha/tipo despues de generarlo).
+  const [contractEdited, setContractEdited] = useState(false);
 
   // v2.0: 'No recomendable' requiere autorizacion expresa de Direccion
   const isNotRecommended = candidate?.verdict === 'not_recommended';
@@ -952,13 +961,27 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
       trialExtended: false,
       photoUrl: candidate.photoUrl,
       createdAt: new Date().toISOString(),
-      // v2.0
-      signedDocsV2: createEmptySignedDocs(),
+      // v2.0 — v2.17: el contrato queda MARCADO como generado desde la contratacion;
+      // en Documentos solo se lleva el registro y se sube el firmado.
+      signedDocsV2: {
+        ...createEmptySignedDocs(),
+        contrato: { generado: true, fechaGenerado: new Date().toISOString() },
+      },
       seguimientoEspecial: isReservations ? true : undefined,
       contratacionAutorizada: isNotRecommended
         ? { por: `${settings.directorName} (Direccion)`, fecha: new Date().toISOString(), motivo: authMotivo.trim() }
         : undefined,
     };
+
+    // v2.17: el contrato se genera al completar la contratacion. Se respeta el
+    // texto SOLO si RH lo edito a mano Y es del tipo correcto; en cualquier otro
+    // caso se rearma ahora con los datos actuales (evita guardar un contrato con
+    // sueldo/fecha/tipo viejos cuando RH previsualizo y luego cambio un campo).
+    const tituloEsperado =
+      contractType === 'indefinido' ? 'POR TIEMPO INDETERMINADO' : 'POR PERIODO DE PRUEBA';
+    const editadoYMismoTipo =
+      contractEdited && contractText.trim() !== '' && contractText.split('\n', 1)[0].includes(tituloEsperado);
+    newEmployee.contractText = editadoYMismoTipo ? contractText : buildContractText(newEmployee, settings);
 
     // v2.8: el guardado persiste en localStorage de forma SINCRONA. Si el
     // almacenamiento esta lleno (muchas fotos/PDF) lanza QuotaExceededError; sin
@@ -987,7 +1010,69 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
       setSaving(false);
       onComplete();
     }, 500);
-  }, [candidate, canSubmit, saving, hireDate, weeklySalary, dailyNum, schedule, contractType, area, supervisor, imssNumber, reingreso, documents, addEmployee, updateCandidate, getNextExpedientNumber, onComplete, isReservations, isNotRecommended, authMotivo, settings.directorName, addAlert]);
+  }, [candidate, canSubmit, saving, hireDate, weeklySalary, dailyNum, schedule, contractType, area, supervisor, imssNumber, reingreso, documents, contractText, contractEdited, addEmployee, updateCandidate, getNextExpedientNumber, onComplete, isReservations, isNotRecommended, authMotivo, settings, addAlert]);
+
+  // v2.17: arma un Employee "borrador" con lo capturado en la contratacion para
+  // generar/ver el contrato ANTES de guardar (mismo texto que se guardara al
+  // completar). Los datos personales que aun no se capturan (CURP, estado civil,
+  // domicilio...) quedan con lineas ____ hasta llenarse en el expediente.
+  const makeDraftEmployee = (): Employee => ({
+    id: 'draft',
+    candidateId: candidate?.id ?? '',
+    expedientNumber: 0,
+    fullName: toUpper(candidate?.fullName ?? ''),
+    position: candidate?.position ?? 'AG',
+    hireDate,
+    salary: weeklySalary,
+    dailySalary: dailyNum,
+    schedule: toUpper(schedule),
+    contractType,
+    area: toUpper(area),
+    supervisor: toUpper(supervisor),
+    imssNumber: imssNumber.trim(),
+    reingreso: reingreso || undefined,
+    bankDetails: '',
+    status: 'trial',
+    documents,
+    expediente: buildInitialExpediente(candidate?.fullName ?? '', hireDate, {
+      phone: candidate?.phone,
+      email: candidate?.email,
+    }),
+    onboardingProgress: { modules: [], certificateGenerated: false },
+    evaluations: [],
+    incidents: [],
+    bonuses: [],
+    trainings: [],
+    trialEndDate: '',
+    trialExtended: false,
+    createdAt: new Date().toISOString(),
+  });
+
+  // Al abrir se rearma con los datos ACTUALES salvo que RH haya editado a mano y
+  // el tipo siga coincidiendo — asi el preview nunca muestra sueldo/fecha/tipo viejos.
+  const openContract = () => {
+    const tituloEsperado =
+      contractType === 'indefinido' ? 'POR TIEMPO INDETERMINADO' : 'POR PERIODO DE PRUEBA';
+    const mismoTipo = contractText.split('\n', 1)[0].includes(tituloEsperado);
+    if (!contractEdited || !contractText.trim() || !mismoTipo) {
+      setContractText(buildContractText(makeDraftEmployee(), settings));
+      setContractEdited(false);
+    }
+    setContractSaved(false);
+    setContractOpen(true);
+  };
+  const regenContract = () => {
+    setContractText(buildContractText(makeDraftEmployee(), settings));
+    setContractEdited(false);
+  };
+  const editContract = (t: string) => {
+    setContractText(t);
+    setContractEdited(true);
+  };
+  const saveContractLocal = () => {
+    setContractSaved(true);
+    setTimeout(() => setContractSaved(false), 2000);
+  };
 
   if (!candidate) {
     return (
@@ -1336,6 +1421,38 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
           </motion.section>
         )}
 
+        {/* v2.17: Contrato individual — se genera aqui, al completar la contratacion */}
+        <motion.section {...fadeUp} className="glass-card p-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex-1 min-w-[240px]">
+              <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                <FileText size={18} className="text-accent-400" />
+                Contrato individual de trabajo
+              </h3>
+              <p className="text-xs text-surface-500 mt-1 leading-relaxed">
+                Se genera con los datos de esta contratacion (
+                {contractType === 'indefinido' ? 'tiempo indeterminado' : 'periodo de prueba 15 dias'}) y al
+                completar la contratacion queda registrado en el expediente &rarr; Documentos, listo para
+                subir el firmado. Es editable antes de imprimir.
+              </p>
+              {contractText.trim() && (
+                <p className="text-[11px] text-success-400 mt-1.5 flex items-center gap-1">
+                  <CheckCircle size={12} /> Contrato generado &mdash; se guardara al completar la contratacion.
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              className="btn-secondary text-sm flex items-center gap-2 shrink-0"
+              onClick={openContract}
+              disabled={!candidate}
+            >
+              <FileCheck size={16} />
+              {contractText.trim() ? 'Ver / editar contrato' : 'Generar contrato'}
+            </button>
+          </div>
+        </motion.section>
+
         {/* Supervisor Override + Submit */}
         <motion.section {...fadeUp} className="glass-card p-6">
           {!allMandatoryDone && (
@@ -1395,6 +1512,20 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
             </p>
           )}
         </motion.section>
+
+        <ContractModal
+          open={contractOpen}
+          text={contractText}
+          subtitle="Autollenado con los datos de la contratacion · editable antes de imprimir. Se guarda al completar la contratacion."
+          regenerateLabel="Regenerar con datos de la contratacion"
+          hint="El formato depende del tipo de contrato (prueba 15 dias o indeterminado). Los espacios ____________________ son datos que aun no se capturan (se completan en el expediente o a mano). Al completar la contratacion queda registrado en Documentos para subir el firmado."
+          companyName={settings.companyName}
+          saved={contractSaved}
+          onChange={editContract}
+          onRegenerate={regenContract}
+          onSave={saveContractLocal}
+          onClose={() => setContractOpen(false)}
+        />
       </div>
     </div>
   );
@@ -3297,6 +3428,100 @@ function DossierOnboardingTab({ employee, completed, total }: { employee: Employ
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.17 — MODAL DEL CONTRATO INDIVIDUAL (reutilizable)
+// Lo usan DOS lugares: al COMPLETAR la contratacion (se genera el contrato) y
+// el expediente → Documentos (para reimprimir / dejar el registro). Es el mismo
+// textarea editable + Regenerar / Guardar / Imprimir.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface ContractModalProps {
+  open: boolean;
+  text: string;
+  subtitle: string;
+  hint: string;
+  regenerateLabel: string;
+  companyName: string;
+  saved: boolean;
+  onChange: (t: string) => void;
+  onRegenerate: () => void;
+  onSave: () => void;
+  onClose: () => void;
+}
+
+function ContractModal({
+  open, text, subtitle, hint, regenerateLabel, companyName, saved,
+  onChange, onRegenerate, onSave, onClose,
+}: ContractModalProps) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="glass-card w-full max-w-4xl h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-white/[0.06] flex flex-wrap items-center gap-3">
+              <div className="flex-1 min-w-[220px]">
+                <h3 className="text-lg font-bold text-white">Contrato Individual de Trabajo</h3>
+                <p className="text-xs text-surface-500">{subtitle}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5"
+                  onClick={onRegenerate}
+                  title="Vuelve a llenar el contrato con los datos actuales (descarta ediciones)"
+                >
+                  <FileText size={14} />
+                  {regenerateLabel}
+                </button>
+                <button
+                  className="btn-success text-xs px-3 py-2 flex items-center gap-1.5"
+                  onClick={onSave}
+                >
+                  <CheckCircle size={14} />
+                  {saved ? 'Guardado!' : 'Guardar cambios'}
+                </button>
+                <button
+                  className="btn-primary text-xs px-3 py-2 flex items-center gap-1.5"
+                  onClick={() => {
+                    onSave();
+                    printContractText(text, companyName);
+                  }}
+                >
+                  <FileCheck size={14} />
+                  Imprimir
+                </button>
+                <button className="btn-secondary text-xs px-3 py-2" onClick={onClose}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden p-4">
+              <textarea
+                className="w-full h-full bg-surface-50 text-surface-900 rounded-xl p-6 font-serif text-[13px] leading-relaxed resize-none outline-none border-2 border-transparent focus:border-primary-500/50"
+                value={text}
+                onChange={(e) => onChange(e.target.value)}
+                spellCheck={false}
+              />
+            </div>
+            <p className="px-5 pb-4 text-[11px] text-surface-500">{hint}</p>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // v2.0 — 5 DOCUMENTOS FISICOS CON FIRMA (BRD seccion 6)
 // Generar con variables → imprimir → RH explica en voz alta → firma →
 // RH sube el escaneado al expediente digital.
@@ -3566,80 +3791,21 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
         )}
       </AnimatePresence>
 
-      {/* v2.4 Req 6: contrato individual — autollenado con los datos capturados y editable */}
-      <AnimatePresence>
-        {contractOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setContractOpen(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="glass-card w-full max-w-4xl h-[90vh] flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-5 border-b border-white/[0.06] flex flex-wrap items-center gap-3">
-                <div className="flex-1 min-w-[220px]">
-                  <h3 className="text-lg font-bold text-white">Contrato Individual de Trabajo</h3>
-                  <p className="text-xs text-surface-500">
-                    Autollenado con la informacion capturada del expediente · el texto es editable —
-                    escribe directamente sobre el para modificarlo antes de imprimir.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    className="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5"
-                    onClick={handleContractRegenerate}
-                    title="Vuelve a llenar el contrato con los datos actuales del expediente (descarta ediciones)"
-                  >
-                    <FileText size={14} />
-                    Regenerar con datos del expediente
-                  </button>
-                  <button
-                    className="btn-success text-xs px-3 py-2 flex items-center gap-1.5"
-                    onClick={handleContractSave}
-                  >
-                    <CheckCircle size={14} />
-                    {contractSaved ? 'Guardado!' : 'Guardar cambios'}
-                  </button>
-                  <button
-                    className="btn-primary text-xs px-3 py-2 flex items-center gap-1.5"
-                    onClick={() => {
-                      updateEmployee(employee.id, { contractText: contractDraft });
-                      printContractText(contractDraft, settings.companyName);
-                    }}
-                  >
-                    <FileCheck size={14} />
-                    Imprimir
-                  </button>
-                  <button className="btn-secondary text-xs px-3 py-2" onClick={() => setContractOpen(false)}>
-                    Cerrar
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-hidden p-4">
-                <textarea
-                  className="w-full h-full bg-surface-50 text-surface-900 rounded-xl p-6 font-serif text-[13px] leading-relaxed resize-none outline-none border-2 border-transparent focus:border-primary-500/50"
-                  value={contractDraft}
-                  onChange={(e) => setContractDraft(e.target.value)}
-                  spellCheck={false}
-                />
-              </div>
-              <p className="px-5 pb-4 text-[11px] text-surface-500">
-                El formato depende del tipo de contrato (prueba 15 dias o indeterminado) y se llena con la
-                pestana Informacion del expediente (datos personales, direccion e informacion laboral): lo
-                que ya esta capturado no se vuelve a escribir. Los espacios ____________________ son lo que
-                el sistema aun no captura: puedes escribirlos aqui mismo o llenarlos a mano ya impreso.
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* v2.17: el contrato usa el modal reutilizable. Ya se genero al completar
+          la contratacion; aqui RH lo puede reimprimir/regenerar y subir el firmado. */}
+      <ContractModal
+        open={contractOpen}
+        text={contractDraft}
+        subtitle="Autollenado con la informacion capturada del expediente · el texto es editable — escribe directamente sobre el para modificarlo antes de imprimir."
+        regenerateLabel="Regenerar con datos del expediente"
+        hint="El formato depende del tipo de contrato (prueba 15 dias o indeterminado) y se llena con la pestana Informacion del expediente. Los espacios ____________________ son lo que el sistema aun no captura: puedes escribirlos aqui mismo o llenarlos a mano ya impreso."
+        companyName={settings.companyName}
+        saved={contractSaved}
+        onChange={setContractDraft}
+        onRegenerate={handleContractRegenerate}
+        onSave={handleContractSave}
+        onClose={() => setContractOpen(false)}
+      />
     </div>
   );
 }
