@@ -530,6 +530,8 @@ export interface EmployeeExpediente {
   iniciales?: string;
   fechaNacimiento?: string;
   estadoCivil?: string;
+  /** v2.16: nacionalidad del colaborador — se usa en el contrato (default Mexicana). */
+  nacionalidad?: string;
   curp?: string;
   tipoSangre?: string;
   // Direccion y contacto

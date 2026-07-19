@@ -2357,7 +2357,7 @@ interface ExpDraft {
   rfc: string;
   reingreso: boolean;
   nombres: string; apellidoPaterno: string; apellidoMaterno: string; iniciales: string;
-  fechaNacimiento: string; estadoCivil: string; curp: string; tipoSangre: string;
+  fechaNacimiento: string; estadoCivil: string; nacionalidad: string; curp: string; tipoSangre: string;
   estado: string; ciudad: string; municipio: string; calle: string; numeroExterior: string; numeroInterior: string; colonia: string; codigoPostal: string;
   emailPersonal: string; telefonoMovil: string; telefonoCasa: string;
   contactoEmergenciaNombre: string; contactoEmergenciaParentesco: string; contactoEmergenciaTelefono: string;
@@ -2414,7 +2414,7 @@ function buildExpDraft(e: Employee, candidate?: Candidate): ExpDraft {
     apellidoPaterno: partes.apellidoPaterno,
     apellidoMaterno: partes.apellidoMaterno,
     iniciales: s(x.iniciales),
-    fechaNacimiento: s(x.fechaNacimiento), estadoCivil: s(x.estadoCivil), curp: s(x.curp), tipoSangre: s(x.tipoSangre),
+    fechaNacimiento: s(x.fechaNacimiento), estadoCivil: s(x.estadoCivil), nacionalidad: s(x.nacionalidad) || 'Mexicana', curp: s(x.curp), tipoSangre: s(x.tipoSangre),
     estado: s(x.estado), ciudad: s(x.ciudad), municipio: s(x.municipio), calle: s(x.calle), numeroExterior: s(x.numeroExterior), numeroInterior: s(x.numeroInterior), colonia: s(x.colonia), codigoPostal: s(x.codigoPostal),
     emailPersonal: s(x.emailPersonal) || (nuncaGuardado ? (candidate?.email ?? '') : ''),
     telefonoMovil: s(x.telefonoMovil) || (nuncaGuardado ? (candidate?.phone ?? '') : ''),
@@ -2531,7 +2531,7 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
 
     const expediente: EmployeeExpediente = {
       nombres: str(toUpper(d.nombres)), apellidoPaterno: str(toUpper(d.apellidoPaterno)), apellidoMaterno: str(toUpper(d.apellidoMaterno)), iniciales: str(toUpper(d.iniciales)),
-      fechaNacimiento: str(d.fechaNacimiento), estadoCivil: str(d.estadoCivil), curp: str(toUpper(d.curp)), tipoSangre: str(d.tipoSangre),
+      fechaNacimiento: str(d.fechaNacimiento), estadoCivil: str(d.estadoCivil), nacionalidad: str(d.nacionalidad), curp: str(toUpper(d.curp)), tipoSangre: str(d.tipoSangre),
       // v2.15: alcaldia (ciudad) y municipio salen de una lista Titulo-Case; NO
       // se pasan a MAYUSCULAS al guardar para que sigan coincidiendo con la
       // opcion del catalogo (si se pasaban, la opcion se duplicaba en MAYUSCULAS).
@@ -2684,6 +2684,9 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
             <option value="">-- Seleccionar --</option>
             {ESTADO_CIVIL_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
+        </Fld>
+        <Fld label="Nacionalidad" hint="Se usa en el contrato individual de trabajo.">
+          <input className="input-field" value={d.nacionalidad} onChange={(e) => up({ nacionalidad: e.target.value })} placeholder="Mexicana" />
         </Fld>
         <Fld label="Tipo de sangre">
           <select className="input-field" value={d.tipoSangre} onChange={(e) => up({ tipoSangre: e.target.value })}>
@@ -3328,8 +3331,19 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
       setDocStatus(doc.key, { generado: true, fechaGenerado: new Date().toISOString() });
     }
     if (doc.key === 'contrato') {
-      // Autollenado con la informacion capturada; si RH ya lo edito, se respeta su version
-      setContractDraft(employee.contractText ?? buildContractText(employee, settings));
+      // Autollenado con la informacion capturada; si RH ya lo edito, se respeta su
+      // version. PERO si el contrato guardado es de OTRO tipo (RH cambio el tipo de
+      // contrato despues de generarlo), se regenera: imprimir el contrato del tipo
+      // equivocado (prueba vs indeterminado) seria un error legal grave.
+      const tituloEsperado =
+        employee.contractType === 'indefinido' ? 'POR TIEMPO INDETERMINADO' : 'POR PERIODO DE PRUEBA';
+      const guardado = employee.contractText;
+      const primeraLinea = guardado ? guardado.split('\n', 1)[0] : '';
+      const draft =
+        guardado && primeraLinea.includes(tituloEsperado)
+          ? guardado
+          : buildContractText(employee, settings);
+      setContractDraft(draft);
       setContractSaved(false);
       setContractOpen(true);
       return;
@@ -3617,10 +3631,10 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
                 />
               </div>
               <p className="px-5 pb-4 text-[11px] text-surface-500">
-                El contrato se llena con la pestana Informacion del expediente (datos personales,
-                direccion e informacion laboral): lo que ya esta capturado no se vuelve a escribir. Los
-                espacios ____________________ son lo que el sistema no captura (nacionalidad, testigos):
-                puedes escribirlos aqui mismo o llenarlos a mano ya impreso.
+                El formato depende del tipo de contrato (prueba 15 dias o indeterminado) y se llena con la
+                pestana Informacion del expediente (datos personales, direccion e informacion laboral): lo
+                que ya esta capturado no se vuelve a escribir. Los espacios ____________________ son lo que
+                el sistema aun no captura: puedes escribirlos aqui mismo o llenarlos a mano ya impreso.
               </p>
             </motion.div>
           </motion.div>
