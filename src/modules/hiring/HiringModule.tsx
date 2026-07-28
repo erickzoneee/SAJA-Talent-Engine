@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   FileCheck,
@@ -10,7 +11,6 @@ import {
   Clock,
   User,
   UserPlus,
-  UserX,
   Building,
   Calendar,
   ArrowLeft,
@@ -72,6 +72,7 @@ import {
 } from '../../utils/helpers';
 import { storeMediaFile, isImageMedia, openMedia } from '../../utils/mediaStore';
 import MediaImage, { MediaFrame } from '../../components/MediaImage';
+import { SajaBajaBanner, SajaBajaConfirmModal } from '../../components/SajaBajaAviso';
 import { getVerdictLabel, getVerdictColor } from '../../utils/scoring';
 import { getDefaultOnboardingModules } from '../../utils/onboardingModules';
 import { buildDocuments, createEmptySignedDocs, ONBOARDING_DOC_KEYS } from '../../utils/documentsV2';
@@ -81,6 +82,12 @@ import { buildContractText, printContractText } from '../../utils/contractTempla
 import { EXAM_OUTCOME_LABELS } from '../../utils/examBank';
 import { pullNow } from '../../utils/cloudSync';
 import { getMunicipios } from '../../utils/mxLocations';
+import {
+  getAvatarGradient,
+  countMandatoryDocs,
+  daysUntil,
+  positionLabel,
+} from '../../utils/employeeUi';
 
 // ── Animation Variants ──────────────────────────────────────────────────────
 
@@ -108,22 +115,9 @@ const fadeUp = {
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
-const AVATAR_GRADIENTS = [
-  'from-blue-500 to-purple-600',
-  'from-emerald-500 to-teal-600',
-  'from-orange-500 to-rose-600',
-  'from-indigo-500 to-cyan-500',
-  'from-pink-500 to-violet-600',
-  'from-amber-500 to-red-500',
-];
-
-function getAvatarGradient(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
-}
+// v2.18: getAvatarGradient, countMandatoryDocs, daysUntil y positionLabel se
+// mudaron a utils/employeeUi para que el modulo Colaboradores (fichas) use
+// exactamente los mismos avatares, contadores y etiquetas, sin duplicarlos.
 
 interface DocumentItem {
   key: keyof DocumentChecklist;
@@ -216,29 +210,15 @@ function buildInitialExpediente(
   };
 }
 
-function countMandatoryDocs(docs: DocumentChecklist): { completed: number; total: number } {
-  const mandatoryKeys: (keyof DocumentChecklist)[] = [
-    'solicitud', 'ine', 'actaNacimiento', 'curp', 'imss',
-    'comprobanteDomicilio', 'comprobanteEstudios', 'cartasRecomendacion', 'rfc',
-  ];
-  const total = mandatoryKeys.length;
-  const completed = mandatoryKeys.filter((k) => docs[k].done).length;
-  return { completed, total };
-}
-
-function daysUntil(dateStr: string): number {
-  const target = new Date(dateStr);
-  const now = new Date();
-  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-}
-
 // ── View State ──────────────────────────────────────────────────────────────
 
+// v2.18: la lista de empleados (y su expediente) se mudo al modulo
+// Colaboradores (/colaboradores). Contratacion se queda SOLO con lo que sirve
+// para dar de alta: candidatos, el formulario de contratacion y el alta directa
+// de colaboradores que ya trabajan aqui.
 type ViewState =
   | { view: 'candidates' }
   | { view: 'hiring-form'; candidateId: string }
-  | { view: 'employee-list' }
-  | { view: 'dossier'; employeeId: string }
   // v2.5: alta directa de colaboradores que YA trabajan en la empresa
   // (informacion real, sin pasar por recepcion/examen/entrevista)
   | { view: 'direct-registration' };
@@ -247,6 +227,15 @@ type ViewState =
 
 export default function HiringModule() {
   const [viewState, setViewState] = useState<ViewState>({ view: 'candidates' });
+  const navigate = useNavigate();
+  const setCurrentView = useStore((s) => s.setCurrentView);
+
+  // v2.18: al terminar una contratacion (o un alta directa) se aterriza en
+  // Colaboradores, que es donde ahora vive el expediente recien creado.
+  const goToColaboradores = useCallback(() => {
+    setCurrentView('colaboradores');
+    navigate('/colaboradores');
+  }, [navigate, setCurrentView]);
 
   // v2.4: sin AnimatePresence mode="wait" — el cambio de vista es inmediato y
   // solo se anima la entrada (una salida atorada dejaba la pantalla vacia).
@@ -256,7 +245,8 @@ export default function HiringModule() {
         <motion.div key="candidates" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
           <CandidatesReadyView
             onHire={(id) => setViewState({ view: 'hiring-form', candidateId: id })}
-            onViewEmployees={() => setViewState({ view: 'employee-list' })}
+            onViewEmployees={goToColaboradores}
+            onDirectRegister={() => setViewState({ view: 'direct-registration' })}
           />
         </motion.div>
       )}
@@ -265,32 +255,15 @@ export default function HiringModule() {
           <HiringFormView
             candidateId={viewState.candidateId}
             onBack={() => setViewState({ view: 'candidates' })}
-            onComplete={() => setViewState({ view: 'employee-list' })}
-          />
-        </motion.div>
-      )}
-      {viewState.view === 'employee-list' && (
-        <motion.div key="employee-list" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-          <EmployeeListView
-            onBack={() => setViewState({ view: 'candidates' })}
-            onViewDossier={(id) => setViewState({ view: 'dossier', employeeId: id })}
-            onDirectRegister={() => setViewState({ view: 'direct-registration' })}
-          />
-        </motion.div>
-      )}
-      {viewState.view === 'dossier' && (
-        <motion.div key="dossier" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
-          <DossierView
-            employeeId={viewState.employeeId}
-            onBack={() => setViewState({ view: 'employee-list' })}
+            onComplete={goToColaboradores}
           />
         </motion.div>
       )}
       {viewState.view === 'direct-registration' && (
         <motion.div key="direct-registration" {...pageTransition} className="flex-1 flex flex-col overflow-hidden">
           <DirectRegistrationView
-            onBack={() => setViewState({ view: 'employee-list' })}
-            onComplete={() => setViewState({ view: 'employee-list' })}
+            onBack={() => setViewState({ view: 'candidates' })}
+            onComplete={goToColaboradores}
           />
         </motion.div>
       )}
@@ -305,9 +278,10 @@ export default function HiringModule() {
 interface CandidatesReadyViewProps {
   onHire: (candidateId: string) => void;
   onViewEmployees: () => void;
+  onDirectRegister: () => void;
 }
 
-function CandidatesReadyView({ onHire, onViewEmployees }: CandidatesReadyViewProps) {
+function CandidatesReadyView({ onHire, onViewEmployees, onDirectRegister }: CandidatesReadyViewProps) {
   const { candidates, employees } = useStore();
   const [search, setSearch] = useState('');
   const [filterVerdict, setFilterVerdict] = useState<'all' | 'recommended' | 'reservations' | 'not_recommended'>('all');
@@ -341,13 +315,21 @@ function CandidatesReadyView({ onHire, onViewEmployees }: CandidatesReadyViewPro
             Candidatos con veredicto favorable listos para contratacion
           </p>
         </div>
-        <button
-          className="btn-secondary flex items-center gap-2"
-          onClick={onViewEmployees}
-        >
-          <Building size={16} />
-          Ver Empleados ({employees.length})
-        </button>
+        {/* v2.18: el alta directa vive aqui, junto a los candidatos. La seccion
+            de Colaboradores quedo solo para consultar expedientes. */}
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            className="btn-secondary flex items-center gap-2"
+            onClick={onViewEmployees}
+          >
+            <Building size={16} />
+            Ver Colaboradores ({employees.length})
+          </button>
+          <button className="btn-primary flex items-center gap-2" onClick={onDirectRegister}>
+            <UserPlus size={16} />
+            Registrar colaborador existente
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -565,12 +547,7 @@ function CatalogSelect({
 }
 
 // ── Puesto (v2.15) ──────────────────────────────────────────────────────────
-// Etiqueta de un puesto: nombre del catalogo base si es uno de los 4 codigos,
-// o el valor tal cual si es un puesto personalizado que RH agrego.
-function positionLabel(position: string): string {
-  return JOB_POSITIONS[position as JobPosition]?.name ?? position;
-}
-
+// La etiqueta de un puesto la resuelve positionLabel (utils/employeeUi).
 // Los 4 puestos base SIEMPRE disponibles (se guardan por codigo AG/AM/AO/EC).
 const BUILTIN_POSITION_OPTIONS = Object.entries(JOB_POSITIONS).map(([value, v]) => ({
   value,
@@ -1653,7 +1630,7 @@ function DocumentRow({ doc, checked, photoUrl, onToggle, onPhotoUpload, index, f
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// VIEW 3 : Employee List
+// VIEW 3 : Alta directa de colaboradores existentes
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // v2.5 — REGISTRO DIRECTO DE COLABORADORES EXISTENTES
 // Para capturar con informacion real a quienes YA trabajan en la empresa:
@@ -1999,236 +1976,6 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
   );
 }
 
-interface EmployeeListViewProps {
-  onBack: () => void;
-  onViewDossier: (employeeId: string) => void;
-  onDirectRegister: () => void;
-}
-
-function EmployeeListView({ onBack, onViewDossier, onDirectRegister }: EmployeeListViewProps) {
-  const { employees } = useStore();
-  const [search, setSearch] = useState('');
-  // v2.12: los colaboradores dados de baja (inactivos / egreso) se muestran en
-  // una pestana aparte, para no mezclarlos con los colaboradores normales.
-  const [tab, setTab] = useState<'activos' | 'bajas'>('activos');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'trial' | 'active'>('all');
-
-  const activosCount = useMemo(
-    () => employees.filter((e) => e.status !== 'inactive').length,
-    [employees],
-  );
-  const bajasCount = useMemo(
-    () => employees.filter((e) => e.status === 'inactive').length,
-    [employees],
-  );
-
-  const filteredEmployees = useMemo(() => {
-    return employees.filter((e) => {
-      const matchSearch = e.fullName.toLowerCase().includes(search.toLowerCase());
-      if (tab === 'bajas') return matchSearch && e.status === 'inactive';
-      // Pestana de activos: los dados de baja nunca aparecen aqui.
-      if (e.status === 'inactive') return false;
-      const matchStatus = filterStatus === 'all' || e.status === filterStatus;
-      return matchSearch && matchStatus;
-    });
-  }, [employees, search, filterStatus, tab]);
-
-  const statusConfig: Record<string, { label: string; badge: string; icon: React.ElementType }> = {
-    trial: { label: 'Periodo de Prueba', badge: 'badge-yellow', icon: Clock },
-    active: { label: 'Activo', badge: 'badge-green', icon: CheckCircle },
-    inactive: { label: 'Inactivo', badge: 'badge-red', icon: XCircle },
-  };
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <button
-          className="w-10 h-10 rounded-xl glass flex items-center justify-center text-surface-400 hover:text-white transition-colors cursor-pointer"
-          onClick={onBack}
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-500/20 to-primary-500/20 flex items-center justify-center">
-              <Building size={22} className="text-accent-400" />
-            </div>
-            Expedientes de Empleados
-          </h2>
-          <p className="text-surface-400 text-sm mt-1">
-            {tab === 'bajas'
-              ? `${bajasCount} ex-colaborador${bajasCount !== 1 ? 'es' : ''} dado${bajasCount !== 1 ? 's' : ''} de baja`
-              : `${activosCount} colaborador${activosCount !== 1 ? 'es' : ''} registrado${activosCount !== 1 ? 's' : ''}`}
-          </p>
-        </div>
-        {/* v2.5: alta directa de colaboradores que ya trabajan aqui */}
-        <button className="btn-primary flex items-center gap-2" onClick={onDirectRegister}>
-          <UserPlus size={16} />
-          Registrar colaborador existente
-        </button>
-      </div>
-
-      {/* v2.12: pestanas — colaboradores activos vs. bajas (ex-colaboradores) */}
-      <div className="flex items-center gap-2 mb-4">
-        <button
-          onClick={() => setTab('activos')}
-          className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer ${
-            tab === 'activos'
-              ? 'bg-primary-500/20 text-primary-300 ring-1 ring-primary-500/40'
-              : 'glass-card text-surface-400 hover:text-surface-200'
-          }`}
-        >
-          <Users size={15} /> Colaboradores
-          <span className="text-xs font-bold">{activosCount}</span>
-        </button>
-        <button
-          onClick={() => setTab('bajas')}
-          className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer ${
-            tab === 'bajas'
-              ? 'bg-danger-500/20 text-danger-400 ring-1 ring-danger-500/40'
-              : 'glass-card text-surface-400 hover:text-surface-200'
-          }`}
-        >
-          <UserX size={15} /> Ex-colaboradores
-          <span className="text-xs font-bold">{bajasCount}</span>
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="relative flex-1 max-w-md">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" />
-          <input
-            type="text"
-            placeholder={tab === 'bajas' ? 'Buscar ex-colaborador...' : 'Buscar empleado...'}
-            className="input-field pl-10"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        {tab === 'activos' && (
-          <select
-            className="input-field w-auto"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
-          >
-            <option value="all">Todos los estados</option>
-            <option value="trial">Periodo de prueba</option>
-            <option value="active">Activos</option>
-          </select>
-        )}
-      </div>
-
-      {/* Summary Badges (solo en la pestana de activos) */}
-      {tab === 'activos' && (
-        <div className="flex gap-3 mb-4">
-          {(['trial', 'active'] as const).map((status) => {
-            const count = employees.filter((e) => e.status === status).length;
-            const cfg = statusConfig[status];
-            return (
-              <div key={status} className="glass-card px-4 py-2 flex items-center gap-2">
-                <cfg.icon size={14} className={status === 'trial' ? 'text-warning-500' : 'text-success-500'} />
-                <span className="text-xs text-surface-400">{cfg.label}:</span>
-                <span className="text-sm font-bold text-white">{count}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Employee List */}
-      <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-        {filteredEmployees.length === 0 ? (
-          <motion.div {...fadeUp} className="glass-card p-12 text-center">
-            {tab === 'bajas' ? (
-              <>
-                <UserX size={48} className="mx-auto text-surface-600 mb-4" />
-                <p className="text-surface-400 text-lg font-medium">No hay ex-colaboradores</p>
-                <p className="text-surface-500 text-sm mt-1">
-                  Los colaboradores a los que se les da egreso apareceran aqui
-                </p>
-              </>
-            ) : (
-              <>
-                <Building size={48} className="mx-auto text-surface-600 mb-4" />
-                <p className="text-surface-400 text-lg font-medium">No hay empleados registrados</p>
-                <p className="text-surface-500 text-sm mt-1">
-                  Contrate candidatos para verlos aqui
-                </p>
-              </>
-            )}
-          </motion.div>
-        ) : (
-          filteredEmployees.map((employee, i) => {
-            const cfg = statusConfig[employee.status];
-            const StatusIcon = cfg.icon;
-            const trialDays = employee.status === 'trial' ? daysUntil(employee.trialEndDate) : null;
-
-            return (
-              <motion.div
-                key={employee.id}
-                custom={i}
-                variants={listItem}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                className="glass-card p-4 flex items-center gap-4 cursor-pointer group"
-                onClick={() => onViewDossier(employee.id)}
-              >
-                {/* Avatar */}
-                {employee.photoUrl ? (
-                  <MediaImage
-                    value={employee.photoUrl}
-                    alt={employee.fullName}
-                    className="w-12 h-12 rounded-xl object-cover border border-surface-600/30"
-                  />
-                ) : (
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getAvatarGradient(employee.fullName)} flex items-center justify-center text-white font-bold text-sm`}>
-                    {getInitials(employee.fullName)}
-                  </div>
-                )}
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold truncate">{employee.fullName}</p>
-                  <p className="text-surface-400 text-sm">
-                    {JOB_POSITIONS[employee.position]?.name ?? employee.position} &mdash; {employee.area}
-                  </p>
-                </div>
-
-                {/* Expedient number */}
-                <div className="text-right shrink-0">
-                  <p className="text-[10px] text-surface-500 uppercase tracking-wide">Expediente</p>
-                  <p className="text-sm font-bold text-surface-300">#{String(employee.expedientNumber).padStart(3, '0')}</p>
-                </div>
-
-                {/* Status badge */}
-                <span className={`badge ${cfg.badge} shrink-0`}>
-                  <StatusIcon size={12} />
-                  {cfg.label}
-                </span>
-
-                {/* Trial countdown */}
-                {trialDays !== null && (
-                  <div className={`shrink-0 text-right ${trialDays <= 5 ? 'text-danger-500' : trialDays <= 10 ? 'text-warning-500' : 'text-primary-400'}`}>
-                    <p className="text-[10px] uppercase tracking-wide opacity-70">Prueba</p>
-                    <p className="text-sm font-bold">
-                      {trialDays > 0 ? `${trialDays}d` : 'Vencido'}
-                    </p>
-                  </div>
-                )}
-
-                <ChevronRight size={18} className="text-surface-600 group-hover:text-surface-400 transition-colors shrink-0" />
-              </motion.div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // VIEW 4 : Employee Dossier
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2238,7 +1985,10 @@ interface DossierViewProps {
   onBack: () => void;
 }
 
-function DossierView({ employeeId, onBack }: DossierViewProps) {
+// v2.18: el expediente completo (Informacion / Documentos / Onboarding) se
+// reutiliza tal cual desde el modulo Colaboradores. Se exporta en lugar de
+// moverlo para no tocar una sola linea de su logica.
+export function DossierView({ employeeId, onBack }: DossierViewProps) {
   const { employees } = useStore();
   const employee = employees.find((e) => e.id === employeeId);
   const [activeTab, setActiveTab] = useState<'info' | 'documents' | 'onboarding'>('info');
@@ -2577,6 +2327,8 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
   const [d, setD] = useState<ExpDraft>(() => buildExpDraft(employee, candidate));
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
+  // v2.18: confirmacion obligatoria cuando el expediente pasa a Inactivo
+  const [confirmBaja, setConfirmBaja] = useState(false);
 
   // Si el expediente cambia por fuera (sync / recarga) y no hay cambios sin
   // guardar, se refresca el borrador para no mostrar datos viejos.
@@ -2644,7 +2396,20 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
   const pctSec = parseFloat(d.benefSecPct) || 0;
   const totalPct = pctPrim + pctSec;
 
+  // v2.18: guardar el expediente con Estatus = Inactivo ES dar de baja. Antes de
+  // escribirlo se pide confirmar que el usuario tambien se dio de baja en SAJA.
+  const dandoBaja = d.status === 'inactive' && employee.status !== 'inactive';
+
   const handleSave = () => {
+    if (!nombreOk) return;
+    if (dandoBaja) {
+      setConfirmBaja(true);
+      return;
+    }
+    doSave();
+  };
+
+  const doSave = () => {
     if (!nombreOk) return;
     const str = (v: string) => (v.trim() === '' ? undefined : v.trim());
     const num = (v: string) => {
@@ -3001,6 +2766,8 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
             <option value="inactive">Inactivo</option>
           </select>
         </Fld>
+        {/* v2.18: aviso de baja — el usuario de SAJA no se desactiva solo */}
+        {d.status === 'inactive' && <SajaBajaBanner className="md:col-span-2 xl:col-span-3" />}
         {/* v2.15: "Motivo de baja" se quito del expediente — la baja y su motivo
             se manejan en el modulo de Egreso. El dato guardado (si existe) se
             conserva y no se borra al guardar el expediente. */}
@@ -3092,6 +2859,18 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
 
       {/* Barra de guardado (abajo) */}
       <div className="glass-card p-4 flex items-center justify-end">{SaveBar}</div>
+
+      {/* v2.18: confirmacion obligatoria al dejar el expediente como inactivo */}
+      <SajaBajaConfirmModal
+        open={confirmBaja}
+        employeeName={fullNameCompuesto || employee.fullName}
+        confirmLabel="Ya lo verifique, guardar baja"
+        onCancel={() => setConfirmBaja(false)}
+        onConfirm={() => {
+          setConfirmBaja(false);
+          doSave();
+        }}
+      />
     </div>
   );
 }

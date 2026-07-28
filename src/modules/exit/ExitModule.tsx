@@ -34,6 +34,7 @@ import {
 import { escapeHtml, printHtmlDocument, printSignedDocument } from '../../utils/printDoc';
 import { buildDocuments } from '../../utils/documentsV2';
 import StarRating from '../../components/StarRating';
+import { SajaBajaBanner, SajaBajaConfirmModal } from '../../components/SajaBajaAviso';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -398,6 +399,9 @@ function ExitRegistrationView({
   const [form, setForm] = useState<ExitFormState>(createEmptyForm);
   const [showPreview, setShowPreview] = useState(false);
   const [suggestedType, setSuggestedType] = useState<LetterType | null>(null);
+  // v2.18: confirmacion obligatoria antes de dejar al colaborador como inactivo
+  // (recordatorio de dar de baja tambien su usuario en SAJA).
+  const [confirmBaja, setConfirmBaja] = useState(false);
   // v2.13: carta de renuncia voluntaria (solo para renuncia)
   const [renunciaPreview, setRenunciaPreview] = useState(false);
 
@@ -481,7 +485,7 @@ function ExitRegistrationView({
     );
   }
 
-  const handleSubmit = () => {
+  const doSubmit = () => {
     const exitData: ExitData = {
       exitDate: form.exitDate,
       exitType: form.exitType,
@@ -539,6 +543,9 @@ function ExitRegistrationView({
               <LogOut size={18} className="text-primary-400" />
               Datos del Egreso
             </h2>
+
+            {/* v2.18: recordatorio — el usuario de SAJA no se desactiva solo */}
+            <SajaBajaBanner />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -893,7 +900,7 @@ function ExitRegistrationView({
               Cancelar
             </button>
             <button
-              onClick={handleSubmit}
+              onClick={() => setConfirmBaja(true)}
               disabled={!form.exitDate || !form.reason}
               className="btn-danger flex items-center gap-2"
             >
@@ -901,6 +908,18 @@ function ExitRegistrationView({
               Registrar Egreso
             </button>
           </div>
+
+          {/* v2.18: confirmacion obligatoria — recuerda dar de baja en SAJA */}
+          <SajaBajaConfirmModal
+            open={confirmBaja}
+            employeeName={employee.fullName}
+            confirmLabel="Ya lo verifique, registrar egreso"
+            onCancel={() => setConfirmBaja(false)}
+            onConfirm={() => {
+              setConfirmBaja(false);
+              doSubmit();
+            }}
+          />
         </div>
 
         {/* Sidebar: History Summary */}

@@ -9,6 +9,7 @@ import LoginScreen from './components/LoginScreen';
 import RecruitmentModule from './modules/recruitment/RecruitmentModule';
 import InterviewModule from './modules/interview/InterviewModule';
 import HiringModule from './modules/hiring/HiringModule';
+import EmployeesModule from './modules/employees/EmployeesModule';
 import OnboardingModule from './modules/onboarding/OnboardingModule';
 import PerformanceModule from './modules/performance/PerformanceModule';
 import ExitModule from './modules/exit/ExitModule';
@@ -57,6 +58,8 @@ export default function App() {
           <Route path="recruitment" element={<RecruitmentModule />} />
           <Route path="interview" element={<InterviewModule />} />
           <Route path="hiring" element={<HiringModule />} />
+          {/* v2.18: expedientes en fichas — seccion de solo consulta */}
+          <Route path="colaboradores" element={<EmployeesModule />} />
           <Route path="onboarding" element={<OnboardingModule />} />
           <Route path="training" element={<TrainingModule />} />
           <Route path="performance" element={<PerformanceModule />} />
