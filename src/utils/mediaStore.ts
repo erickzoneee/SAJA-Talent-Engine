@@ -19,6 +19,9 @@ import { compressImageFile, fileToBase64 } from './helpers';
 const BUCKET = 'media';
 const PREFIX = 'sb:'; // marca de "esto es una ruta en Storage"
 const MAX_STORAGE_BYTES = 25 * 1024 * 1024; // 25 MB por archivo hacia Storage
+// v2.19 — el video de un proceso pesa mas que una foto o un PDF, pero tampoco
+// puede ser ilimitado (el bucket de Supabase suele topar en 50 MB por archivo).
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 const SIGNED_TTL = 3600; // 1 hora
 const UPLOAD_TIMEOUT_MS = 45000; // la subida no puede colgar el sistema para siempre
 const SIGN_TIMEOUT_MS = 12000;
@@ -45,12 +48,12 @@ export function isStoragePath(v?: string): boolean {
   return !!v && v.startsWith(PREFIX);
 }
 
-// Detecta si el valor (data URL o ruta "sb:...") es imagen o PDF, para decidir
-// entre mostrar <img> o el visor/insignia de PDF.
+// Detecta si el valor (data URL o ruta "sb:...") es imagen, video o PDF, para
+// decidir entre mostrar <img>, <video> o el visor/insignia de PDF.
 export function isImageMedia(v?: string): boolean {
   if (!v) return false;
   if (v.startsWith('data:')) return v.startsWith('data:image/');
-  return !/\.pdf(\?|$)/i.test(v); // rutas/URLs: PDF por extension, lo demas imagen
+  return !isPdfMedia(v) && !isVideoMedia(v); // rutas/URLs: por extension
 }
 
 export function isPdfMedia(v?: string): boolean {
@@ -59,14 +62,43 @@ export function isPdfMedia(v?: string): boolean {
   return /\.pdf(\?|$)/i.test(v);
 }
 
+const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v|3gp|mkv|ogv|avi)(\?|$)/i;
+
+/** v2.19 — true si el valor apunta a un video (por mime en data: o por extension). */
+export function isVideoMedia(v?: string): boolean {
+  if (!v) return false;
+  if (v.startsWith('data:')) return v.startsWith('data:video/');
+  return VIDEO_EXT_RE.test(v);
+}
+
 function canUseStorage(): boolean {
   return SUPABASE_ENABLED && getSupaStatus().signedIn;
 }
 
+// La extension del archivo importa: al mostrarlo se decide <img> o <video> por
+// ella. Un video guardado como ".bin" se intentaria pintar como imagen.
+const VIDEO_EXT: Record<string, string> = {
+  'video/mp4': 'mp4',
+  'video/webm': 'webm',
+  'video/quicktime': 'mov',
+  'video/x-m4v': 'm4v',
+  'video/3gpp': '3gp',
+  'video/x-matroska': 'mkv',
+  'video/ogg': 'ogv',
+  'video/avi': 'avi',
+  'video/x-msvideo': 'avi',
+};
+
 function extFor(mime: string): string {
-  if (mime === 'application/pdf') return 'pdf';
-  if (mime.startsWith('image/')) return mime.slice(6).split('+')[0] || 'jpg';
+  const base = mime.split(';')[0].trim().toLowerCase();
+  if (base === 'application/pdf') return 'pdf';
+  if (base.startsWith('video/')) return VIDEO_EXT[base] ?? 'mp4';
+  if (base.startsWith('image/')) return base.slice(6).split('+')[0] || 'jpg';
   return 'bin';
+}
+
+function mb(bytes: number): string {
+  return (bytes / 1024 / 1024).toFixed(1);
 }
 
 // Comprime una imagen a un Blob JPEG (canvas.toBlob) SIN pasar por una cadena
@@ -116,11 +148,22 @@ function slug(s: string): string {
  */
 export async function storeMediaFile(file: File, folder: string, key: string): Promise<string> {
   const isImage = file.type.startsWith('image/');
+  const isVideo = file.type.startsWith('video/');
+
+  // v2.19 — El video SIEMPRE va a la nube. Guardarlo en base64 dentro del
+  // navegador (el respaldo local) reventaria el almacenamiento en el primer
+  // archivo, asi que se avisa claro en lugar de romper el guardado.
+  if (isVideo && !canUseStorage()) {
+    throw new Error(
+      'Para subir video necesitas la sesion en la nube activa. Inicia sesion (Supabase) y vuelve a intentarlo.',
+    );
+  }
 
   if (canUseStorage()) {
-    if (file.size > MAX_STORAGE_BYTES) {
+    const maxBytes = isVideo ? MAX_VIDEO_BYTES : MAX_STORAGE_BYTES;
+    if (file.size > maxBytes) {
       throw new Error(
-        `El archivo pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. El maximo es de 25 MB.`,
+        `El archivo pesa ${mb(file.size)} MB. El maximo es de ${mb(maxBytes)} MB.`,
       );
     }
     // Se sube el archivo DIRECTO (las imagenes se comprimen a un Blob). No se
@@ -146,6 +189,11 @@ export async function storeMediaFile(file: File, folder: string, key: string): P
     } catch (e) {
       // Timeout o error de red: NO se cuelga la UI. Para archivos chicos se
       // guarda local como respaldo; para grandes se avisa claro.
+      if (isVideo) {
+        throw new Error(
+          'La subida del video fallo o tardo demasiado. Revisa tu conexion e intenta de nuevo.',
+        );
+      }
       if (String(e).includes('timeout') && !isImage && file.size > 4 * 1024 * 1024) {
         throw new Error('La subida tardo demasiado (revisa tu conexion) y se cancelo. Intenta de nuevo.');
       }
@@ -154,6 +202,11 @@ export async function storeMediaFile(file: File, folder: string, key: string): P
     if (result.error) {
       // Storage respondio error (p. ej. falta el bucket). Chicos → base64 local;
       // grandes → aviso claro para crear el bucket "media".
+      if (isVideo) {
+        throw new Error(
+          `No se pudo subir el video a la nube. Revisa que exista el bucket "media" en Supabase y que acepte archivos de video. Detalle: ${result.error.message}`,
+        );
+      }
       if (isImage || file.size <= 4 * 1024 * 1024) return storeLocalFallback(file, isImage);
       throw new Error(
         `No se pudo subir el archivo a la nube. Revisa que exista el bucket "media" en Supabase con sus permisos. Detalle: ${result.error.message}`,
@@ -166,9 +219,14 @@ export async function storeMediaFile(file: File, folder: string, key: string): P
 }
 
 async function storeLocalFallback(file: File, isImage: boolean): Promise<string> {
+  if (file.type.startsWith('video/')) {
+    throw new Error(
+      'Para subir video necesitas la sesion en la nube activa. Inicia sesion (Supabase) y vuelve a intentarlo.',
+    );
+  }
   if (!isImage && file.size > 4 * 1024 * 1024) {
     throw new Error(
-      `El archivo pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. Sin sincronizacion en la nube, el maximo para documentos que no son imagen es de 4 MB. Inicia sesion en la nube para subir archivos grandes, o comprime el PDF.`,
+      `El archivo pesa ${mb(file.size)} MB. Sin sincronizacion en la nube, el maximo para documentos que no son imagen es de 4 MB. Inicia sesion en la nube para subir archivos grandes, o comprime el PDF.`,
     );
   }
   return isImage ? compressImageFile(file) : fileToBase64(file);

@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search as SearchIcon, BookOpen, ArrowLeft, ArrowRight, Check } from 'lucide-react';
+import { Search as SearchIcon, BookOpen, ArrowLeft, ArrowRight, Check, Video } from 'lucide-react';
 import type { Proceso } from '../../types/training';
 import { useTrainingStore } from '../../store/useTrainingStore';
 import { narrativaVisible } from '../../utils/trainingHelpers';
 import { TrainingHeader, EmptyState, FullscreenImage } from './shared';
 import { fadeUp } from './anims';
 import NarrationButton from '../../components/NarrationButton';
-import MediaImage from '../../components/MediaImage';
+import MediaImage, { MediaVideo } from '../../components/MediaImage';
 
 export default function QuickConsult({ onBack }: { onBack: () => void }) {
   const procesos = useTrainingStore((s) => s.procesos);
@@ -62,9 +62,25 @@ export default function QuickConsult({ onBack }: { onBack: () => void }) {
           {mp && (
             <AnimatePresence mode="wait">
               <motion.div key={mp.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }} className="space-y-4">
+                {mpIdx === 0 && proc.portadaVideo && (
+                  <div className="glass-card p-2">
+                    <p className="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
+                      <Video size={13} /> Video del proceso completo
+                    </p>
+                    <MediaVideo value={proc.portadaVideo} className="w-full max-h-64 rounded-xl bg-black/50" />
+                  </div>
+                )}
                 {mp.fotos.length > 0 && (
                   <div className="glass-card p-2">
                     <MediaImage value={mp.fotos[0].url} alt="" onClick={() => setZoom(mp.fotos[0].url)} className="w-full max-h-64 object-contain rounded-xl cursor-zoom-in bg-black/40" />
+                  </div>
+                )}
+                {mp.videoUrl && (
+                  <div className="glass-card p-2">
+                    <p className="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
+                      <Video size={13} /> Video del paso
+                    </p>
+                    <MediaVideo value={mp.videoUrl} className="w-full max-h-64 rounded-xl bg-black/50" />
                   </div>
                 )}
                 <div className="glass-card p-5">

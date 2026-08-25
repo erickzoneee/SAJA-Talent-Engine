@@ -51,6 +51,8 @@ export interface ProcesoPaso {
   narrativaMejorada?: string;
   fotos: ProcesoFoto[];
   duracionEstimada?: number;
+  /** v2.19 — Video del paso (ruta "sb:..." en Storage). Opcional. */
+  videoUrl?: string;
 }
 
 /** Pregunta de opción múltiple de la evaluación (spec 3.5). */
@@ -81,6 +83,8 @@ export interface Proceso {
   portadaInicio?: string;
   portadaResultado?: string;
   portadaNarracion?: string;
+  /** v2.19 — Video general del proceso (ruta "sb:..." en Storage). Opcional. */
+  portadaVideo?: string;
 
   // Recursos necesarios (spec 4.2.3)
   materiales: string[];

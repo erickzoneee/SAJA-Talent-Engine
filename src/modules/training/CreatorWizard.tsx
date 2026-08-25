@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wrench,
@@ -28,7 +28,7 @@ import {
   mejorarTextoLocal,
   numPreguntasPorComplejidad,
 } from '../../utils/trainingHelpers';
-import { TrainingHeader, PhotoManager, SinglePhotoPicker, ConfirmDialog } from './shared';
+import { TrainingHeader, PhotoManager, SinglePhotoPicker, VideoPicker, ConfirmDialog } from './shared';
 import { fadeUp, scaleIn } from './anims';
 import NarrationButton from '../../components/NarrationButton';
 import MediaImage from '../../components/MediaImage';
@@ -37,6 +37,26 @@ const STEPS = ['Datos', 'Portada', 'Recursos', 'Pasos', 'Evaluación', 'Publicar
 
 function uid(p: string): string {
   return `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+// v2.19 — EPP que viene marcado de fabrica en cada proceso NUEVO (cubrebocas y
+// cofia son obligatorios en planta). Se buscan en el catalogo por id y tambien
+// por nombre, para que sigan funcionando si alguien los renombra o los vuelve a
+// crear desde Catalogos. Se pueden desmarcar en cualquier proceso.
+const EPP_DEFAULT_IDS = ['epp_cubreboca', 'epp_cofia'];
+const EPP_DEFAULT_RE = /cubrebocas|cofia/i;
+
+/** Huella barata de un valor de media (ruta corta o base64 gigante). */
+function fpMedia(v?: string): string {
+  return v ? `${v.length}:${v.slice(-24)}` : '';
+}
+
+function eppPorDefecto(): string[] {
+  const { epp } = useTrainingStore.getState().catalogs;
+  const nombres = epp
+    .filter((e) => e.activo && (EPP_DEFAULT_IDS.includes(e.id) || EPP_DEFAULT_RE.test(e.nombre)))
+    .map((e) => e.nombre);
+  return [...new Set(nombres)];
 }
 
 function blankProceso(creadoPor: string): Proceso {
@@ -51,7 +71,7 @@ function blankProceso(creadoPor: string): Proceso {
     estado: 'borrador',
     materiales: [],
     equipo: [],
-    epp: [],
+    epp: eppPorDefecto(),
     pasos: [],
     preguntas: [],
     creadoPor,
@@ -77,6 +97,31 @@ export default function CreatorWizard({ procesoId, creadoPor, onDone }: CreatorW
   function upd(changes: Partial<Proceso>) {
     setProc((p) => ({ ...p, ...changes }));
   }
+
+  // Actualiza los pasos SOBRE EL ESTADO MAS RECIENTE. Subir una foto o un video
+  // tarda; si mientras tanto se escribio en otro campo del paso, la version en
+  // forma funcional evita que la subida pise ese texto (stale closure).
+  function updPasos(fn: (pasos: ProcesoPaso[]) => ProcesoPaso[]) {
+    setProc((p) => ({ ...p, pasos: fn(p.pasos) }));
+  }
+
+  // v2.19 — Guarda solo cuando cambia una FOTO o un VIDEO y el proceso ya
+  // existe en la biblioteca: subir media cuesta tiempo y datos, y antes se
+  // perdia si se salia del asistente sin tocar "Siguiente".
+  // La huella usa solo el largo y la cola de cada valor: sin sesion en la nube
+  // las fotos son base64 de cientos de KB y compararlas enteras en cada tecla
+  // pondria lenta la escritura.
+  const mediaFp = [
+    fpMedia(proc.portadaInicio),
+    fpMedia(proc.portadaResultado),
+    fpMedia(proc.portadaVideo),
+    ...proc.pasos.map((p) => `${p.id}|${fpMedia(p.videoUrl)}|${p.fotos.map((f) => fpMedia(f.url)).join(',')}`),
+  ].join('~');
+  useEffect(() => {
+    if (!procesos.some((p) => p.id === proc.id)) return;
+    updateProceso(proc.id, proc);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaFp]);
 
   function persist(extra: Partial<Proceso> = {}) {
     const toSave = { ...proc, ...extra };
@@ -160,7 +205,7 @@ export default function CreatorWizard({ procesoId, creadoPor, onDone }: CreatorW
             {step === 0 && <StepDatos proc={proc} upd={upd} />}
             {step === 1 && <StepPortada proc={proc} upd={upd} />}
             {step === 2 && <StepRecursos proc={proc} upd={upd} />}
-            {step === 3 && <StepPasos proc={proc} upd={upd} />}
+            {step === 3 && <StepPasos proc={proc} updPasos={updPasos} />}
             {step === 4 && <StepEvaluacion proc={proc} upd={upd} />}
             {step === 5 && <StepPublicar proc={proc} onPublish={() => persist({ estado: 'publicado', publicadoAt: new Date().toISOString() })} onDone={onDone} />}
           </motion.div>
@@ -326,7 +371,8 @@ function StepPortada({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>) 
           <ImageIcon size={18} className="text-emerald-400" /> Portada del proceso
         </h2>
         <p className="text-sm text-surface-400 mb-4">
-          Es lo primero que ve el trabajador: el punto de partida y el resultado esperado.
+          Es lo primero que ve el trabajador: el punto de partida y el resultado esperado. Toca una
+          foto para verla más grande.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SinglePhotoPicker
@@ -340,6 +386,16 @@ function StepPortada({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>) 
             onChange={(v) => upd({ portadaResultado: v })}
           />
         </div>
+      </div>
+
+      <div className="glass-card p-5">
+        <VideoPicker
+          compact
+          label="Video del proceso completo"
+          hint="Opcional. El trabajador lo ve en la portada, antes de empezar los pasos."
+          value={proc.portadaVideo}
+          onChange={(v) => upd({ portadaVideo: v })}
+        />
       </div>
 
       <div className="glass-card p-5">
@@ -491,36 +547,47 @@ function StepRecursos({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>)
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ETAPA 4 — PASOS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-function StepPasos({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>) => void }) {
+function StepPasos({
+  proc,
+  updPasos,
+}: {
+  proc: Proceso;
+  updPasos: (fn: (pasos: ProcesoPaso[]) => ProcesoPaso[]) => void;
+}) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
 
   function addPaso() {
     const nuevo: ProcesoPaso = { id: uid('mp'), nombre: '', narrativa: '', fotos: [] };
-    upd({ pasos: [...proc.pasos, nuevo] });
+    updPasos((pasos) => [...pasos, nuevo]);
     setOpenId(nuevo.id);
   }
   function updPaso(id: string, changes: Partial<ProcesoPaso>) {
-    upd({ pasos: proc.pasos.map((p) => (p.id === id ? { ...p, ...changes } : p)) });
+    updPasos((pasos) => pasos.map((p) => (p.id === id ? { ...p, ...changes } : p)));
   }
   function move(i: number, dir: -1 | 1) {
-    const j = i + dir;
-    if (j < 0 || j >= proc.pasos.length) return;
-    const arr = [...proc.pasos];
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-    upd({ pasos: arr });
+    updPasos((pasos) => {
+      const j = i + dir;
+      if (j < 0 || j >= pasos.length) return pasos;
+      const arr = [...pasos];
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+      return arr;
+    });
   }
   function duplicate(i: number) {
-    const orig = proc.pasos[i];
-    const copia: ProcesoPaso = {
-      ...orig,
-      id: uid('mp'),
-      nombre: `${orig.nombre} (copia)`,
-      fotos: orig.fotos.map((f) => ({ ...f, id: uid('f') })),
-    };
-    const arr = [...proc.pasos];
-    arr.splice(i + 1, 0, copia);
-    upd({ pasos: arr });
+    updPasos((pasos) => {
+      const orig = pasos[i];
+      if (!orig) return pasos;
+      const copia: ProcesoPaso = {
+        ...orig,
+        id: uid('mp'),
+        nombre: `${orig.nombre} (copia)`,
+        fotos: orig.fotos.map((f) => ({ ...f, id: uid('f') })),
+      };
+      const arr = [...pasos];
+      arr.splice(i + 1, 0, copia);
+      return arr;
+    });
   }
 
   return (
@@ -559,6 +626,7 @@ function StepPasos({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>) =>
                 </span>
                 <span className="text-xs text-surface-500">
                   {mp.fotos.length} foto{mp.fotos.length !== 1 ? 's' : ''}
+                  {mp.videoUrl && <span className="text-emerald-400 ml-2">• con video</span>}
                   {incompleto && <span className="text-amber-400 ml-2">• incompleto</span>}
                 </span>
               </button>
@@ -605,6 +673,15 @@ function StepPasos({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>) =>
                       <p className="text-sm font-semibold text-surface-300 mb-2">📷 Fotos del paso</p>
                       <PhotoManager fotos={mp.fotos} onChange={(fotos) => updPaso(mp.id, { fotos })} />
                     </div>
+                    <div className="border-t border-surface-700/30 pt-4">
+                      <VideoPicker
+                        compact
+                        label="Video del paso"
+                        hint="Opcional. Se muestra al trabajador junto con las fotos de este paso."
+                        value={mp.videoUrl}
+                        onChange={(videoUrl) => updPaso(mp.id, { videoUrl })}
+                      />
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -628,7 +705,7 @@ function StepPasos({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>) =>
         danger
         onCancel={() => setConfirmDel(null)}
         onConfirm={() => {
-          upd({ pasos: proc.pasos.filter((p) => p.id !== confirmDel) });
+          updPasos((pasos) => pasos.filter((p) => p.id !== confirmDel));
           setConfirmDel(null);
         }}
       />

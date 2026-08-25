@@ -11,6 +11,8 @@ import {
   ShieldAlert,
   RotateCcw,
   ShieldCheck,
+  Maximize2,
+  Video,
 } from 'lucide-react';
 import type { Proceso, Pregunta, RespuestaRegistro, RegistroCapacitacion } from '../../types/training';
 import { useTrainingStore } from '../../store/useTrainingStore';
@@ -23,7 +25,7 @@ import {
 import { TrainingHeader, EmptyState, FullscreenImage } from './shared';
 import { fadeUp, scaleIn, useEmpleados } from './anims';
 import NarrationButton from '../../components/NarrationButton';
-import MediaImage from '../../components/MediaImage';
+import MediaImage, { MediaVideo } from '../../components/MediaImage';
 
 type Vista = 'id' | 'lib' | 'portada' | 'present' | 'eval' | 'result' | 'bloqueado';
 
@@ -383,14 +385,25 @@ function Biblioteca({
 
 function PortadaProceso({ proc, onBack, onComenzar }: { proc: Proceso; onBack: () => void; onComenzar: () => void }) {
   const catalogs = useTrainingStore((s) => s.catalogs);
+  // v2.19 — tocar una foto de portada la abre a pantalla completa
+  const [zoom, setZoom] = useState<string | null>(null);
   return (
     <div className="flex flex-col gap-5 overflow-hidden h-full">
       <TrainingHeader icon={Play} gradient="from-blue-500 to-indigo-600" title={proc.nombre} subtitle="Antes de empezar, observa el objetivo" onBack={onBack} />
       <div className="flex-1 overflow-y-auto pr-1 space-y-4">
         <motion.div {...fadeUp} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <PortadaFoto titulo="Así empezamos" src={proc.portadaInicio} />
-          <PortadaFoto titulo="Así debe quedar" src={proc.portadaResultado} />
+          <PortadaFoto titulo="Así empezamos" src={proc.portadaInicio} onZoom={setZoom} />
+          <PortadaFoto titulo="Así debe quedar" src={proc.portadaResultado} onZoom={setZoom} />
         </motion.div>
+
+        {proc.portadaVideo && (
+          <motion.div {...fadeUp} className="glass-card p-3">
+            <p className="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Video size={13} /> Video del proceso
+            </p>
+            <MediaVideo value={proc.portadaVideo} className="w-full max-h-72 rounded-xl bg-black/50" />
+          </motion.div>
+        )}
 
         <motion.div {...fadeUp} className="glass-card p-5">
           <h3 className="text-base font-bold text-surface-100 mb-1">Objetivo</h3>
@@ -425,16 +438,32 @@ function PortadaProceso({ proc, onBack, onComenzar }: { proc: Proceso; onBack: (
           <Play size={18} /> Comenzar capacitación
         </button>
       </div>
+
+      <AnimatePresence>{zoom && <FullscreenImage src={zoom} onClose={() => setZoom(null)} />}</AnimatePresence>
     </div>
   );
 }
 
-function PortadaFoto({ titulo, src }: { titulo: string; src?: string }) {
+function PortadaFoto({ titulo, src, onZoom }: { titulo: string; src?: string; onZoom?: (src: string) => void }) {
   return (
     <div className="glass-card p-3">
       <p className="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2">{titulo}</p>
-      <div className="aspect-video rounded-xl overflow-hidden bg-black/40 flex items-center justify-center">
-        {src ? <MediaImage value={src} alt={titulo} className="w-full h-full object-contain" /> : <span className="text-surface-600 text-sm">Sin foto</span>}
+      <div className="relative aspect-video rounded-xl overflow-hidden bg-black/40 flex items-center justify-center">
+        {src ? (
+          <>
+            <MediaImage
+              value={src}
+              alt={titulo}
+              onClick={() => onZoom?.(src)}
+              className="w-full h-full object-contain cursor-zoom-in"
+            />
+            <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-black/60 px-2 py-1 text-[11px] text-white pointer-events-none">
+              <Maximize2 size={12} /> Ver grande
+            </span>
+          </>
+        ) : (
+          <span className="text-surface-600 text-sm">Sin foto</span>
+        )}
       </div>
     </div>
   );
@@ -497,6 +526,14 @@ function Presentacion({
               <div className="glass-card p-2">
                 <MediaImage value={mp.fotos[0].url} alt="" onClick={() => setZoom(mp.fotos[0].url)} className="w-full max-h-72 object-contain rounded-xl cursor-zoom-in bg-black/40" />
                 {mp.fotos[0].desc && <p className="text-xs text-surface-400 text-center mt-2">{mp.fotos[0].desc}</p>}
+              </div>
+            )}
+            {mp.videoUrl && (
+              <div className="glass-card p-2">
+                <p className="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
+                  <Video size={13} /> Video del paso
+                </p>
+                <MediaVideo value={mp.videoUrl} className="w-full max-h-72 rounded-xl bg-black/50" />
               </div>
             )}
             <div className="glass-card p-5">

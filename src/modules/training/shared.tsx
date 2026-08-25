@@ -11,11 +11,15 @@ import {
   Maximize2,
   X,
   AlertTriangle,
+  Loader2,
+  Video,
+  Upload,
+  ImageOff,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import type { ProcesoFoto } from '../../types/training';
 import { storeMediaFile, rotateStoredMedia } from '../../utils/mediaStore';
-import MediaImage from '../../components/MediaImage';
+import MediaImage, { MediaVideo } from '../../components/MediaImage';
 import { fadeUp } from './anims';
 
 // Las fotos de capacitacion se guardan en Supabase Storage (ruta "sb:...") para
@@ -195,16 +199,20 @@ export function SinglePhotoPicker({
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // v2.19 — visor a pantalla completa de la foto de portada
+  const [zoom, setZoom] = useState(false);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     setBusy(true);
+    setError(null);
     try {
       onChange(await storeMediaFile(file, TRAINING_MEDIA_FOLDER, 'portada'));
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'No se pudo guardar la foto.');
+      setError(err instanceof Error ? err.message : 'No se pudo guardar la foto.');
     } finally {
       setBusy(false);
     }
@@ -226,15 +234,34 @@ export function SinglePhotoPicker({
         {label}
       </span>
       {value ? (
-        <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-surface-600/30 bg-black/40">
-          <MediaImage value={value} alt={label} className="w-full h-full object-contain" />
-        </div>
+        <button
+          type="button"
+          onClick={() => setZoom(true)}
+          title="Ver la imagen más grande"
+          className="relative w-full aspect-video rounded-xl overflow-hidden border border-surface-600/30 bg-black/40 cursor-zoom-in group"
+        >
+          <MediaImage
+            value={value}
+            alt={label}
+            className="w-full h-full object-contain"
+            fallback={<span className="text-xs text-surface-500">Cargando…</span>}
+          />
+          <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-black/60 px-2 py-1 text-[11px] text-white opacity-80 group-hover:opacity-100">
+            <Maximize2 size={12} /> Ver grande
+          </span>
+        </button>
       ) : (
         <div className="w-full aspect-video rounded-xl border-2 border-dashed border-surface-600/40 flex flex-col items-center justify-center text-surface-500">
           <Camera size={28} />
           <span className="text-xs mt-2">Sin foto</span>
         </div>
       )}
+      {busy && (
+        <span className="text-xs text-surface-400 flex items-center gap-1.5">
+          <Loader2 size={13} className="animate-spin" /> Guardando foto…
+        </span>
+      )}
+      {error && <span className="text-xs text-danger-400 text-center">{error}</span>}
       <div className="flex flex-wrap gap-2 justify-center">
         <button
           type="button"
@@ -257,6 +284,14 @@ export function SinglePhotoPicker({
             <button
               type="button"
               className="btn-secondary text-xs flex items-center gap-1.5"
+              onClick={() => setZoom(true)}
+              disabled={busy}
+            >
+              <Maximize2 size={14} /> Ver grande
+            </button>
+            <button
+              type="button"
+              className="btn-secondary text-xs flex items-center gap-1.5"
               onClick={rotate}
               disabled={busy}
             >
@@ -275,6 +310,108 @@ export function SinglePhotoPicker({
       </div>
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handleFile} className="hidden" />
       <input ref={galleryRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+      <AnimatePresence>
+        {zoom && value && <FullscreenImage src={value} onClose={() => setZoom(false)} />}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Selector de video (portada del proceso / paso) ───────────────────────────
+// v2.19 — El video vive en Supabase Storage igual que las fotos; aqui solo se
+// guarda la ruta "sb:...". Es opcional: si no hay video, no se muestra nada al
+// trabajador.
+
+export function VideoPicker({
+  value,
+  onChange,
+  label,
+  hint,
+  compact,
+}: {
+  value?: string;
+  onChange: (url: string | undefined) => void;
+  label: string;
+  hint?: string;
+  compact?: boolean;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const camRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    // Se toma el archivo ANTES de limpiar el input: al asignar value='' el
+    // navegador vacia la lista de archivos.
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      onChange(await storeMediaFile(file, TRAINING_MEDIA_FOLDER, 'video'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo subir el video.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className={compact ? '' : 'glass-card p-4'}>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="text-sm font-semibold text-surface-300 flex items-center gap-1.5">
+          <Video size={15} className="text-emerald-400" /> {label}
+        </span>
+        {value && !busy && (
+          <button
+            type="button"
+            onClick={() => onChange(undefined)}
+            className="text-xs text-surface-400 hover:text-danger-500 cursor-pointer flex items-center gap-1"
+          >
+            <Trash2 size={13} /> Quitar
+          </button>
+        )}
+      </div>
+      {hint && <p className="text-[11px] text-surface-500 mb-2">{hint}</p>}
+
+      {value ? (
+        <MediaVideo value={value} className="w-full max-h-64 rounded-xl bg-black/50" />
+      ) : (
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={busy}
+            className="flex-1 border-2 border-dashed border-surface-600/40 rounded-xl py-3 flex items-center justify-center gap-2 text-surface-400 hover:text-surface-200 hover:border-surface-500/60 transition-all text-sm disabled:opacity-50"
+          >
+            <Upload size={16} /> Subir video
+          </button>
+          <button
+            type="button"
+            onClick={() => camRef.current?.click()}
+            disabled={busy}
+            className="flex-1 border-2 border-dashed border-surface-600/40 rounded-xl py-3 flex items-center justify-center gap-2 text-surface-400 hover:text-surface-200 hover:border-surface-500/60 transition-all text-sm disabled:opacity-50"
+          >
+            <Video size={16} /> Grabar video
+          </button>
+        </div>
+      )}
+
+      {busy && (
+        <p className="text-xs text-surface-400 flex items-center gap-1.5 mt-2">
+          <Loader2 size={13} className="animate-spin" /> Subiendo video… puede tardar según tu conexión.
+        </p>
+      )}
+      {error && <p className="text-xs text-danger-400 mt-2 leading-relaxed">{error}</p>}
+      {!value && !busy && !error && (
+        <p className="text-[11px] text-surface-500 mt-2">
+          Opcional · máx 50 MB · se guarda en la nube para verse en todos los dispositivos.
+        </p>
+      )}
+
+      <input ref={fileRef} type="file" accept="video/*" onChange={handleFile} className="hidden" />
+      <input ref={camRef} type="file" accept="video/*" capture="environment" onChange={handleFile} className="hidden" />
     </div>
   );
 }
@@ -293,24 +430,35 @@ export function PhotoManager({
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState<string | null>(null);
 
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
+    // v2.19 BUGFIX: `e.target.files` es una lista VIVA del input. Al hacer
+    // `e.target.value = ''` (para poder volver a elegir la misma foto) esa
+    // lista se vacia, asi que hay que COPIARLA antes. Sin la copia la funcion
+    // salia por `length === 0` y la foto elegida nunca aparecia — sin foto y
+    // sin error, que es justo lo que se reportaba en los pasos.
+    const files = Array.from(e.target.files ?? []);
     e.target.value = '';
-    if (!files || files.length === 0) return;
+    if (files.length === 0) return;
     setBusy(true);
+    setError(null);
+    const nuevas: ProcesoFoto[] = [];
     try {
-      const nuevas: ProcesoFoto[] = [];
-      for (const f of Array.from(files)) {
-        if (fotos.length + nuevas.length >= MAX_FOTOS) break;
+      for (const f of files) {
+        if (fotos.length + nuevas.length >= MAX_FOTOS) {
+          setError(`Solo caben ${MAX_FOTOS} fotos por paso: no se agregaron las demás.`);
+          break;
+        }
         const url = await storeMediaFile(f, TRAINING_MEDIA_FOLDER, 'paso');
         nuevas.push({ id: `f_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, url, desc: '' });
       }
-      onChange([...fotos, ...nuevas]);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'No se pudo guardar la foto.');
+      setError(err instanceof Error ? err.message : 'No se pudo guardar la foto.');
     } finally {
+      // Si una foto falla a la mitad, las que SI se guardaron no se pierden.
+      if (nuevas.length > 0) onChange([...fotos, ...nuevas]);
       setBusy(false);
     }
   }
@@ -361,13 +509,25 @@ export function PhotoManager({
         La primera foto es la portada del paso. Máx {MAX_FOTOS} fotos · se comprimen automáticamente.
       </p>
 
+      {busy && (
+        <p className="text-xs text-surface-400 flex items-center gap-1.5">
+          <Loader2 size={13} className="animate-spin" /> Guardando foto…
+        </p>
+      )}
+      {error && <p className="text-xs text-danger-400 leading-relaxed">{error}</p>}
+
       {fotos.map((f, i) => (
         <div
           key={f.id}
           className="flex gap-3 bg-surface-800/30 border border-surface-700/30 rounded-xl p-3 items-start"
         >
           <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-black/40 shrink-0">
-            <MediaImage value={f.url} alt="" className="w-full h-full object-cover" />
+            <MediaImage
+              value={f.url}
+              alt=""
+              className="w-full h-full object-cover"
+              fallback={<ImageOff size={18} className="text-surface-600" />}
+            />
             {i === 0 && (
               <span className="absolute top-1 left-1 text-[9px] font-bold bg-primary-500 text-white px-1.5 py-0.5 rounded">
                 Portada

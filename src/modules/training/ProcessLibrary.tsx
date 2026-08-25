@@ -10,10 +10,13 @@ import {
   Send,
   Plus,
   Image as ImageIcon,
+  KeyRound,
+  X,
 } from 'lucide-react';
 import type { Proceso, ProcesoEstado } from '../../types/training';
 import { ESTADO_META } from '../../types/training';
 import { useTrainingStore } from '../../store/useTrainingStore';
+import { useStore } from '../../store/useStore';
 import { TrainingHeader, EmptyState, ConfirmDialog } from './shared';
 import { listItem } from './anims';
 import Modal from '../../components/Modal';
@@ -27,6 +30,42 @@ interface ProcessLibraryProps {
   onNew: () => void;
 }
 
+/**
+ * Campo del PIN de Direccion. Vive FUERA del componente de la biblioteca a
+ * proposito: un componente declarado dentro se vuelve a crear en cada render y
+ * el input perderia el foco a cada tecla.
+ */
+function PinDireccionField({
+  pin,
+  error,
+  onChange,
+}: {
+  pin: string;
+  error: boolean;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-3">
+      <label className="text-sm font-medium text-surface-300 mb-1.5 flex items-center gap-1.5">
+        <KeyRound size={14} className="text-blue-400" /> PIN de Dirección *
+      </label>
+      <input
+        type="password"
+        inputMode="numeric"
+        autoComplete="off"
+        value={pin}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Escribe el PIN de Dirección"
+        className="input-field"
+      />
+      {error && <p className="text-xs text-danger-400 mt-1.5">PIN incorrecto. Inténtalo de nuevo.</p>}
+      <p className="text-[11px] text-surface-500 mt-1.5">
+        Solo Dirección autoriza. Queda registrado quién lo hizo y cuándo.
+      </p>
+    </div>
+  );
+}
+
 const FILTROS: { key: ProcesoEstado | 'todos'; label: string }[] = [
   { key: 'todos', label: 'Todos' },
   { key: 'borrador', label: 'Borradores' },
@@ -38,12 +77,22 @@ const FILTROS: { key: ProcesoEstado | 'todos'; label: string }[] = [
 export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onNew }: ProcessLibraryProps) {
   const { procesos, publicarProceso, autorizarProceso, archivarProceso, marcarListoParaAutorizar, crearNuevaVersion } =
     useTrainingStore();
+  const settings = useStore((s) => s.settings);
   const [busq, setBusq] = useState('');
   const [filtro, setFiltro] = useState<ProcesoEstado | 'todos'>('todos');
   const [versionDe, setVersionDe] = useState<Proceso | null>(null);
   const [motivo, setMotivo] = useState('');
   const [confirmAuth, setConfirmAuth] = useState<Proceso | null>(null);
   const [confirmArch, setConfirmArch] = useState<Proceso | null>(null);
+
+  // v2.19 — Autorizar ya NO es invisible para el supervisor: el boton siempre
+  // esta, y si no entraste con el PIN de Direccion te lo pide en el momento
+  // (mismo patron que Configuracion). Una vez validado queda desbloqueado
+  // mientras no salgas de esta pantalla.
+  const [pinDesbloqueado, setPinDesbloqueado] = useState(false);
+  const [pin, setPin] = useState('');
+  const [pinErr, setPinErr] = useState(false);
+  const puedeDireccion = isAdmin || pinDesbloqueado;
 
   const lista = useMemo(() => {
     return procesos
@@ -52,12 +101,49 @@ export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onN
       .sort((a, b) => b.creadoAt.localeCompare(a.creadoAt));
   }, [procesos, filtro, busq]);
 
+  /** Valida el PIN de Direccion si hace falta. Devuelve false si es incorrecto. */
+  function validarDireccion(): boolean {
+    if (puedeDireccion) return true;
+    if (pin.trim() !== settings.directionPin) {
+      setPinErr(true);
+      return false;
+    }
+    setPinDesbloqueado(true);
+    return true;
+  }
+
+  function limpiarPin() {
+    setPin('');
+    setPinErr(false);
+  }
+
+  function nombreDireccion(): string {
+    const n = settings.directorName?.trim();
+    return n ? `${n} (Dirección)` : 'Dirección';
+  }
+
+  function handleAutorizar() {
+    if (!confirmAuth) return;
+    if (!validarDireccion()) return;
+    autorizarProceso(confirmAuth.id, nombreDireccion());
+    setConfirmAuth(null);
+    limpiarPin();
+  }
+
   function handleNuevaVersion() {
     if (!versionDe || !motivo.trim()) return;
+    // Crear una version nueva archiva la oficial: es una accion de Direccion.
+    if (versionDe.estado === 'autorizado' && !validarDireccion()) return;
     const nuevoId = crearNuevaVersion(versionDe.id, motivo.trim(), creadoPor);
     setVersionDe(null);
     setMotivo('');
+    limpiarPin();
     if (nuevoId) onEdit(nuevoId);
+  }
+
+  function cambiarPin(v: string) {
+    setPin(v);
+    setPinErr(false);
   }
 
   return (
@@ -162,15 +248,37 @@ export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onN
                     </button>
                   )}
                   {p.estado === 'publicado' && p.listoParaAutorizar && (
-                    <span className="badge badge-yellow text-[11px] self-center">Esperando autorización</span>
+                    <span className="badge badge-yellow text-[11px] self-center flex items-center gap-1.5">
+                      Esperando autorización
+                      <button
+                        onClick={() => marcarListoParaAutorizar(p.id, false)}
+                        title="Quitar la marca de listo para autorizar"
+                        className="hover:text-white cursor-pointer"
+                      >
+                        <X size={11} />
+                      </button>
+                    </span>
                   )}
-                  {isAdmin && p.estado === 'publicado' && (
-                    <button onClick={() => setConfirmAuth(p)} className="btn-success text-xs flex items-center gap-1.5">
+                  {/* v2.19: visible para todos — si no eres Dirección se pide el PIN */}
+                  {p.estado === 'publicado' && (
+                    <button
+                      onClick={() => {
+                        limpiarPin();
+                        setConfirmAuth(p);
+                      }}
+                      className="btn-success text-xs flex items-center gap-1.5"
+                    >
                       <Lock size={13} /> Autorizar
                     </button>
                   )}
-                  {isAdmin && p.estado === 'autorizado' && (
-                    <button onClick={() => setVersionDe(p)} className="btn-secondary text-xs flex items-center gap-1.5">
+                  {p.estado === 'autorizado' && (
+                    <button
+                      onClick={() => {
+                        limpiarPin();
+                        setVersionDe(p);
+                      }}
+                      className="btn-secondary text-xs flex items-center gap-1.5"
+                    >
                       <SquarePen size={13} /> Crear nueva versión
                     </button>
                   )}
@@ -192,6 +300,7 @@ export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onN
         onClose={() => {
           setVersionDe(null);
           setMotivo('');
+          limpiarPin();
         }}
         title={`Nueva versión de «${versionDe?.nombre ?? ''}»`}
         size="sm"
@@ -213,35 +322,73 @@ export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onN
               className="input-field resize-y"
             />
           </div>
+          {versionDe?.estado === 'autorizado' && !puedeDireccion && (
+            <PinDireccionField pin={pin} error={pinErr} onChange={cambiarPin} />
+          )}
           <div className="flex justify-end gap-3">
             <button
               onClick={() => {
                 setVersionDe(null);
                 setMotivo('');
+                limpiarPin();
               }}
               className="btn-secondary text-sm"
             >
               Cancelar
             </button>
-            <button onClick={handleNuevaVersion} disabled={!motivo.trim()} className="btn-primary text-sm">
+            <button
+              onClick={handleNuevaVersion}
+              disabled={!motivo.trim() || (versionDe?.estado === 'autorizado' && !puedeDireccion && !pin.trim())}
+              className="btn-primary text-sm"
+            >
               Crear versión
             </button>
           </div>
         </div>
       </Modal>
 
-      {/* Autorizar */}
-      <ConfirmDialog
-        open={!!confirmAuth}
-        title={`¿Autorizar «${confirmAuth?.nombre ?? ''}»?`}
-        message="Una vez autorizado, el proceso queda bloqueado para edición directa y se marca como versión oficial visible para los trabajadores."
-        confirmLabel="Autorizar"
-        onCancel={() => setConfirmAuth(null)}
-        onConfirm={() => {
-          if (confirmAuth) autorizarProceso(confirmAuth.id, creadoPor);
+      {/* Autorizar — v2.19: con PIN de Dirección si no entraste como Dirección */}
+      <Modal
+        isOpen={!!confirmAuth}
+        onClose={() => {
           setConfirmAuth(null);
+          limpiarPin();
         }}
-      />
+        title={`¿Autorizar «${confirmAuth?.nombre ?? ''}»?`}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-surface-400 leading-relaxed">
+            Una vez autorizado, el proceso queda bloqueado para edición directa y se marca como la
+            versión <span className="text-surface-200">oficial</span> visible para los trabajadores.
+          </p>
+          {puedeDireccion ? (
+            <p className="text-sm text-blue-300 flex items-center gap-2">
+              <ShieldCheck size={15} /> Se registrará como autorizado por {nombreDireccion()}.
+            </p>
+          ) : (
+            <PinDireccionField pin={pin} error={pinErr} onChange={cambiarPin} />
+          )}
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => {
+                setConfirmAuth(null);
+                limpiarPin();
+              }}
+              className="btn-secondary text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleAutorizar}
+              disabled={!puedeDireccion && !pin.trim()}
+              className="btn-success text-sm flex items-center gap-1.5"
+            >
+              <Lock size={15} /> Autorizar
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Archivar */}
       <ConfirmDialog
