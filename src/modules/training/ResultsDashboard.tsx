@@ -70,19 +70,19 @@ export default function ResultsDashboard({ isAdmin, onBack }: { isAdmin: boolean
         onBack={onBack}
         right={
           isAdmin && registros.length > 0 ? (
-            <button onClick={() => exportarRegistrosCSV(registros)} className="btn-secondary text-sm flex items-center gap-1.5">
+            <button onClick={() => exportarRegistrosCSV(registros)} className="btn-secondary text-sm flex items-center gap-1.5 w-full sm:w-auto">
               <Download size={15} /> Exportar CSV
             </button>
           ) : undefined
         }
       />
 
-      <div className="flex gap-2 overflow-x-auto pb-1 shrink-0">
+      <div className="flex flex-wrap sm:flex-nowrap gap-2 overflow-x-auto pb-1 shrink-0">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
+            className={`px-4 py-3 sm:py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
               tab === t.key ? 'bg-primary-500/20 text-primary-300 border border-primary-500/40' : 'glass-light text-surface-400 hover:text-surface-200'
             }`}
           >
@@ -111,14 +111,15 @@ export default function ResultsDashboard({ isAdmin, onBack }: { isAdmin: boolean
                   {recientes.map((r) => {
                     const cal = calificar(r.porcentaje);
                     return (
-                      <div key={r.id} className="flex items-center gap-3 py-2 border-b border-surface-700/30 last:border-0">
+                      <div key={r.id} className="flex items-center gap-2 sm:gap-3 py-2 border-b border-surface-700/30 last:border-0">
                         <span className={`badge ${cal.badge} text-[11px] shrink-0`}>{r.porcentaje}%</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-surface-200 truncate">{r.empleadoNombre}</p>
                           <p className="text-xs text-surface-500 truncate">{r.procesoNombre}</p>
+                          <p className="text-[11px] text-surface-500 sm:hidden">{new Date(r.finAt).toLocaleDateString('es-MX')}</p>
                         </div>
                         {r.alertaMuyRapido && <TriangleAlert size={14} className="text-amber-400 shrink-0" />}
-                        <span className="text-[11px] text-surface-500 shrink-0">{new Date(r.finAt).toLocaleDateString('es-MX')}</span>
+                        <span className="hidden sm:inline text-[11px] text-surface-500 shrink-0">{new Date(r.finAt).toLocaleDateString('es-MX')}</span>
                       </div>
                     );
                   })}
@@ -142,8 +143,8 @@ export default function ResultsDashboard({ isAdmin, onBack }: { isAdmin: boolean
                 const ap = t.regs.filter((r) => r.pasa).length;
                 return (
                   <motion.div key={t.numero} custom={i} variants={listItem} initial="initial" animate="animate" className="glass-card p-4">
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <div className="min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <div className="w-full sm:w-auto min-w-0">
                         <p className="text-sm font-semibold text-surface-100 truncate">{t.nombre}</p>
                         <p className="text-xs text-surface-500">Emp. {t.numero}</p>
                       </div>
@@ -156,9 +157,9 @@ export default function ResultsDashboard({ isAdmin, onBack }: { isAdmin: boolean
                       {t.regs.slice(-3).reverse().map((r) => {
                         const cal = calificar(r.porcentaje);
                         return (
-                          <div key={r.id} className="flex items-center gap-2 py-1.5 border-t border-surface-700/30 text-xs">
+                          <div key={r.id} className="flex flex-wrap items-center justify-between sm:justify-start gap-x-2 gap-y-0.5 py-1.5 border-t border-surface-700/30 text-xs">
                             <span className={`badge ${cal.badge} text-[10px] shrink-0`}>{r.porcentaje}%</span>
-                            <span className="text-surface-300 flex-1 truncate">{r.procesoNombre}</span>
+                            <span className="text-surface-300 w-full order-last sm:order-none sm:w-auto sm:flex-1 truncate">{r.procesoNombre}</span>
                             <span className="text-surface-500 shrink-0">{new Date(r.finAt).toLocaleDateString('es-MX')}</span>
                           </div>
                         );
@@ -178,9 +179,9 @@ export default function ResultsDashboard({ isAdmin, onBack }: { isAdmin: boolean
           ) : (
             porProc.map((x, i) => (
               <motion.div key={x.proc.id} custom={i} variants={listItem} initial="initial" animate="animate" className="glass-card p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-sm font-semibold text-surface-100">{x.proc.nombre}</h3>
-                  <span className="badge badge-green text-[10px]">{x.proc.area}</span>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <h3 className="text-sm font-semibold text-surface-100 min-w-0 break-words">{x.proc.nombre}</h3>
+                  <span className="badge badge-green text-[10px] shrink-0 whitespace-nowrap">{x.proc.area}</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                   <Mini label="Capacitaciones" value={x.total} />
@@ -215,7 +216,7 @@ export default function ResultsDashboard({ isAdmin, onBack }: { isAdmin: boolean
                 .slice()
                 .reverse()
                 .map((r, i) => (
-                  <motion.div key={r.id} custom={i} variants={listItem} initial="initial" animate="animate" className="glass-card p-4 flex items-center gap-3 border-amber-500/20">
+                  <motion.div key={r.id} custom={i} variants={listItem} initial="initial" animate="animate" className="glass-card p-4 flex items-center gap-2 sm:gap-3 border-amber-500/20">
                     <TriangleAlert size={18} className="text-amber-400 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-surface-200 truncate">{r.empleadoNombre}</p>

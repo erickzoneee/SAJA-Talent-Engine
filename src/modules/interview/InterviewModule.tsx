@@ -131,15 +131,15 @@ function InterviewListView({ onStart }: { onStart: (id: string) => void }) {
 
   return (
     <>
-      <div className="px-6 pt-5 pb-3">
-        <h1 className="text-2xl font-bold gradient-text">Guia de Entrevista Interactiva</h1>
+      <div className="px-0 sm:px-6 pt-5 pb-3">
+        <h1 className="text-xl sm:text-2xl font-bold gradient-text">Guia de Entrevista Interactiva</h1>
         <p className="text-sm text-surface-400 mt-0.5">
           5 secciones · calificacion en tiempo real · diagnostico automatico · la decision final
           siempre es de Direccion
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-5">
+      <div className="flex-1 overflow-y-auto px-0 sm:px-6 pb-6 space-y-5">
         {/* Pendientes */}
         <div>
           <h2 className="text-sm font-semibold text-surface-300 mb-2 flex items-center gap-2">
@@ -147,7 +147,7 @@ function InterviewListView({ onStart }: { onStart: (id: string) => void }) {
             Pendientes de entrevista ({pending.length})
           </h2>
           {pending.length === 0 ? (
-            <div className="glass-card p-8 text-center text-surface-500">
+            <div className="glass-card p-5 sm:p-8 text-center text-surface-500">
               <ClipboardList size={40} className="mx-auto mb-2 opacity-40" />
               <p className="text-sm">
                 No hay candidatos con cita pendiente. Los candidatos llegan aqui desde Recepcion
@@ -157,17 +157,17 @@ function InterviewListView({ onStart }: { onStart: (id: string) => void }) {
           ) : (
             <div className="space-y-2">
               {pending.map((c) => (
-                <motion.div key={c.id} {...fadeUp} className="glass-card p-4 flex items-center gap-4">
+                <motion.div key={c.id} {...fadeUp} className="glass-card p-4 flex flex-wrap items-center gap-3 sm:gap-4">
                   <div
                     className={`w-12 h-12 rounded-full bg-gradient-to-br ${getAvatarGradient(c.fullName)} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}
                   >
                     {getInitials(c.fullName)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-surface-100 truncate">{c.fullName}</p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-surface-400">
+                    <p className="font-semibold text-surface-100 break-words sm:truncate">{c.fullName}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-surface-400">
                       <span className="flex items-center gap-1">
-                        <Briefcase size={12} /> {JOB_POSITIONS[c.position].name}
+                        <Briefcase size={12} /> {JOB_POSITIONS[c.position]?.name ?? c.position}
                       </span>
                       {c.reception?.cita ? (
                         <span className="flex items-center gap-1 text-primary-400 font-medium">
@@ -179,7 +179,10 @@ function InterviewListView({ onStart }: { onStart: (id: string) => void }) {
                       )}
                     </div>
                   </div>
-                  <button className="btn-primary flex items-center gap-2" onClick={() => onStart(c.id)}>
+                  <button
+                    className="btn-primary flex items-center justify-center gap-2 basis-full sm:basis-auto w-full sm:w-auto"
+                    onClick={() => onStart(c.id)}
+                  >
                     <ClipboardList size={16} />
                     Iniciar Entrevista
                   </button>
@@ -208,7 +211,7 @@ function InterviewListView({ onStart }: { onStart: (id: string) => void }) {
                       {getInitials(c.fullName)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-surface-200 truncate">{c.fullName}</p>
+                      <p className="font-medium text-surface-200 break-words sm:truncate">{c.fullName}</p>
                       <p className="text-xs text-surface-500">
                         {formatDate(iv.fecha)} · {iv.total}/{INTERVIEW_MAX_SCORE} pts ({iv.porcentaje}%)
                       </p>
@@ -365,8 +368,8 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
   if (savedDecision) {
     const d = DIAGNOSTIC_LABELS[diagnostic.verdict];
     return (
-      <div className="flex-1 flex items-center justify-center px-6">
-        <motion.div {...fadeUp} className="glass-card p-8 max-w-md w-full text-center">
+      <div className="flex-1 flex items-center justify-center px-0 sm:px-6">
+        <motion.div {...fadeUp} className="glass-card p-5 sm:p-8 max-w-md w-full text-center">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -407,15 +410,15 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
   return (
     <>
       {/* Header con stepper */}
-      <div className="px-6 pt-5 pb-3">
+      <div className="px-0 sm:px-6 pt-5 pb-3">
         <div className="flex items-center gap-3 mb-3">
-          <button className="p-2 rounded-xl hover:bg-surface-800 transition-colors" onClick={onExit}>
+          <button className="p-3 sm:p-2 rounded-xl hover:bg-surface-800 transition-colors" onClick={onExit}>
             <ArrowLeft size={20} className="text-surface-300" />
           </button>
-          <div className="flex-1">
-            <h1 className="text-xl font-bold gradient-text">Entrevista — {candidate.fullName}</h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base sm:text-xl font-bold gradient-text break-words">Entrevista — {candidate.fullName}</h1>
             <p className="text-xs text-surface-400">
-              {JOB_POSITIONS[candidate.position].name} · Puntaje en vivo:{' '}
+              {JOB_POSITIONS[candidate.position]?.name ?? candidate.position} · Puntaje en vivo:{' '}
               <span className="text-surface-200 font-semibold">
                 {diagnostic.total}/{INTERVIEW_MAX_SCORE}
               </span>
@@ -426,7 +429,7 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
         {/* Stepper */}
         <div className="flex items-center gap-1">
           {STEP_LABELS.map((label, idx) => (
-            <div key={label} className="flex-1 flex flex-col items-center gap-1">
+            <div key={label} className="flex-1 min-w-0 flex flex-col items-center gap-1">
               <div
                 className={`h-1.5 w-full rounded-full transition-all ${
                   idx < step
@@ -436,7 +439,9 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
                       : 'bg-surface-800'
                 }`}
               />
-              <span className={`text-[10px] ${idx === step ? 'text-primary-400 font-semibold' : 'text-surface-500'}`}>
+              <span
+                className={`text-[10px] whitespace-nowrap ${idx === step ? 'text-primary-400 font-semibold' : 'text-surface-500 hidden sm:block'}`}
+              >
                 {label}
               </span>
             </div>
@@ -446,7 +451,7 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
 
       {/* v2.4: sin AnimatePresence mode="wait" — el cambio de paso es inmediato
           (una salida atorada dejaba la pantalla vacia); solo se anima la entrada */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 pb-6">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-0 sm:px-6 pb-6">
         <>
           {/* ─── PASO 0: Seccion 1 — Datos del candidato ─── */}
           {step === 0 && (
@@ -458,14 +463,14 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
                 </p>
               </div>
 
-              <div className="glass-card p-5">
+              <div className="glass-card p-4 sm:p-5">
                 <h3 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
                   <User size={16} className="text-primary-400" />
                   Datos de recepcion
                 </h3>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   <InfoRow label="Nombre" value={candidate.fullName} />
-                  <InfoRow label="Puesto al que aspira" value={JOB_POSITIONS[candidate.position].name} />
+                  <InfoRow label="Puesto al que aspira" value={JOB_POSITIONS[candidate.position]?.name ?? candidate.position} />
                   <InfoRow label="Telefono" value={candidate.phone} icon={<Phone size={11} />} />
                   <InfoRow label="Correo" value={candidate.email ?? '—'} icon={<Mail size={11} />} />
                   <InfoRow label="Fecha de registro" value={formatDate(candidate.applicationDate)} />
@@ -478,7 +483,7 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
                 )}
               </div>
 
-              <div className="glass-card p-5 space-y-4">
+              <div className="glass-card p-4 sm:p-5 space-y-4">
                 <h3 className="text-sm font-semibold text-surface-300 flex items-center gap-2">
                   <ClipboardList size={16} className="text-primary-400" />
                   Completar para iniciar
@@ -500,7 +505,7 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
                         key={opt}
                         type="button"
                         onClick={() => setPuntualidad(opt)}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                        className={`px-4 py-2.5 sm:py-2 rounded-xl text-sm font-medium border transition-all ${
                           puntualidad === opt
                             ? 'bg-primary-500/20 border-primary-500/60 text-primary-300'
                             : 'bg-surface-900/40 border-surface-700 text-surface-400 hover:border-surface-500'
@@ -521,7 +526,7 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
                         key={opt}
                         type="button"
                         onClick={() => setEscolaridad(opt)}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                        className={`px-4 py-2.5 sm:py-2 rounded-xl text-sm font-medium border transition-all ${
                           escolaridad === opt
                             ? 'bg-primary-500/20 border-primary-500/60 text-primary-300'
                             : 'bg-surface-900/40 border-surface-700 text-surface-400 hover:border-surface-500'
@@ -550,7 +555,7 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
                         key={opt}
                         type="button"
                         onClick={() => setTiempoUltimoEmpleo(opt)}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                        className={`px-4 py-2.5 sm:py-2 rounded-xl text-sm font-medium border transition-all ${
                           tiempoUltimoEmpleo === opt
                             ? 'bg-primary-500/20 border-primary-500/60 text-primary-300'
                             : 'bg-surface-900/40 border-surface-700 text-surface-400 hover:border-surface-500'
@@ -601,7 +606,7 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
                         key={opt}
                         type="button"
                         onClick={() => setFuente(opt)}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                        className={`px-4 py-2.5 sm:py-2 rounded-xl text-sm font-medium border transition-all ${
                           fuente === opt
                             ? 'bg-primary-500/20 border-primary-500/60 text-primary-300'
                             : 'bg-surface-900/40 border-surface-700 text-surface-400 hover:border-surface-500'
@@ -691,7 +696,7 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="glass-card p-6 w-full max-w-md mx-4"
+              className="glass-card p-4 sm:p-6 w-full max-w-md mx-4 max-h-[90dvh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="text-lg font-bold text-surface-100 mb-2">
@@ -744,12 +749,12 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
 
 function InfoRow({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-xs text-surface-500 flex items-center gap-1">
         {icon}
         {label}
       </p>
-      <p className="text-surface-200">{value || '—'}</p>
+      <p className="text-surface-200 break-words [overflow-wrap:anywhere]">{value || '—'}</p>
     </div>
   );
 }
@@ -796,9 +801,9 @@ function SectionScreen({
       {section.rubros.map((rubro, idx) => {
         const current = scores[rubro.id];
         return (
-          <div key={rubro.id} className="glass-card p-5 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="font-semibold text-surface-100 flex items-center gap-2">
+          <div key={rubro.id} className="glass-card p-4 sm:p-5 space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h3 className="font-semibold text-surface-100 flex items-center gap-2 min-w-0 break-words">
                 <span className="w-6 h-6 rounded-lg bg-accent-500/20 text-accent-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
                   {idx + 1}
                 </span>
@@ -833,7 +838,7 @@ function SectionScreen({
             </div>
 
             {/* Botones de calificacion 3-2-1-0 */}
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {SCORE_SCALE.map((s) => {
                 const active = current === s.value;
                 return (
@@ -842,7 +847,7 @@ function SectionScreen({
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setScore(rubro.id, s.value)}
                     title={s.descripcion}
-                    className={`rounded-xl border py-3 px-1 flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                    className={`rounded-xl border py-3 px-1 min-w-0 flex flex-col items-center gap-1 transition-all cursor-pointer ${
                       active
                         ? `${s.activeClass} ring-2 border-transparent`
                         : 'bg-surface-900/40 border-surface-700 hover:border-surface-500'
@@ -863,7 +868,7 @@ function SectionScreen({
       })}
 
       {/* Observaciones de la seccion */}
-      <div className="glass-card p-5">
+      <div className="glass-card p-4 sm:p-5">
         <label className="text-sm text-surface-400 mb-2 flex items-center gap-2">
           <MessageSquare size={14} className="text-primary-400" />
           Observaciones de la seccion (opcional)
@@ -876,12 +881,19 @@ function SectionScreen({
         />
       </div>
 
-      <div className="flex items-center justify-between">
-        <button className="btn-secondary flex items-center gap-2" onClick={onPrev}>
+      <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
+        <button
+          className="btn-secondary flex items-center justify-center gap-2 w-full sm:w-auto"
+          onClick={onPrev}
+        >
           <ChevronLeft size={16} />
           Anterior
         </button>
-        <button className="btn-primary flex items-center gap-2" disabled={!canContinue} onClick={onNext}>
+        <button
+          className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
+          disabled={!canContinue}
+          onClick={onNext}
+        >
           {isLast ? 'Continuar a los juegos' : 'Siguiente seccion'}
           <ChevronRight size={16} />
         </button>
@@ -920,9 +932,9 @@ function QuizGamesScreen({ items, answers, onAnswer, result, canContinue, onPrev
 
   return (
     <>
-      <div className="glass-card p-4 border-l-4 border-l-accent-500 flex items-center gap-3">
+      <div className="glass-card p-4 border-l-4 border-l-accent-500 flex flex-wrap items-center gap-3">
         <Gamepad2 size={22} className="text-accent-400 flex-shrink-0" />
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <h2 className="text-base font-bold text-surface-100">2a mitad — Juegos</h2>
           <p className="text-xs text-surface-400">
             Conocimientos generales y matematicas. Una pregunta a la vez, con respuesta al instante.
@@ -939,7 +951,7 @@ function QuizGamesScreen({ items, answers, onAnswer, result, canContinue, onPrev
           <button
             key={q.id}
             onClick={() => setPos(i)}
-            className={`w-7 h-7 rounded-lg text-xs font-bold transition-all flex items-center justify-center ${
+            className={`w-9 h-9 sm:w-7 sm:h-7 rounded-lg text-xs font-bold transition-all flex items-center justify-center ${
               i === pos
                 ? 'bg-primary-500 text-white scale-110'
                 : answers[q.id] !== undefined
@@ -960,9 +972,9 @@ function QuizGamesScreen({ items, answers, onAnswer, result, canContinue, onPrev
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
-        className="glass-card p-6"
+        className="glass-card p-4 sm:p-6"
       >
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
           <span className={`badge ${blockBadge} flex items-center gap-1`}>
             <BlockIcon size={12} /> {blockLabel}
           </span>
@@ -999,7 +1011,7 @@ function QuizGamesScreen({ items, answers, onAnswer, result, canContinue, onPrev
                 <span className="w-7 h-7 rounded-lg bg-surface-800 flex items-center justify-center text-xs font-bold flex-shrink-0">
                   {String.fromCharCode(65 + idx)}
                 </span>
-                <span className="text-sm flex-1">{op}</span>
+                <span className="text-sm flex-1 min-w-0 break-words">{op}</span>
                 {answered && isCorrect && <CheckCircle size={16} className="text-success-500 flex-shrink-0" />}
                 {answered && isChosen && !isCorrect && <XCircle size={16} className="text-danger-400 flex-shrink-0" />}
               </motion.button>
@@ -1020,9 +1032,9 @@ function QuizGamesScreen({ items, answers, onAnswer, result, canContinue, onPrev
       </motion.div>
 
       {/* Navegacion */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
         <button
-          className="btn-secondary flex items-center gap-2"
+          className="btn-secondary flex items-center justify-center gap-2 w-full sm:w-auto"
           onClick={pos === 0 ? onPrev : () => setPos((p) => Math.max(0, p - 1))}
         >
           <ChevronLeft size={16} />
@@ -1030,7 +1042,7 @@ function QuizGamesScreen({ items, answers, onAnswer, result, canContinue, onPrev
         </button>
         {!isLastQ ? (
           <button
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
             disabled={!answered}
             onClick={() => setPos((p) => Math.min(items.length - 1, p + 1))}
           >
@@ -1039,7 +1051,7 @@ function QuizGamesScreen({ items, answers, onAnswer, result, canContinue, onPrev
           </button>
         ) : (
           <button
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
             disabled={!canContinue}
             onClick={onNext}
           >
@@ -1092,7 +1104,7 @@ function DiagnosticScreen({
 
   return (
     <>
-      <div className="glass-card p-8 text-center">
+      <div className="glass-card p-5 sm:p-8 text-center">
         <h2 className="text-sm font-semibold text-surface-400 uppercase tracking-wide mb-4">
           Diagnostico automatico del sistema
         </h2>
@@ -1107,7 +1119,7 @@ function DiagnosticScreen({
         </motion.div>
         <p className="text-surface-300 mt-3 text-lg font-semibold">{porcentaje}%</p>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="mt-3">
-          <span className={`badge text-base px-5 py-2 ${d.badge}`}>{d.label}</span>
+          <span className={`badge text-sm sm:text-base px-3 sm:px-5 py-2 text-center ${d.badge}`}>{d.label}</span>
           <p className="text-xs text-surface-500 mt-2">{d.detail}</p>
         </motion.div>
         <p className="text-[11px] text-surface-600 mt-3">
@@ -1117,12 +1129,12 @@ function DiagnosticScreen({
       </div>
 
       {/* v2.13: resultado de los juegos-quiz (2a mitad — orientativo) */}
-      <div className="glass-card p-5">
+      <div className="glass-card p-4 sm:p-5">
         <h3 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
           <Gamepad2 size={16} className="text-accent-400" />
           Juegos — conocimientos generales y matematicas
         </h3>
-        <div className="grid grid-cols-3 gap-3 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 text-center">
           <div className="glass-light rounded-xl p-3">
             <p className="text-2xl font-bold text-surface-100">
               {quiz.general}
@@ -1137,7 +1149,7 @@ function DiagnosticScreen({
             </p>
             <p className="text-[11px] text-surface-400 mt-0.5">Matematicas</p>
           </div>
-          <div className="glass-light rounded-xl p-3">
+          <div className="glass-light rounded-xl p-3 col-span-2 sm:col-span-1">
             <p className="text-2xl font-bold text-primary-300">
               {quiz.aciertos}
               <span className="text-sm text-surface-500">/{quiz.totalPreguntas}</span>
@@ -1155,7 +1167,7 @@ function DiagnosticScreen({
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="glass-card p-5 border-2 border-danger-500/50 bg-danger-500/5"
+          className="glass-card p-4 sm:p-5 border-2 border-danger-500/50 bg-danger-500/5"
         >
           <h3 className="font-bold text-danger-400 flex items-center gap-2">
             <AlertTriangle size={18} />
@@ -1163,8 +1175,8 @@ function DiagnosticScreen({
           </h3>
           <ul className="mt-2 space-y-1">
             {alertas.map((a) => (
-              <li key={a} className="text-sm text-danger-300 flex items-center gap-2">
-                <XCircle size={13} className="flex-shrink-0" />
+              <li key={a} className="text-sm text-danger-300 flex items-start sm:items-center gap-2">
+                <XCircle size={13} className="flex-shrink-0 mt-1 sm:mt-0" />
                 {a} — calificado con 0 (alerta)
               </li>
             ))}
@@ -1177,7 +1189,7 @@ function DiagnosticScreen({
       )}
 
       {/* Observaciones finales */}
-      <div className="glass-card p-5">
+      <div className="glass-card p-4 sm:p-5">
         <label className="text-sm text-surface-400 mb-2 flex items-center gap-2">
           <MessageSquare size={14} className="text-primary-400" />
           Observaciones finales
@@ -1191,7 +1203,7 @@ function DiagnosticScreen({
       </div>
 
       {/* Decision */}
-      <div className="glass-card p-5 space-y-3">
+      <div className="glass-card p-4 sm:p-5 space-y-3">
         <h3 className="text-sm font-semibold text-surface-300 flex items-center gap-2">
           <Award size={16} className="text-primary-400" />
           Decision de Direccion
@@ -1212,12 +1224,15 @@ function DiagnosticScreen({
         </p>
       </div>
 
-      <div className="flex items-center justify-between">
-        <button className="btn-secondary flex items-center gap-2" onClick={onPrev}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <button
+          className="btn-secondary flex items-center justify-center gap-2 w-full sm:w-auto"
+          onClick={onPrev}
+        >
           <ChevronLeft size={16} />
           Volver a los juegos
         </button>
-        <p className="text-xs text-surface-500 flex items-center gap-1">
+        <p className="text-xs text-surface-500 flex items-center justify-center sm:justify-start gap-1">
           <GraduationCap size={13} />
           El examen de admision se aplica despues, solo si pasa el filtro.
         </p>

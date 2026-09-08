@@ -59,7 +59,7 @@ function PinDireccionField({
         className="input-field"
       />
       {error && <p className="text-xs text-danger-400 mt-1.5">PIN incorrecto. Inténtalo de nuevo.</p>}
-      <p className="text-[11px] text-surface-500 mt-1.5">
+      <p className="text-[13px] sm:text-[11px] text-surface-500 mt-1.5">
         Solo Dirección autoriza. Queda registrado quién lo hizo y cuándo.
       </p>
     </div>
@@ -147,7 +147,7 @@ export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onN
   }
 
   return (
-    <div className="flex flex-col gap-5 overflow-hidden h-full">
+    <div className="flex flex-col gap-4 sm:gap-5 overflow-hidden h-full">
       <TrainingHeader
         icon={FolderOpen}
         gradient="from-emerald-500 to-green-600"
@@ -155,7 +155,7 @@ export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onN
         subtitle={`${procesos.length} proceso${procesos.length !== 1 ? 's' : ''} en total`}
         onBack={onBack}
         right={
-          <button onClick={onNew} className="btn-primary text-sm flex items-center gap-1.5">
+          <button onClick={onNew} className="btn-primary text-sm flex items-center justify-center gap-1.5 w-full sm:w-auto">
             <Plus size={16} /> Nuevo
           </button>
         }
@@ -176,7 +176,7 @@ export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onN
           <button
             key={f.key}
             onClick={() => setFiltro(f.key)}
-            className={`px-3.5 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
+            className={`shrink-0 min-h-[40px] sm:min-h-0 px-3.5 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
               filtro === f.key
                 ? 'bg-primary-500/20 text-primary-300 border border-primary-500/40'
                 : 'glass-light text-surface-400 hover:text-surface-200'
@@ -206,11 +206,11 @@ export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onN
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm font-semibold text-surface-100">{p.nombre || 'Sin nombre'}</h3>
-                      <span className={`badge ${meta.badge} text-[10px]`}>
+                      <h3 className="text-sm font-semibold text-surface-100 min-w-0 break-words">{p.nombre || 'Sin nombre'}</h3>
+                      <span className={`badge ${meta.badge} text-[12px] sm:text-[10px]`}>
                         {meta.icon} {meta.label}
                       </span>
-                      <span className="text-[11px] text-surface-500">v{p.version}</span>
+                      <span className="text-[13px] sm:text-[11px] text-surface-500">v{p.version}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-surface-400">
                       <span>{p.area}</span>
@@ -220,11 +220,11 @@ export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onN
                       <span>{p.preguntas.length} preguntas</span>
                     </div>
                     {p.motivoCambio && (
-                      <p className="text-[11px] text-surface-500 mt-1 italic">Cambio: {p.motivoCambio}</p>
+                      <p className="text-[13px] sm:text-[11px] text-surface-500 mt-1 italic break-words">Cambio: {p.motivoCambio}</p>
                     )}
                     {p.estado === 'autorizado' && p.autorizadoPor && (
-                      <p className="text-[11px] text-blue-400/80 mt-1 flex items-center gap-1">
-                        <ShieldCheck size={11} /> Autorizado por {p.autorizadoPor}
+                      <p className="text-[13px] sm:text-[11px] text-blue-400/80 mt-1 flex items-center gap-1">
+                        <ShieldCheck size={11} className="shrink-0" /> Autorizado por {p.autorizadoPor}
                       </p>
                     )}
                   </div>
@@ -248,12 +248,13 @@ export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onN
                     </button>
                   )}
                   {p.estado === 'publicado' && p.listoParaAutorizar && (
-                    <span className="badge badge-yellow text-[11px] self-center flex items-center gap-1.5">
+                    <span className="badge badge-yellow text-[12px] sm:text-[11px] self-center flex items-center gap-1.5">
                       Esperando autorización
                       <button
                         onClick={() => marcarListoParaAutorizar(p.id, false)}
                         title="Quitar la marca de listo para autorizar"
-                        className="hover:text-white cursor-pointer"
+                        aria-label="Quitar la marca de listo para autorizar"
+                        className="hover:text-white cursor-pointer flex sm:block items-center justify-center min-w-[40px] min-h-[40px] -my-2 -mr-3 sm:min-w-0 sm:min-h-0 sm:my-0 sm:mr-0"
                       >
                         <X size={11} />
                       </button>
@@ -325,21 +326,21 @@ export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onN
           {versionDe?.estado === 'autorizado' && !puedeDireccion && (
             <PinDireccionField pin={pin} error={pinErr} onChange={cambiarPin} />
           )}
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
             <button
               onClick={() => {
                 setVersionDe(null);
                 setMotivo('');
                 limpiarPin();
               }}
-              className="btn-secondary text-sm"
+              className="btn-secondary text-sm w-full sm:w-auto"
             >
               Cancelar
             </button>
             <button
               onClick={handleNuevaVersion}
               disabled={!motivo.trim() || (versionDe?.estado === 'autorizado' && !puedeDireccion && !pin.trim())}
-              className="btn-primary text-sm"
+              className="btn-primary text-sm w-full sm:w-auto"
             >
               Crear versión
             </button>
@@ -369,20 +370,20 @@ export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onN
           ) : (
             <PinDireccionField pin={pin} error={pinErr} onChange={cambiarPin} />
           )}
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
             <button
               onClick={() => {
                 setConfirmAuth(null);
                 limpiarPin();
               }}
-              className="btn-secondary text-sm"
+              className="btn-secondary text-sm w-full sm:w-auto"
             >
               Cancelar
             </button>
             <button
               onClick={handleAutorizar}
               disabled={!puedeDireccion && !pin.trim()}
-              className="btn-success text-sm flex items-center gap-1.5"
+              className="btn-success text-sm flex items-center justify-center gap-1.5 w-full sm:w-auto"
             >
               <Lock size={15} /> Autorizar
             </button>

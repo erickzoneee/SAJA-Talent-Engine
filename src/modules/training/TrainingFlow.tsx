@@ -117,8 +117,8 @@ export default function TrainingFlow({ onBack }: { onBack: () => void }) {
     return (
       <div className="flex flex-col gap-5 h-full">
         <TrainingHeader icon={GraduationCap} gradient="from-blue-500 to-indigo-600" title="Capacitación" subtitle="Identifícate para comenzar" onBack={onBack} />
-        <div className="flex-1 flex items-center justify-center">
-          <motion.div {...scaleIn} className="glass-card p-6 w-full max-w-md">
+        <div className="flex-1 min-h-0 overflow-y-auto flex items-start sm:items-center justify-center">
+          <motion.div {...scaleIn} className="glass-card p-4 sm:p-6 w-full max-w-md">
             <div className="text-center mb-5">
               <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mb-3">
                 <UserCheck size={30} className="text-white" />
@@ -165,7 +165,7 @@ export default function TrainingFlow({ onBack }: { onBack: () => void }) {
                       setManual(false);
                       setTrab({ nombre: '', numero: '' });
                     }}
-                    className="text-xs text-primary-400 hover:text-primary-300 mb-4 block"
+                    className="text-xs text-primary-400 hover:text-primary-300 mb-4 block max-sm:text-sm max-sm:py-2.5 max-sm:underline"
                   >
                     ← Elegir de la lista
                   </button>
@@ -207,14 +207,14 @@ export default function TrainingFlow({ onBack }: { onBack: () => void }) {
     return (
       <div className="flex flex-col gap-5 h-full">
         <TrainingHeader icon={ShieldAlert} gradient="from-rose-500 to-red-600" title="Límite de intentos" onBack={() => setVista('lib')} />
-        <div className="flex-1 flex items-center justify-center">
-          <motion.div {...scaleIn} className="glass-card p-8 w-full max-w-md text-center">
+        <div className="flex-1 min-h-0 overflow-y-auto flex items-start sm:items-center justify-center">
+          <motion.div {...scaleIn} className="glass-card p-5 sm:p-8 w-full max-w-md text-center">
             <div className="text-5xl mb-3">🛑</div>
             <h2 className="text-lg font-bold text-surface-100">Has alcanzado el límite de intentos por hoy</h2>
             <p className="text-sm text-surface-400 mt-2">
               Habla con tu supervisor antes de intentar «{proc.nombre}» de nuevo. Él puede desbloquear tus intentos.
             </p>
-            <button onClick={() => setVista('lib')} className="btn-secondary mt-6">
+            <button onClick={() => setVista('lib')} className="btn-secondary mt-6 w-full sm:w-auto">
               Ver otros procesos
             </button>
           </motion.div>
@@ -258,10 +258,10 @@ export default function TrainingFlow({ onBack }: { onBack: () => void }) {
     return (
       <div className="flex flex-col gap-5 h-full">
         <TrainingHeader icon={ClipboardCheck} gradient="from-blue-500 to-indigo-600" title="Tu resultado" onBack={onBack} />
-        <div className="flex-1 flex items-center justify-center overflow-y-auto">
-          <motion.div {...scaleIn} className="glass-card p-8 w-full max-w-lg text-center">
-            <div className="text-6xl mb-2">{cal.emoji}</div>
-            <h1 className="text-2xl font-bold" style={{ color: cal.color }}>
+        <div className="flex-1 min-h-0 overflow-y-auto flex items-start sm:items-center justify-center">
+          <motion.div {...scaleIn} className="glass-card p-5 sm:p-8 w-full max-w-lg text-center">
+            <div className="text-5xl sm:text-6xl mb-2">{cal.emoji}</div>
+            <h1 className="text-xl sm:text-2xl font-bold" style={{ color: cal.color }}>
               {cal.label}
             </h1>
             <div className="text-5xl font-extrabold my-2" style={{ color: cal.color }}>
@@ -270,7 +270,7 @@ export default function TrainingFlow({ onBack }: { onBack: () => void }) {
             <p className="text-sm text-surface-300">
               {resultado.reg.correctas} de {resultado.reg.totalPreguntas} respuestas correctas
             </p>
-            <p className="text-xs text-surface-500 mt-1">
+            <p className="text-sm sm:text-xs text-surface-500 mt-1 break-words">
               {trab.nombre} · {proc.nombre} · {formatDuracion(resultado.reg.tiempoTotalSeg)}
             </p>
 
@@ -352,24 +352,24 @@ function Biblioteca({
               initial="initial"
               animate="animate"
               onClick={() => onSelect(p)}
-              className="glass-card p-4 w-full text-left flex items-center gap-4 cursor-pointer group"
+              className="glass-card p-4 w-full text-left flex items-center gap-3 sm:gap-4 cursor-pointer group"
             >
               <div className="w-14 h-14 rounded-xl bg-surface-800/60 border border-surface-700/40 overflow-hidden flex items-center justify-center shrink-0">
                 {p.portadaInicio ? <MediaImage value={p.portadaInicio} alt="" className="w-full h-full object-cover" /> : <GraduationCap size={22} className="text-surface-500" />}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-surface-100 truncate">{p.nombre}</h3>
+                <div className="flex items-center gap-2 max-sm:flex-wrap max-sm:items-start">
+                  <h3 className="text-sm font-semibold text-surface-100 truncate max-sm:whitespace-normal max-sm:line-clamp-2">{p.nombre}</h3>
                   {p.estado === 'autorizado' && (
-                    <span className="badge badge-blue text-[10px] flex items-center gap-1">
+                    <span className="badge badge-blue text-xs sm:text-[10px] max-sm:shrink-0 flex items-center gap-1">
                       <ShieldCheck size={10} /> Oficial
                     </span>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  <span className="badge badge-green text-[10px]">{p.area}</span>
-                  <span className="badge badge-purple text-[10px]">{p.linea}</span>
-                  <span className="text-[11px] text-surface-500 self-center">{p.pasos.length} pasos</span>
+                  <span className="badge badge-green text-xs sm:text-[10px]">{p.area}</span>
+                  <span className="badge badge-purple text-xs sm:text-[10px]">{p.linea}</span>
+                  <span className="text-xs sm:text-[11px] text-surface-500 self-center">{p.pasos.length} pasos</span>
                 </div>
               </div>
               <ArrowRight size={18} className="text-surface-500 group-hover:text-primary-400 transition-colors shrink-0" />
@@ -405,7 +405,7 @@ function PortadaProceso({ proc, onBack, onComenzar }: { proc: Proceso; onBack: (
           </motion.div>
         )}
 
-        <motion.div {...fadeUp} className="glass-card p-5">
+        <motion.div {...fadeUp} className="glass-card p-4 sm:p-5">
           <h3 className="text-base font-bold text-surface-100 mb-1">Objetivo</h3>
           <p className="text-base text-surface-300 leading-relaxed">{proc.objetivo}</p>
           {proc.portadaNarracion?.trim() && (
@@ -416,7 +416,7 @@ function PortadaProceso({ proc, onBack, onComenzar }: { proc: Proceso; onBack: (
         </motion.div>
 
         {proc.epp.length > 0 && (
-          <motion.div {...fadeUp} className="glass-card p-5">
+          <motion.div {...fadeUp} className="glass-card p-4 sm:p-5">
             <h3 className="text-sm font-semibold text-surface-300 mb-3">🦺 Equipo de protección que debes usar</h3>
             <div className="flex flex-wrap gap-2">
               {proc.epp.map((nombre) => {
@@ -494,13 +494,13 @@ function Presentacion({
     return (
       <div className="flex flex-col gap-4 h-full">
         <TrainingHeader icon={Play} gradient="from-blue-500 to-indigo-600" title={proc.nombre} subtitle="Sin pasos" onBack={onBack} />
-        <div className="flex-1 flex flex-col items-center justify-center gap-5">
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-start sm:justify-center gap-5">
           <EmptyState icon={ShieldAlert} title="Este proceso todavía no tiene pasos" hint="Pídele a tu supervisor que agregue los pasos del proceso" />
-          <div className="flex gap-3">
-            <button onClick={onBack} className="btn-secondary flex items-center gap-2">
+          <div className="flex flex-wrap justify-center gap-3 w-full">
+            <button onClick={onBack} className="btn-secondary w-full sm:w-auto flex items-center justify-center gap-2">
               <ArrowLeft size={16} /> Volver
             </button>
-            <button onClick={onEvaluar} className="btn-primary flex items-center gap-2">
+            <button onClick={onEvaluar} className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2">
               <ClipboardCheck size={16} /> Ir a la evaluación
             </button>
           </div>
@@ -536,13 +536,17 @@ function Presentacion({
                 <MediaVideo value={mp.videoUrl} className="w-full max-h-72 rounded-xl bg-black/50" />
               </div>
             )}
-            <div className="glass-card p-5">
+            <div className="glass-card p-4 sm:p-5">
               <span className="inline-flex items-center bg-blue-500/20 text-blue-300 rounded-full px-3 py-1 text-sm font-semibold mb-3">
                 Paso {mpIdx + 1}
               </span>
               <div className="flex items-start justify-between gap-3">
-                <h2 className="text-xl font-bold text-surface-100">{mp.nombre}</h2>
-                <NarrationButton text={`${mp.nombre}. ${texto}`} compact />
+                <h2 className="text-lg sm:text-xl font-bold text-surface-100 break-words">{mp.nombre}</h2>
+                <NarrationButton
+                  text={`${mp.nombre}. ${texto}`}
+                  compact
+                  className="max-sm:min-w-11 max-sm:min-h-11 max-sm:p-3 max-sm:justify-center max-sm:shrink-0"
+                />
               </div>
               <p className="text-lg text-surface-300 leading-relaxed mt-3">{texto}</p>
 
@@ -642,9 +646,9 @@ function Evaluacion({
     return (
       <div className="flex flex-col gap-5 h-full">
         <TrainingHeader icon={ClipboardCheck} gradient="from-blue-500 to-indigo-600" title="Evaluación" subtitle={trabajador.nombre} onBack={onBack} />
-        <div className="flex-1 flex flex-col items-center justify-center gap-5">
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-start sm:justify-center gap-5">
           <EmptyState icon={ClipboardCheck} title="Este proceso no tiene evaluación" hint="Pide a tu supervisor que la genere" />
-          <button onClick={onBack} className="btn-secondary flex items-center gap-2">
+          <button onClick={onBack} className="btn-secondary w-full sm:w-auto flex items-center justify-center gap-2">
             <ArrowLeft size={16} /> Volver a los pasos
           </button>
         </div>

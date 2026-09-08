@@ -153,11 +153,14 @@ export function RealVideoPlayer({
             </button>
           </div>
         )}
+        {/* v2.20: en celular el escenario mide ~197px de alto y un bloque de
+            narracion de 150 caracteres ocupaba 7 renglones, tapando el video
+            entero. Se limita a poco menos de la mitad del alto, con scroll. */}
         {caption && (
-          <div className="absolute bottom-14 left-3 right-3 pointer-events-none">
-            <div className="bg-black/70 rounded-lg px-4 py-2 flex items-start gap-2 max-w-2xl mx-auto">
-              <Captions size={16} className="text-primary-400 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-white leading-snug">{caption.texto}</p>
+          <div className="absolute bottom-14 left-2 right-2 sm:left-3 sm:right-3">
+            <div className="bg-black/70 rounded-lg px-2.5 py-1.5 sm:px-4 sm:py-2 flex items-start gap-2 max-w-2xl mx-auto max-h-[42%] overflow-y-auto">
+              <Captions size={14} className="text-primary-400 mt-0.5 flex-shrink-0 hidden sm:block" />
+              <p className="text-xs sm:text-sm text-white leading-snug">{caption.texto}</p>
             </div>
           </div>
         )}
@@ -184,7 +187,9 @@ export function RealVideoPlayer({
       {!complete && (
         <button
           onClick={onEnded}
-          className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/75 hover:bg-black/90 text-white text-xs font-medium transition-colors"
+          // v2.20: en celular se coloca ARRIBA; abajo a la derecha choca con la
+          // barra de controles de YouTube/Vimeo y era imposible de tocar.
+          className="absolute top-3 right-3 sm:top-auto sm:bottom-3 flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg bg-black/75 hover:bg-black/90 active:bg-black/90 text-white text-xs font-medium transition-colors"
         >
           <CheckCircle size={14} className="text-success-500" />
           Ya termine de ver el video
@@ -347,12 +352,12 @@ export function NarratedVideoPlayer({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.4 }}
-            className="relative z-10 text-center px-10"
+            className="relative z-10 text-center px-4 sm:px-10"
           >
             {!sceneSrc && (
               <Video size={40} className="text-primary-400 mx-auto mb-4 opacity-60" />
             )}
-            <h2 className="text-xl font-bold text-white mb-2 drop-shadow-lg">{caption.titulo}</h2>
+            <h2 className="text-base sm:text-xl font-bold text-white mb-2 drop-shadow-lg leading-tight">{caption.titulo}</h2>
           </motion.div>
         )}
 
@@ -363,10 +368,10 @@ export function NarratedVideoPlayer({
 
         {/* Subtitulos — activados siempre */}
         {!complete && (
-          <div className="absolute bottom-3 left-3 right-3">
-            <div className="bg-black/70 rounded-lg px-4 py-2 flex items-start gap-2">
-              <Captions size={16} className="text-primary-400 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-white leading-snug">{caption.texto}</p>
+          <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
+            <div className="bg-black/70 rounded-lg px-2.5 py-1.5 sm:px-4 sm:py-2 flex items-start gap-2 max-h-[45%] overflow-y-auto">
+              <Captions size={14} className="text-primary-400 mt-0.5 flex-shrink-0 hidden sm:block" />
+              <p className="text-xs sm:text-sm text-white leading-snug">{caption.texto}</p>
             </div>
           </div>
         )}
@@ -380,31 +385,34 @@ export function NarratedVideoPlayer({
         )}
       </div>
 
-      <div className="p-4 space-y-3">
+      <div className="p-3 sm:p-4 space-y-3">
         <div className="h-1.5 bg-surface-800 rounded-full overflow-hidden">
           <div
             className="h-full rounded-full bg-gradient-to-r from-primary-500 to-accent-500"
             style={{ width: `${Math.round(fraction * 100)}%` }}
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* v2.20: 44px de area tocable — eran botones de 32px */}
           <button
-            className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200 disabled:opacity-50"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-surface-800 hover:bg-surface-700 active:bg-surface-700 transition-colors text-surface-200 disabled:opacity-50 shrink-0"
             onClick={toggle}
             disabled={complete}
+            aria-label={playing && !complete ? 'Pausar' : 'Reproducir'}
           >
-            {playing && !complete ? <Pause size={16} /> : <Play size={16} />}
+            {playing && !complete ? <Pause size={18} /> : <Play size={18} />}
           </button>
           <button
-            className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-surface-800 hover:bg-surface-700 active:bg-surface-700 transition-colors text-surface-200 shrink-0"
             onClick={restart}
+            aria-label="Reiniciar"
           >
-            <RotateCcw size={16} />
+            <RotateCcw size={18} />
           </button>
           <span className="text-xs font-mono text-surface-400">
             {fmtTime(cur)} / {fmtTime(dur)}
           </span>
-          <span className="ml-auto text-[11px] text-surface-500">
+          <span className="ml-auto text-[11px] text-surface-500 hidden sm:inline">
             Narracion en espanol · subtitulos activados
           </span>
         </div>

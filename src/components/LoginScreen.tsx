@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, Fingerprint, Loader2 } from 'lucide-react';
+import { ShieldCheck, Fingerprint, Loader2, Delete } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
 const PIN_LENGTH = 6;
@@ -169,6 +169,44 @@ export default function LoginScreen() {
     }
   }
 
+  // ── v2.20: teclado numerico en pantalla ────────────────────────────────
+  // En celular el teclado del sistema no se abre solo (el focus() de montaje no
+  // es un gesto del usuario), asi que la pantalla se quedaba con seis cajas
+  // vacias sin que pasara nada. Estas teclas escriben el PIN directamente.
+  const pushDigit = useCallback(
+    (digit: string) => {
+      if (authenticating || success) return;
+      setError(false);
+      setPin((prev) => {
+        const index = prev.findIndex((d) => !d);
+        if (index === -1) return prev;
+        const updated = [...prev];
+        updated[index] = digit;
+        if (index === PIN_LENGTH - 1) {
+          const fullPin = updated.join('');
+          if (fullPin.length === PIN_LENGTH) attemptLogin(fullPin);
+        } else {
+          inputRefs.current[index + 1]?.focus();
+        }
+        return updated;
+      });
+    },
+    [attemptLogin, authenticating, success],
+  );
+
+  const popDigit = useCallback(() => {
+    if (authenticating || success) return;
+    setPin((prev) => {
+      const firstEmpty = prev.findIndex((d) => !d);
+      const index = firstEmpty === -1 ? PIN_LENGTH - 1 : firstEmpty - 1;
+      if (index < 0) return prev;
+      const updated = [...prev];
+      updated[index] = '';
+      inputRefs.current[index]?.focus();
+      return updated;
+    });
+  }, [authenticating, success]);
+
   function handleKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
     if (authenticating || success) return;
 
@@ -216,19 +254,21 @@ export default function LoginScreen() {
   }
 
   return (
-    <div className="h-screen w-screen flex items-center justify-center relative overflow-hidden">
+    // v2.20: `overflow-y-auto` + `py-6` para que la tarjeta se pueda recorrer en
+    // pantallas bajas (celular en horizontal, iPhone SE) en vez de recortarse.
+    <div className="h-dvh w-screen flex items-center justify-center relative overflow-y-auto overflow-x-hidden py-6">
       <FloatingParticles />
 
       <motion.div
-        className="relative z-10 w-full max-w-md mx-4"
+        className="relative z-10 w-full max-w-md mx-3 sm:mx-4 my-auto"
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       >
-        <div className="glass-card p-10">
+        <div className="glass-card p-5 sm:p-10">
           {/* Logo / branding */}
           <motion.div
-            className="text-center mb-10"
+            className="text-center mb-6 sm:mb-10"
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15 }}
@@ -283,12 +323,53 @@ export default function LoginScreen() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <p className="text-surface-400 text-sm text-center mb-5">
+            <p className="text-surface-400 text-sm text-center mb-2">
               Ingrese su PIN de acceso
             </p>
 
+            {/* v2.20: el estado va ARRIBA del PIN. Abajo quedaba tapado por el
+                teclado del celular y el usuario nunca leia "PIN incorrecto". */}
+            <div className="h-7 mb-2 flex items-center justify-center" aria-live="polite">
+              <AnimatePresence mode="wait">
+                {authenticating && !success && (
+                  <motion.div
+                    key="loading-top"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center gap-2 text-primary-400 text-sm"
+                  >
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Verificando acceso...</span>
+                  </motion.div>
+                )}
+                {error && (
+                  <motion.p
+                    key="error-top"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="text-danger-500 text-sm font-medium"
+                  >
+                    PIN incorrecto. Intente de nuevo.
+                  </motion.p>
+                )}
+                {success && detectedRole && (
+                  <motion.p
+                    key="success-top"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="text-success-500 text-sm font-medium"
+                  >
+                    Acceso concedido
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
             <motion.div
-              className="flex justify-center gap-3"
+              className="flex justify-center gap-1.5 sm:gap-3"
               animate={error ? { x: [0, -12, 12, -8, 8, -4, 4, 0] } : {}}
               transition={{ duration: 0.5 }}
             >
@@ -305,11 +386,14 @@ export default function LoginScreen() {
                       onChange={(e) => handleChange(i, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(i, e)}
                       onPaste={i === 0 ? handlePaste : undefined}
-                      disabled={authenticating || success}
+                      // v2.20: readOnly en vez de disabled — `disabled` quitaba
+                      // el foco y cerraba el teclado del celular en cada intento.
+                      readOnly={authenticating || success}
                       autoComplete="off"
                       className={`
-                        w-12 h-14 text-center text-lg font-semibold rounded-xl
+                        w-11 h-13 sm:w-12 sm:h-14 text-center text-lg font-semibold rounded-xl
                         outline-none transition-all duration-300
+                        ${authenticating || success ? 'opacity-60' : ''}
                         ${error
                           ? 'bg-danger-500/10 border-2 border-danger-500/50 text-danger-500'
                           : success
@@ -343,57 +427,73 @@ export default function LoginScreen() {
               })}
             </motion.div>
 
-            {/* Status messages */}
-            <div className="h-12 mt-6 flex items-center justify-center">
-              <AnimatePresence mode="wait">
-                {authenticating && !success && (
-                  <motion.div
-                    key="loading"
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -5 }}
-                    className="flex items-center gap-2 text-primary-400 text-sm"
-                  >
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>Verificando acceso...</span>
-                  </motion.div>
-                )}
+            {/* Rol detectado al entrar */}
+            <div className="h-8 mt-4 flex items-center justify-center">
+              {success && detectedRole && (
+                <span className="badge badge-blue capitalize">{detectedRole}</span>
+              )}
+            </div>
 
-                {error && (
-                  <motion.p
-                    key="error"
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -5 }}
-                    className="text-danger-500 text-sm font-medium"
+            {/* ── v2.20: teclado numerico en pantalla (celular y tablet) ────
+                En un telefono el teclado del sistema no se abre solo, asi que
+                sin esto la pantalla se quedaba con seis cajas vacias. En
+                escritorio (1024px o mas) no aparece: ahi se escribe normal. */}
+            <div className="lg:hidden mt-1">
+              <div className="grid grid-cols-3 gap-2 max-w-[288px] mx-auto">
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => pushDigit(d)}
+                    disabled={authenticating || success}
+                    className="h-14 rounded-xl text-xl font-semibold text-white
+                      bg-surface-900/60 border border-white/10
+                      active:bg-primary-500/25 active:border-primary-500/40
+                      disabled:opacity-40 transition-colors"
                   >
-                    PIN incorrecto. Intente de nuevo.
-                  </motion.p>
-                )}
-
-                {success && detectedRole && (
-                  <motion.div
-                    key="success"
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -5 }}
-                    className="flex flex-col items-center gap-2"
-                  >
-                    <p className="text-success-500 text-sm font-medium">
-                      Acceso concedido
-                    </p>
-                    <span className="badge badge-blue capitalize">
-                      {detectedRole}
-                    </span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    {d}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setPin(Array(PIN_LENGTH).fill(''))}
+                  disabled={authenticating || success}
+                  className="h-14 rounded-xl text-xs font-semibold text-surface-400
+                    bg-surface-900/40 border border-white/[0.06]
+                    active:bg-white/[0.08] disabled:opacity-40 transition-colors"
+                  aria-label="Borrar todo"
+                >
+                  Limpiar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => pushDigit('0')}
+                  disabled={authenticating || success}
+                  className="h-14 rounded-xl text-xl font-semibold text-white
+                    bg-surface-900/60 border border-white/10
+                    active:bg-primary-500/25 active:border-primary-500/40
+                    disabled:opacity-40 transition-colors"
+                >
+                  0
+                </button>
+                <button
+                  type="button"
+                  onClick={popDigit}
+                  disabled={authenticating || success}
+                  className="h-14 rounded-xl flex items-center justify-center text-surface-300
+                    bg-surface-900/40 border border-white/[0.06]
+                    active:bg-white/[0.08] disabled:opacity-40 transition-colors"
+                  aria-label="Borrar un digito"
+                >
+                  <Delete size={20} />
+                </button>
+              </div>
             </div>
           </motion.div>
 
           {/* Footer text */}
           <motion.p
-            className="text-surface-600 text-xs text-center mt-6"
+            className="text-surface-600 text-xs text-center mt-5"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}

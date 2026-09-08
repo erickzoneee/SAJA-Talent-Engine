@@ -303,10 +303,10 @@ function CandidatesReadyView({ onHire, onViewEmployees, onDirectRegister }: Cand
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500/20 to-accent-500/20 flex items-center justify-center">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-0 mb-6">
+        <div className="min-w-0">
+          <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500/20 to-accent-500/20 flex items-center justify-center shrink-0">
               <FileCheck size={22} className="text-primary-400" />
             </div>
             Candidatos para Contratar
@@ -317,15 +317,17 @@ function CandidatesReadyView({ onHire, onViewEmployees, onDirectRegister }: Cand
         </div>
         {/* v2.18: el alta directa vive aqui, junto a los candidatos. La seccion
             de Colaboradores quedo solo para consultar expedientes. */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* v2.20: en tablet (768px con el menu de 280px) los dos botones juntos
+            se salian 48px de la pantalla; se apilan hasta lg. */}
+        <div className="flex flex-col sm:flex-row sm:flex-wrap lg:flex-nowrap lg:items-center gap-2 sm:gap-3 w-full lg:w-auto lg:shrink-0">
           <button
-            className="btn-secondary flex items-center gap-2"
+            className="btn-secondary flex items-center justify-center gap-2 w-full sm:w-auto"
             onClick={onViewEmployees}
           >
             <Building size={16} />
             Ver Colaboradores ({employees.length})
           </button>
-          <button className="btn-primary flex items-center gap-2" onClick={onDirectRegister}>
+          <button className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto sm:min-w-0" onClick={onDirectRegister}>
             <UserPlus size={16} />
             Registrar colaborador existente
           </button>
@@ -333,8 +335,8 @@ function CandidatesReadyView({ onHire, onViewEmployees, onDirectRegister }: Cand
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-4">
+        <div className="relative flex-1 min-w-0 max-w-md">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" />
           <input
             type="text"
@@ -345,7 +347,7 @@ function CandidatesReadyView({ onHire, onViewEmployees, onDirectRegister }: Cand
           />
         </div>
         <select
-          className="input-field w-auto"
+          className="input-field w-full sm:w-auto sm:max-w-full sm:min-w-0"
           value={filterVerdict}
           onChange={(e) => setFilterVerdict(e.target.value as typeof filterVerdict)}
         >
@@ -359,7 +361,7 @@ function CandidatesReadyView({ onHire, onViewEmployees, onDirectRegister }: Cand
       {/* Candidate List */}
       <div className="flex-1 overflow-y-auto space-y-3 pr-1">
         {hirableCandidates.length === 0 ? (
-          <motion.div {...fadeUp} className="glass-card p-12 text-center">
+          <motion.div {...fadeUp} className="glass-card p-6 sm:p-12 text-center">
             <User size={48} className="mx-auto text-surface-600 mb-4" />
             <p className="text-surface-400 text-lg font-medium">No hay candidatos listos para contratar</p>
             <p className="text-surface-500 text-sm mt-1">
@@ -375,7 +377,7 @@ function CandidatesReadyView({ onHire, onViewEmployees, onDirectRegister }: Cand
               initial="initial"
               animate="animate"
               exit="exit"
-              className="glass-card p-4 flex items-center gap-4 cursor-pointer group"
+              className="glass-card p-3 sm:p-4 flex flex-wrap items-center gap-3 sm:gap-4 cursor-pointer group"
               onClick={() => onHire(candidate.id)}
             >
               {/* Avatar */}
@@ -392,9 +394,12 @@ function CandidatesReadyView({ onHire, onViewEmployees, onDirectRegister }: Cand
               )}
 
               {/* Info */}
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-semibold truncate">{candidate.fullName}</p>
-                <p className="text-surface-400 text-sm">
+              {/* v2.20: min-w para que la fila envuelva de verdad. Con flex-1 y
+                  min-w-0 esta columna se colapsaba a 8px en tablet (768px menos
+                  el menu de 280px) porque las insignias no encogen. */}
+              <div className="w-[calc(100%_-_4.5rem)] sm:w-auto sm:flex-1 sm:min-w-[11rem]">
+                <p className="text-white font-semibold break-words sm:truncate">{candidate.fullName}</p>
+                <p className="text-surface-400 text-sm break-words">
                   {JOB_POSITIONS[candidate.position]?.name ?? candidate.position}
                 </p>
               </div>
@@ -426,7 +431,7 @@ function CandidatesReadyView({ onHire, onViewEmployees, onDirectRegister }: Cand
 
               {/* Action */}
               <button
-                className="btn-success flex items-center gap-2 text-sm shrink-0"
+                className="btn-success flex items-center justify-center gap-2 text-sm shrink-0 w-full sm:w-auto"
                 onClick={(e) => {
                   e.stopPropagation();
                   onHire(candidate.id);
@@ -436,7 +441,7 @@ function CandidatesReadyView({ onHire, onViewEmployees, onDirectRegister }: Cand
                 Contratar
               </button>
 
-              <ChevronRight size={18} className="text-surface-600 group-hover:text-surface-400 transition-colors shrink-0" />
+              <ChevronRight size={18} className="hidden sm:block text-surface-600 group-hover:text-surface-400 transition-colors shrink-0" />
             </motion.div>
           ))
         )}
@@ -498,7 +503,7 @@ function CatalogSelect({
       </select>
       <button
         type="button"
-        className="text-xs text-primary-400 hover:text-primary-300 mt-1.5 cursor-pointer flex items-center gap-1"
+        className="text-xs text-primary-400 hover:text-primary-300 mt-1.5 cursor-pointer flex items-center gap-1 py-2 sm:py-0 min-h-[36px] sm:min-h-0"
         onClick={() => setManage((m) => !m)}
       >
         <Plus size={12} /> Agregar o quitar opciones
@@ -510,22 +515,23 @@ function CatalogSelect({
           ) : (
             options.map((o) => (
               <div key={o} className="flex items-center gap-2">
-                <span className="flex-1 text-xs text-surface-200 truncate">{o}</span>
+                <span className="flex-1 min-w-0 text-xs text-surface-200 break-words sm:truncate">{o}</span>
                 <button
                   type="button"
-                  className="p-1 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer shrink-0"
+                  className="p-1 min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer shrink-0"
                   onClick={() => onRemove(o)}
                   title="Quitar esta opcion"
+                  aria-label="Quitar esta opcion"
                 >
                   <Trash2 size={13} />
                 </button>
               </div>
             ))
           )}
-          <div className="flex gap-2 pt-1">
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
             <input
               type="text"
-              className="input-field text-xs"
+              className="input-field text-base sm:text-xs"
               placeholder={addPlaceholder}
               value={newVal}
               onChange={(e) => setNewVal(e.target.value)}
@@ -536,7 +542,7 @@ function CatalogSelect({
                 }
               }}
             />
-            <button type="button" className="btn-primary text-xs px-3 py-1.5 shrink-0" onClick={handleAdd}>
+            <button type="button" className="btn-primary text-xs px-3 py-1.5 shrink-0 justify-center" onClick={handleAdd}>
               Agregar
             </button>
           </div>
@@ -613,7 +619,7 @@ function PositionSelect({
       </select>
       <button
         type="button"
-        className="text-xs text-primary-400 hover:text-primary-300 mt-1.5 cursor-pointer flex items-center gap-1"
+        className="text-xs text-primary-400 hover:text-primary-300 mt-1.5 cursor-pointer flex items-center gap-1 py-2 sm:py-0 min-h-[36px] sm:min-h-0"
         onClick={() => setManage((m) => !m)}
       >
         <Plus size={12} /> Agregar o quitar puestos
@@ -629,22 +635,23 @@ function PositionSelect({
           ) : (
             customOptions.map((o) => (
               <div key={o} className="flex items-center gap-2">
-                <span className="flex-1 text-xs text-surface-200 truncate">{o}</span>
+                <span className="flex-1 min-w-0 text-xs text-surface-200 break-words sm:truncate">{o}</span>
                 <button
                   type="button"
-                  className="p-1 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer shrink-0"
+                  className="p-1 min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer shrink-0"
                   onClick={() => onRemoveCustom(o)}
                   title="Quitar este puesto"
+                  aria-label="Quitar este puesto"
                 >
                   <Trash2 size={13} />
                 </button>
               </div>
             ))
           )}
-          <div className="flex gap-2 pt-1">
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
             <input
               type="text"
-              className="input-field text-xs"
+              className="input-field text-base sm:text-xs"
               placeholder="Nombre del nuevo puesto"
               value={newVal}
               onChange={(e) => setNewVal(e.target.value)}
@@ -655,7 +662,7 @@ function PositionSelect({
                 }
               }}
             />
-            <button type="button" className="btn-primary text-xs px-3 py-1.5 shrink-0" onClick={handleAdd}>
+            <button type="button" className="btn-primary text-xs px-3 py-1.5 shrink-0 justify-center" onClick={handleAdd}>
               Agregar
             </button>
           </div>
@@ -702,7 +709,7 @@ function ProfilePhotoPicker({ photoUrl, name, folder, onChange, size = 72 }: Pro
 
   const dim = { width: size, height: size };
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
       <div style={dim} className="rounded-xl overflow-hidden border border-surface-600/30 shrink-0">
         {busy ? (
           <div className="w-full h-full flex items-center justify-center bg-surface-800/60">
@@ -716,8 +723,8 @@ function ProfilePhotoPicker({ photoUrl, name, folder, onChange, size = 72 }: Pro
           </div>
         )}
       </div>
-      <div className="flex flex-col gap-2">
-        <div className="flex gap-2">
+      <div className="flex flex-col gap-2 min-w-0">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             className="btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-3"
@@ -735,9 +742,10 @@ function ProfilePhotoPicker({ photoUrl, name, folder, onChange, size = 72 }: Pro
           {photoUrl && !busy && (
             <button
               type="button"
-              className="btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-3"
+              className="btn-secondary text-xs flex items-center justify-center gap-1.5 py-1.5 px-3 min-w-[44px] sm:min-w-0"
               onClick={() => onChange('')}
               title="Quitar foto"
+              aria-label="Quitar foto"
             >
               <Trash2 size={14} />
             </button>
@@ -1053,7 +1061,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
 
   if (!candidate) {
     return (
-      <div className="glass-card p-12 text-center">
+      <div className="glass-card p-6 sm:p-12 text-center">
         <XCircle size={48} className="mx-auto text-danger-500 mb-4" />
         <p className="text-surface-300 text-lg">Candidato no encontrado</p>
         <button className="btn-secondary mt-4" onClick={onBack}>Volver</button>
@@ -1066,21 +1074,24 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6 shrink-0">
+      <div className="flex flex-wrap items-center gap-4 mb-6 shrink-0">
         <button
-          className="w-10 h-10 rounded-xl glass flex items-center justify-center text-surface-400 hover:text-white transition-colors cursor-pointer"
+          className="w-10 h-10 rounded-xl glass flex items-center justify-center text-surface-400 hover:text-white transition-colors cursor-pointer shrink-0"
           onClick={onBack}
         >
           <ArrowLeft size={20} />
         </button>
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold text-white">Contratacion</h2>
-          <p className="text-surface-400 text-sm">
+        {/* v2.20: min-w para que el flex-wrap se active de verdad. Con flex-1
+            (base 0) la insignia nunca bajaba de renglon y aplastaba el titulo
+            a 56px, sacando la fila 40px fuera de la pantalla. */}
+        <div className="flex-1 min-w-[10rem]">
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Contratacion</h2>
+          <p className="text-surface-400 text-sm break-words">
             {candidate.fullName} &mdash; {JOB_POSITIONS[candidate.position]?.name ?? candidate.position}
           </p>
         </div>
         {candidate.verdict && (
-          <span className={`badge ${getVerdictColor(candidate.verdict)}`}>
+          <span className={`badge shrink-0 ${getVerdictColor(candidate.verdict)}`}>
             {getVerdictLabel(candidate.verdict)}
           </span>
         )}
@@ -1089,13 +1100,13 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto space-y-6 pr-1">
         {/* Document Checklist Section */}
-        <motion.section {...fadeUp} className="glass-card p-6">
-          <div className="flex items-center justify-between mb-4">
+        <motion.section {...fadeUp} className="glass-card p-4 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
               <FileText size={20} className="text-primary-400" />
               Checklist de Documentos
             </h3>
-            <span className="badge badge-blue">
+            <span className="badge badge-blue whitespace-nowrap shrink-0">
               {allDocsCount}/{DOCUMENT_ITEMS.length} documentos
             </span>
           </div>
@@ -1159,7 +1170,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
         </motion.section>
 
         {/* Employee Data Form */}
-        <motion.section {...fadeUp} className="glass-card p-6">
+        <motion.section {...fadeUp} className="glass-card p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-5">
             <Briefcase size={20} className="text-accent-400" />
             Datos del Empleado
@@ -1304,7 +1315,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
                     key={opt.t}
                     type="button"
                     onClick={() => setReingreso(opt.v)}
-                    className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all cursor-pointer ${
+                    className={`flex-1 px-2 sm:px-4 py-2.5 rounded-xl text-sm font-medium border transition-all cursor-pointer ${
                       reingreso === opt.v
                         ? opt.v
                           ? 'bg-warning-500/20 border-warning-500/60 text-warning-500'
@@ -1335,7 +1346,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
 
         {/* v2.0: Avisos por veredicto de entrevista */}
         {isReservations && (
-          <motion.section {...fadeUp} className="glass-card p-5 border border-warning-500/40 bg-warning-500/5">
+          <motion.section {...fadeUp} className="glass-card p-4 sm:p-5 border border-warning-500/40 bg-warning-500/5">
             <div className="flex items-start gap-3">
               <Eye size={20} className="text-warning-500 shrink-0 mt-0.5" />
               <div>
@@ -1350,7 +1361,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
         )}
 
         {isNotRecommended && (
-          <motion.section {...fadeUp} className="glass-card p-5 border-2 border-danger-500/50 bg-danger-500/5 space-y-3">
+          <motion.section {...fadeUp} className="glass-card p-4 sm:p-5 border-2 border-danger-500/50 bg-danger-500/5 space-y-3">
             <div className="flex items-start gap-3">
               <AlertTriangle size={20} className="text-danger-500 shrink-0 mt-0.5" />
               <div>
@@ -1399,9 +1410,9 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
         )}
 
         {/* v2.17: Contrato individual — se genera aqui, al completar la contratacion */}
-        <motion.section {...fadeUp} className="glass-card p-5">
+        <motion.section {...fadeUp} className="glass-card p-4 sm:p-5">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex-1 min-w-[240px]">
+            <div className="w-full sm:w-auto sm:flex-1 min-w-0 sm:min-w-[240px]">
               <h3 className="text-base font-semibold text-white flex items-center gap-2">
                 <FileText size={18} className="text-accent-400" />
                 Contrato individual de trabajo
@@ -1420,7 +1431,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
             </div>
             <button
               type="button"
-              className="btn-secondary text-sm flex items-center gap-2 shrink-0"
+              className="btn-secondary text-sm flex items-center justify-center gap-2 shrink-0 w-full sm:w-auto"
               onClick={openContract}
               disabled={!candidate}
             >
@@ -1431,14 +1442,14 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
         </motion.section>
 
         {/* Supervisor Override + Submit */}
-        <motion.section {...fadeUp} className="glass-card p-6">
+        <motion.section {...fadeUp} className="glass-card p-4 sm:p-6">
           {!allMandatoryDone && (
             <label className="flex items-center gap-3 mb-5 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={supervisorOverride}
                 onChange={(e) => setSupervisorOverride(e.target.checked)}
-                className="w-5 h-5 rounded border-surface-600 bg-surface-800 text-primary-500 focus:ring-primary-500/30 focus:ring-2 cursor-pointer"
+                className="w-5 h-5 shrink-0 rounded border-surface-600 bg-surface-800 text-primary-500 focus:ring-primary-500/30 focus:ring-2 cursor-pointer"
               />
               <div>
                 <p className="text-surface-300 text-sm font-medium group-hover:text-white transition-colors">
@@ -1452,9 +1463,9 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
             </label>
           )}
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <button
-              className="btn-success flex items-center gap-2 flex-1 justify-center py-3 text-base"
+              className="btn-success flex items-center gap-2 w-full sm:w-auto sm:flex-1 justify-center py-3 text-base"
               disabled={!canSubmit || saving}
               onClick={handleSubmit}
             >
@@ -1474,7 +1485,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
                 </>
               )}
             </button>
-            <button className="btn-secondary" onClick={onBack}>
+            <button className="btn-secondary w-full sm:w-auto justify-center" onClick={onBack}>
               Cancelar
             </button>
           </div>
@@ -1538,7 +1549,7 @@ function DocumentRow({ doc, checked, photoUrl, onToggle, onPhotoUpload, index, f
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.03, duration: 0.25 }}
-      className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 ${
+      className={`flex flex-wrap items-center gap-3 p-3 rounded-xl transition-all duration-200 ${
         checked
           ? 'bg-success-500/8 border border-success-500/15'
           : 'bg-surface-800/30 border border-transparent hover:border-surface-700/30'
@@ -1548,7 +1559,8 @@ function DocumentRow({ doc, checked, photoUrl, onToggle, onPhotoUpload, index, f
       <button
         type="button"
         onClick={onToggle}
-        className="shrink-0 cursor-pointer"
+        aria-pressed={checked}
+        className="shrink-0 cursor-pointer min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0"
       >
         {checked ? (
           <CheckCircle size={22} className="text-success-500" />
@@ -1558,16 +1570,16 @@ function DocumentRow({ doc, checked, photoUrl, onToggle, onPhotoUpload, index, f
       </button>
 
       {/* Label */}
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium ${checked ? 'text-surface-200 line-through opacity-70' : 'text-surface-200'}`}>
+      <div className="w-[calc(100%_-_3.5rem)] sm:w-auto sm:flex-1 min-w-0">
+        <p className={`text-sm font-medium break-words ${checked ? 'text-surface-200 line-through opacity-70' : 'text-surface-200'}`}>
           {index + 1}. {doc.label}
         </p>
-        <div className="flex items-center gap-2 mt-0.5">
+        <div className="flex flex-wrap items-center gap-2 mt-0.5">
           {doc.mandatory && (
-            <span className="text-[10px] text-danger-500 font-semibold uppercase tracking-wide">Obligatorio</span>
+            <span className="text-[11px] sm:text-[10px] text-danger-500 font-semibold uppercase tracking-wide">Obligatorio</span>
           )}
           {doc.maleOnly && doc.note && (
-            <span className="text-[10px] text-warning-500 font-medium flex items-center gap-1">
+            <span className="text-[11px] sm:text-[10px] text-warning-500 font-medium flex items-center gap-1">
               <AlertTriangle size={10} />
               {doc.note}
             </span>
@@ -1587,9 +1599,10 @@ function DocumentRow({ doc, checked, photoUrl, onToggle, onPhotoUpload, index, f
           {/* Camera button */}
           <button
             type="button"
-            className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-primary-500/20 flex items-center justify-center text-surface-400 hover:text-primary-400 transition-all cursor-pointer shrink-0"
+            className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg bg-surface-700/40 hover:bg-primary-500/20 flex items-center justify-center text-surface-400 hover:text-primary-400 transition-all cursor-pointer shrink-0"
             onClick={() => cameraRef.current?.click()}
             title="Tomar foto"
+            aria-label="Tomar foto"
           >
             <Camera size={15} />
           </button>
@@ -1597,9 +1610,10 @@ function DocumentRow({ doc, checked, photoUrl, onToggle, onPhotoUpload, index, f
           {/* Upload button */}
           <button
             type="button"
-            className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-accent-500/20 flex items-center justify-center text-surface-400 hover:text-accent-400 transition-all cursor-pointer shrink-0"
+            className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg bg-surface-700/40 hover:bg-accent-500/20 flex items-center justify-center text-surface-400 hover:text-accent-400 transition-all cursor-pointer shrink-0"
             onClick={() => localFileRef.current?.click()}
             title="Subir archivo (foto o PDF)"
+            aria-label="Subir archivo (foto o PDF)"
           >
             <Upload size={15} />
           </button>
@@ -1783,16 +1797,16 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-start sm:items-center gap-3 sm:gap-4 mb-6">
         <button
-          className="w-10 h-10 rounded-xl glass flex items-center justify-center text-surface-400 hover:text-white transition-colors cursor-pointer"
+          className="w-10 h-10 rounded-xl glass flex items-center justify-center text-surface-400 hover:text-white transition-colors cursor-pointer shrink-0"
           onClick={onBack}
         >
           <ArrowLeft size={20} />
         </button>
-        <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-500/20 to-primary-500/20 flex items-center justify-center">
+        <div className="min-w-0">
+          <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-3">
+            <div className="hidden sm:flex w-10 h-10 rounded-xl bg-gradient-to-br from-accent-500/20 to-primary-500/20 items-center justify-center">
               <UserPlus size={22} className="text-accent-400" />
             </div>
             Registrar Colaborador Existente
@@ -1806,7 +1820,7 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
 
       <div className="flex-1 overflow-y-auto pb-6">
         <div className="max-w-2xl space-y-5">
-          <div className="glass-card p-5 space-y-4">
+          <div className="glass-card p-4 sm:p-5 space-y-4">
             <h3 className="text-base font-semibold text-white">Datos del colaborador</h3>
 
             {/* v2.15: foto del colaborador (en vez de iniciales) */}
@@ -1828,7 +1842,7 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* v2.15: puesto como catalogo editable (agregar/quitar puestos) */}
               <PositionSelect
                 label="Puesto *"
@@ -1858,7 +1872,7 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm text-surface-400 mb-1">Sueldo diario *</label>
                 <input
@@ -1895,7 +1909,7 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
               addPlaceholder="Ej: TURNO NOCTURNO · LUN-SAB 22:00 - 6:00"
             />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm text-surface-400 mb-1">Tipo de contrato</label>
                 <select
@@ -1920,7 +1934,7 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <CatalogSelect
                 icon={User}
                 label="Supervisor directo"
@@ -1995,7 +2009,7 @@ export function DossierView({ employeeId, onBack }: DossierViewProps) {
 
   if (!employee) {
     return (
-      <div className="glass-card p-12 text-center">
+      <div className="glass-card p-6 sm:p-12 text-center">
         <XCircle size={48} className="mx-auto text-danger-500 mb-4" />
         <p className="text-surface-300 text-lg">Empleado no encontrado</p>
         <button className="btn-secondary mt-4" onClick={onBack}>Volver</button>
@@ -2024,14 +2038,14 @@ export function DossierView({ employeeId, onBack }: DossierViewProps) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-5 shrink-0">
+      <div className="flex flex-wrap items-center gap-4 mb-5 shrink-0">
         <button
-          className="w-10 h-10 rounded-xl glass flex items-center justify-center text-surface-400 hover:text-white transition-colors cursor-pointer"
+          className="w-10 h-10 rounded-xl glass flex items-center justify-center text-surface-400 hover:text-white transition-colors cursor-pointer shrink-0"
           onClick={onBack}
         >
           <ArrowLeft size={20} />
         </button>
-        <div className="flex items-center gap-4 flex-1">
+        <div className="flex items-center gap-4 w-[calc(100%_-_3.5rem)] sm:w-auto sm:flex-1 min-w-0">
           {employee.photoUrl ? (
             <MediaImage
               value={employee.photoUrl}
@@ -2043,14 +2057,14 @@ export function DossierView({ employeeId, onBack }: DossierViewProps) {
               {getInitials(employee.fullName)}
             </div>
           )}
-          <div>
-            <h2 className="text-xl font-bold text-white">{employee.fullName}</h2>
-            <p className="text-surface-400 text-sm">
+          <div className="min-w-0">
+            <h2 className="text-lg sm:text-xl font-bold text-white break-words">{employee.fullName}</h2>
+            <p className="text-surface-400 text-sm break-words">
               Expediente #{String(employee.expedientNumber).padStart(3, '0')} &mdash; {JOB_POSITIONS[employee.position]?.name ?? employee.position}
             </p>
           </div>
         </div>
-        <span className={`badge ${cfg.badge}`}>{cfg.label}</span>
+        <span className={`badge whitespace-nowrap ${cfg.badge}`}>{cfg.label}</span>
         {trialDays !== null && (
           <div className={`text-right ${trialDays <= 5 ? 'text-danger-500' : trialDays <= 10 ? 'text-warning-500' : 'text-primary-400'}`}>
             <p className="text-[10px] uppercase tracking-wide opacity-70">Dias restantes</p>
@@ -2068,7 +2082,7 @@ export function DossierView({ employeeId, onBack }: DossierViewProps) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-1 sm:px-0 py-2.5 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
                 isActive
                   ? 'bg-primary-500/20 text-primary-400 shadow-sm'
                   : 'text-surface-400 hover:text-surface-200 hover:bg-surface-700/30'
@@ -2109,7 +2123,7 @@ export function DossierView({ employeeId, onBack }: DossierViewProps) {
 
 function ExpSection({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
   return (
-    <div className="glass-card p-5">
+    <div className="glass-card p-4 sm:p-5">
       <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4 uppercase tracking-wide">
         <Icon size={16} className="text-primary-400" />
         {title}
@@ -2124,7 +2138,7 @@ function Fld({ label, children, wide, hint }: { label: string; children: React.R
     <div className={wide ? 'md:col-span-2 xl:col-span-3' : ''}>
       <label className="block text-xs font-medium text-surface-400 mb-1">{label}</label>
       {children}
-      {hint && <p className="text-[10px] text-surface-500 mt-1">{hint}</p>}
+      {hint && <p className="text-[11px] sm:text-[10px] text-surface-500 mt-1">{hint}</p>}
     </div>
   );
 }
@@ -2173,7 +2187,7 @@ function ExpCatalogSelect({
       </select>
       <button
         type="button"
-        className="text-[10px] text-primary-400 hover:text-primary-300 mt-1 cursor-pointer flex items-center gap-1"
+        className="text-[10px] text-primary-400 hover:text-primary-300 mt-1 cursor-pointer flex items-center gap-1 py-2 sm:py-0 min-h-[36px] sm:min-h-0"
         onClick={() => setManage((m) => !m)}
       >
         <Plus size={11} /> Agregar o quitar opciones
@@ -2185,22 +2199,23 @@ function ExpCatalogSelect({
           ) : (
             options.map((o) => (
               <div key={o} className="flex items-center gap-2">
-                <span className="flex-1 text-xs text-surface-200 truncate">{o}</span>
+                <span className="flex-1 min-w-0 text-xs text-surface-200 break-words sm:truncate">{o}</span>
                 <button
                   type="button"
-                  className="p-1 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer shrink-0"
+                  className="p-1 min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer shrink-0"
                   onClick={() => onRemove(o)}
                   title="Quitar esta opcion"
+                  aria-label="Quitar esta opcion"
                 >
                   <Trash2 size={13} />
                 </button>
               </div>
             ))
           )}
-          <div className="flex gap-2 pt-1">
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
             <input
               type="text"
-              className="input-field text-xs"
+              className="input-field text-base sm:text-xs"
               placeholder={addPlaceholder}
               value={newVal}
               onChange={(e) => setNewVal(e.target.value)}
@@ -2211,7 +2226,7 @@ function ExpCatalogSelect({
                 }
               }}
             />
-            <button type="button" className="btn-primary text-xs px-3 py-1.5 shrink-0" onClick={handleAdd}>
+            <button type="button" className="btn-primary text-xs px-3 py-1.5 shrink-0 justify-center" onClick={handleAdd}>
               Agregar
             </button>
           </div>
@@ -2480,27 +2495,27 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
   };
 
   const SaveBar = (
-    <div className="flex items-center gap-3">
-      <button className="btn-success flex items-center gap-2" onClick={handleSave} disabled={!dirty || !nombreOk}>
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+      <button className="btn-success flex items-center justify-center gap-2 w-full sm:w-auto" onClick={handleSave} disabled={!dirty || !nombreOk}>
         <Save size={16} />
         Guardar cambios
       </button>
       {!nombreOk && (
-        <span className="text-warning-500 text-xs">
+        <span className="text-warning-500 text-xs basis-full sm:basis-auto">
           Captura Nombre(s) y Apellido paterno: con ellos se arma el nombre completo.
         </span>
       )}
       {dirty && (
-        <button className="btn-secondary text-sm" onClick={handleReset}>
+        <button className="btn-secondary text-sm w-full sm:w-auto justify-center" onClick={handleReset}>
           Descartar
         </button>
       )}
       {saved && (
-        <span className="text-success-500 text-sm flex items-center gap-1.5">
+        <span className="text-success-500 text-sm flex items-center gap-1.5 basis-full sm:basis-auto">
           <CheckCircle size={15} /> Guardado
         </span>
       )}
-      {dirty && !saved && <span className="text-warning-500 text-xs">Hay cambios sin guardar</span>}
+      {dirty && !saved && <span className="text-warning-500 text-xs basis-full sm:basis-auto">Hay cambios sin guardar</span>}
     </div>
   );
 
@@ -2811,7 +2826,7 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
       </ExpSection>
 
       {/* ─── BENEFICIARIOS ─── */}
-      <div className="glass-card p-5">
+      <div className="glass-card p-4 sm:p-5">
         <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4 uppercase tracking-wide">
           <Users size={16} className="text-primary-400" />
           Beneficiarios
@@ -2822,7 +2837,7 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
               <Heart size={13} className="text-primary-400" /> Beneficiario primario
             </p>
             <input className="input-field" placeholder="Nombre completo" value={d.benefPrimNombre} onChange={(e) => up({ benefPrimNombre: e.target.value.toUpperCase() })} />
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <select className="input-field" value={d.benefPrimParentesco} onChange={(e) => up({ benefPrimParentesco: e.target.value })}>
                 <option value="">Parentesco</option>
                 {PARENTESCO_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -2835,7 +2850,7 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
               <Heart size={13} className="text-accent-400" /> Beneficiario secundario (opcional)
             </p>
             <input className="input-field" placeholder="Nombre completo" value={d.benefSecNombre} onChange={(e) => up({ benefSecNombre: e.target.value.toUpperCase() })} />
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <select className="input-field" value={d.benefSecParentesco} onChange={(e) => up({ benefSecParentesco: e.target.value })}>
                 <option value="">Parentesco</option>
                 {PARENTESCO_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -2858,7 +2873,7 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
       </div>
 
       {/* Barra de guardado (abajo) */}
-      <div className="glass-card p-4 flex items-center justify-end">{SaveBar}</div>
+      <div className="glass-card p-4 flex flex-wrap items-center justify-end">{SaveBar}</div>
 
       {/* v2.18: confirmacion obligatoria al dejar el expediente como inactivo */}
       <SajaBajaConfirmModal
@@ -2902,7 +2917,7 @@ function DossierDocRow({ doc, index, data, onToggle, onPhoto, onExpand, uploadin
 
   return (
     <div
-      className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 ${
+      className={`flex flex-wrap items-center gap-3 p-3 rounded-xl transition-all duration-200 ${
         data.done
           ? 'bg-success-500/8 border border-success-500/15'
           : 'bg-surface-800/30 border border-transparent hover:border-surface-700/30'
@@ -2912,7 +2927,8 @@ function DossierDocRow({ doc, index, data, onToggle, onPhoto, onExpand, uploadin
       <button
         type="button"
         onClick={onToggle}
-        className="shrink-0 cursor-pointer"
+        aria-pressed={data.done}
+        className="shrink-0 cursor-pointer min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0"
         title={data.done ? 'Marcar como pendiente' : 'Marcar como entregado'}
       >
         {data.done ? (
@@ -2923,16 +2939,16 @@ function DossierDocRow({ doc, index, data, onToggle, onPhoto, onExpand, uploadin
       </button>
 
       {/* Label */}
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm ${data.done ? 'text-surface-300' : 'text-surface-400'}`}>
+      <div className="w-[calc(100%_-_3.5rem)] sm:w-auto sm:flex-1 min-w-0">
+        <p className={`text-sm break-words ${data.done ? 'text-surface-300' : 'text-surface-400'}`}>
           {index + 1}. {doc.label}
         </p>
-        <div className="flex items-center gap-2 mt-0.5">
+        <div className="flex flex-wrap items-center gap-2 mt-0.5">
           {doc.mandatory && (
-            <span className="text-[10px] text-danger-500 font-semibold uppercase tracking-wide">Obligatorio</span>
+            <span className="text-[11px] sm:text-[10px] text-danger-500 font-semibold uppercase tracking-wide">Obligatorio</span>
           )}
           {doc.maleOnly && doc.note && (
-            <span className="text-[10px] text-warning-500 font-medium flex items-center gap-1">
+            <span className="text-[11px] sm:text-[10px] text-warning-500 font-medium flex items-center gap-1">
               <AlertTriangle size={10} />
               {doc.note}
             </span>
@@ -2952,9 +2968,10 @@ function DossierDocRow({ doc, index, data, onToggle, onPhoto, onExpand, uploadin
           {/* Camera */}
           <button
             type="button"
-            className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-primary-500/20 flex items-center justify-center text-surface-400 hover:text-primary-400 transition-all cursor-pointer shrink-0"
+            className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg bg-surface-700/40 hover:bg-primary-500/20 flex items-center justify-center text-surface-400 hover:text-primary-400 transition-all cursor-pointer shrink-0"
             onClick={() => cameraRef.current?.click()}
             title="Tomar foto"
+            aria-label="Tomar foto"
           >
             <Camera size={15} />
           </button>
@@ -2962,9 +2979,10 @@ function DossierDocRow({ doc, index, data, onToggle, onPhoto, onExpand, uploadin
           {/* Upload */}
           <button
             type="button"
-            className="w-8 h-8 rounded-lg bg-surface-700/40 hover:bg-accent-500/20 flex items-center justify-center text-surface-400 hover:text-accent-400 transition-all cursor-pointer shrink-0"
+            className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg bg-surface-700/40 hover:bg-accent-500/20 flex items-center justify-center text-surface-400 hover:text-accent-400 transition-all cursor-pointer shrink-0"
             onClick={() => uploadRef.current?.click()}
             title="Subir archivo (foto o PDF)"
+            aria-label="Subir archivo (foto o PDF)"
           >
             <Upload size={15} />
           </button>
@@ -3066,7 +3084,7 @@ function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee:
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6"
             onClick={() => setExpandedPhoto(null)}
           >
             {isImageMedia(expandedPhoto) ? (
@@ -3080,7 +3098,7 @@ function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee:
                 <MediaImage
                   value={expandedPhoto}
                   alt="Documento"
-                  className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain"
+                  className="max-w-full max-h-[85dvh] rounded-2xl shadow-2xl object-contain"
                 />
               </motion.div>
             ) : (
@@ -3088,10 +3106,10 @@ function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee:
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="w-full max-w-4xl h-[85vh] bg-surface-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+                className="w-full max-w-4xl h-[85dvh] bg-surface-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between p-3 border-b border-white/10">
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3 border-b border-white/10">
                   <span className="text-sm text-surface-300 flex items-center gap-2">
                     <FileType size={16} className="text-danger-400" /> Documento PDF
                   </span>
@@ -3150,7 +3168,7 @@ function DossierOnboardingTab({ employee, completed, total }: { employee: Employ
         {employee.onboardingProgress.modules.map((mod) => (
           <div
             key={mod.id}
-            className={`flex items-center gap-3 p-3 rounded-xl ${
+            className={`flex flex-wrap items-center gap-2 sm:gap-3 p-3 rounded-xl ${
               mod.completed ? 'bg-accent-500/8' : 'bg-surface-800/30'
             }`}
           >
@@ -3159,27 +3177,27 @@ function DossierOnboardingTab({ employee, completed, total }: { employee: Employ
             ) : (
               <div className="w-4 h-4 rounded-full border-2 border-surface-600 shrink-0" />
             )}
-            <div className="flex-1 min-w-0">
-              <p className={`text-sm ${mod.completed ? 'text-surface-300' : 'text-surface-500'}`}>
+            <div className="w-[calc(100%_-_1.75rem)] sm:w-auto sm:flex-1 min-w-0">
+              <p className={`text-sm break-words ${mod.completed ? 'text-surface-300' : 'text-surface-500'}`}>
                 {mod.name}
               </p>
-              <p className="text-[10px] text-surface-600">
+              <p className="text-[11px] sm:text-[10px] text-surface-600">
                 {mod.deliveredBy} &mdash; {mod.duration}
               </p>
             </div>
             {mod.requiresSignature && (
-              <span className="text-[10px] text-surface-500 flex items-center gap-1">
+              <span className="text-[11px] sm:text-[10px] text-surface-500 flex items-center gap-1 whitespace-nowrap">
                 <FileCheck size={10} />
                 Firma
               </span>
             )}
             {mod.quizScore !== undefined && (
-              <span className="badge badge-blue text-[10px]">
+              <span className="badge badge-blue text-[11px] sm:text-[10px] whitespace-nowrap">
                 Quiz: {mod.quizScore}%
               </span>
             )}
             {mod.completedDate && (
-              <span className="text-[10px] text-surface-500">
+              <span className="text-[11px] sm:text-[10px] text-surface-500 whitespace-nowrap">
                 {formatDate(mod.completedDate)}
               </span>
             )}
@@ -3189,8 +3207,8 @@ function DossierOnboardingTab({ employee, completed, total }: { employee: Employ
 
       {/* Final quiz score */}
       {employee.onboardingProgress.finalQuizScore !== undefined && (
-        <div className="glass-card p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-500/20 to-primary-500/20 flex items-center justify-center">
+        <div className="glass-card p-4 flex flex-wrap items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-500/20 to-primary-500/20 flex items-center justify-center shrink-0">
             <BadgeCheck size={20} className="text-accent-400" />
           </div>
           <div>
@@ -3238,24 +3256,24 @@ function ContractModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
           onClick={onClose}
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="glass-card w-full max-w-4xl h-[90vh] flex flex-col"
+            className="glass-card w-full max-w-4xl h-[90dvh] max-h-[90dvh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-5 border-b border-white/[0.06] flex flex-wrap items-center gap-3">
-              <div className="flex-1 min-w-[220px]">
+            <div className="p-4 sm:p-5 border-b border-white/[0.06] flex flex-wrap items-center gap-3">
+              <div className="w-full sm:w-auto sm:flex-1 min-w-0 sm:min-w-[220px]">
                 <h3 className="text-lg font-bold text-white">Contrato Individual de Trabajo</h3>
                 <p className="text-xs text-surface-500">{subtitle}</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 <button
-                  className="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5"
+                  className="btn-secondary text-xs px-3 py-2 flex flex-1 sm:flex-none items-center justify-center gap-1.5"
                   onClick={onRegenerate}
                   title="Vuelve a llenar el contrato con los datos actuales (descarta ediciones)"
                 >
@@ -3263,14 +3281,14 @@ function ContractModal({
                   {regenerateLabel}
                 </button>
                 <button
-                  className="btn-success text-xs px-3 py-2 flex items-center gap-1.5"
+                  className="btn-success text-xs px-3 py-2 flex flex-1 sm:flex-none items-center justify-center gap-1.5"
                   onClick={onSave}
                 >
                   <CheckCircle size={14} />
                   {saved ? 'Guardado!' : 'Guardar cambios'}
                 </button>
                 <button
-                  className="btn-primary text-xs px-3 py-2 flex items-center gap-1.5"
+                  className="btn-primary text-xs px-3 py-2 flex flex-1 sm:flex-none items-center justify-center gap-1.5"
                   onClick={() => {
                     onSave();
                     printContractText(text, companyName);
@@ -3279,20 +3297,20 @@ function ContractModal({
                   <FileCheck size={14} />
                   Imprimir
                 </button>
-                <button className="btn-secondary text-xs px-3 py-2" onClick={onClose}>
+                <button className="btn-secondary text-xs px-3 py-2 flex-1 sm:flex-none justify-center" onClick={onClose}>
                   Cerrar
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-hidden p-4">
+            <div className="flex-1 overflow-hidden p-3 sm:p-4">
               <textarea
-                className="w-full h-full bg-surface-50 text-surface-900 rounded-xl p-6 font-serif text-[13px] leading-relaxed resize-none outline-none border-2 border-transparent focus:border-primary-500/50"
+                className="w-full h-full bg-surface-50 text-surface-900 rounded-xl p-3 sm:p-6 font-serif text-base sm:text-[13px] leading-relaxed resize-none outline-none border-2 border-transparent focus:border-primary-500/50"
                 value={text}
                 onChange={(e) => onChange(e.target.value)}
                 spellCheck={false}
               />
             </div>
-            <p className="px-5 pb-4 text-[11px] text-surface-500">{hint}</p>
+            <p className="px-4 sm:px-5 pb-4 text-[11px] text-surface-500">{hint}</p>
           </motion.div>
         </motion.div>
       )}
@@ -3392,7 +3410,7 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
     return (
       <div
         key={doc.key}
-        className="p-4 rounded-xl bg-surface-800/30 border border-white/[0.04] space-y-3"
+        className="p-3 sm:p-4 rounded-xl bg-surface-800/30 border border-white/[0.04] space-y-3"
       >
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           {st.firmadoUrl ? (
@@ -3402,8 +3420,8 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
           ) : (
             <XCircle size={20} className="text-surface-600 shrink-0" />
           )}
-          <div className="flex-1 min-w-[240px]">
-            <p className="text-sm font-semibold text-surface-100 leading-snug">
+          <div className="w-[calc(100%_-_2.5rem)] sm:w-auto sm:flex-1 min-w-0 sm:min-w-[240px]">
+            <p className="text-sm font-semibold text-surface-100 leading-snug break-words">
               {prefijo}
               {doc.titulo}
             </p>
@@ -3414,16 +3432,16 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
               {st.fechaFirmado && ` · firmado subido ${formatDate(st.fechaFirmado)}`}
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0">
             <button
-              className="btn-secondary text-xs px-3.5 py-2 flex items-center gap-1.5"
+              className="btn-secondary text-xs px-3.5 py-2 flex flex-1 sm:flex-none items-center justify-center gap-1.5"
               onClick={() => handleGenerate(doc)}
             >
               <Eye size={14} />
               {st.generado ? 'Ver / Imprimir' : 'Generar'}
             </button>
             <button
-              className="btn-secondary text-xs px-3.5 py-2 flex items-center gap-1.5 disabled:opacity-60"
+              className="btn-secondary text-xs px-3.5 py-2 flex flex-1 sm:flex-none items-center justify-center gap-1.5 disabled:opacity-60"
               onClick={() => scanRefs.current[doc.key]?.click()}
               title="Subir documento firmado escaneado"
               disabled={scanUploading === doc.key}
@@ -3475,13 +3493,13 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
   };
 
   return (
-    <div className="glass-card p-5">
-      <div className="flex items-center justify-between mb-1">
+    <div className="glass-card p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
         <h3 className="text-base font-semibold text-white flex items-center gap-2">
           <FileText size={18} className="text-accent-400" />
           Documentos para Firma (v2.0)
         </h3>
-        <span className={`badge ${signedCount === ONBOARDING_DOC_KEYS.length ? 'badge-green' : 'badge-blue'}`}>
+        <span className={`badge whitespace-nowrap shrink-0 ${signedCount === ONBOARDING_DOC_KEYS.length ? 'badge-green' : 'badge-blue'}`}>
           {signedCount}/{ONBOARDING_DOC_KEYS.length} firmados
         </span>
       </div>
@@ -3503,38 +3521,38 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6"
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6"
             onClick={() => setPreviewDoc(null)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="glass-card w-full max-w-2xl max-h-[85vh] flex flex-col"
+              className="glass-card w-full max-w-2xl max-h-[85dvh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-5 border-b border-white/[0.06] flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-white">{previewDoc.titulo}</h3>
+              <div className="p-4 sm:p-5 border-b border-white/[0.06] flex flex-wrap items-center justify-between gap-3">
+                <div className="w-full sm:w-auto min-w-0">
+                  <h3 className="text-lg font-bold text-white break-words">{previewDoc.titulo}</h3>
                   <p className="text-xs text-surface-500">
                     {previewDoc.cuando} · {previewDoc.tantos} · autollenado con variables del expediente
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button
-                    className="btn-primary text-sm flex items-center gap-2"
+                    className="btn-primary text-sm flex flex-1 sm:flex-none items-center justify-center gap-2"
                     onClick={() => printSignedDocument(previewDoc, settings.companyName)}
                   >
                     <FileCheck size={15} />
                     Imprimir
                   </button>
-                  <button className="btn-secondary text-sm" onClick={() => setPreviewDoc(null)}>
+                  <button className="btn-secondary text-sm flex-1 sm:flex-none justify-center" onClick={() => setPreviewDoc(null)}>
                     Cerrar
                   </button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-6 bg-white/[0.02]">
-                <div className="bg-surface-50 text-surface-900 rounded-xl p-8 font-serif">
+              <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-white/[0.02]">
+                <div className="bg-surface-50 text-surface-900 rounded-xl p-4 sm:p-8 font-serif">
                   {!previewDoc.plain && (
                     <p className="text-center text-[10px] uppercase tracking-widest text-surface-500 mb-1">
                       {settings.companyName}
@@ -3545,13 +3563,13 @@ function SignedDocsSection({ employee }: { employee: Employee }) {
                     <p
                       key={idx}
                       className={`text-[13px] leading-relaxed mb-3 ${
-                        p === 'A T E N T A M E N T E' ? 'text-center tracking-widest my-6' : 'text-justify'
+                        p === 'A T E N T A M E N T E' ? 'text-center tracking-widest my-6' : 'text-left sm:text-justify'
                       }`}
                     >
                       {p}
                     </p>
                   ))}
-                  <div className="flex gap-10 mt-16">
+                  <div className="flex flex-col sm:flex-row gap-8 sm:gap-10 mt-10 sm:mt-16">
                     <div className="flex-1 text-center border-t border-surface-900 pt-2 text-xs">
                       {previewDoc.firmaIzquierda}
                       <br />

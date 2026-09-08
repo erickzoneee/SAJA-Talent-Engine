@@ -54,16 +54,16 @@ export function SajaBajaConfirmModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
+    <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
       <motion.div
         initial={{ scale: 0.96, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.18 }}
-        className="glass-card w-full max-w-lg p-6"
+        className="glass-card w-full max-w-lg p-4 sm:p-6 max-h-[90dvh] overflow-y-auto"
         role="alertdialog"
         aria-modal="true"
       >
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-3 sm:gap-4">
           <div className="w-12 h-12 rounded-xl bg-warning-500/15 border border-warning-500/30 flex items-center justify-center shrink-0">
             <ShieldAlert size={24} className="text-warning-500" />
           </div>
@@ -80,11 +80,11 @@ export function SajaBajaConfirmModal({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-3 mt-6">
-          <button className="btn-secondary" onClick={onCancel}>
+        <div className="flex flex-col-reverse sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-2 sm:gap-3 mt-6">
+          <button className="btn-secondary w-full sm:w-auto" onClick={onCancel}>
             Cancelar
           </button>
-          <button className="btn-danger flex items-center gap-2" onClick={onConfirm}>
+          <button className="btn-danger w-full sm:w-auto flex items-center justify-center gap-2" onClick={onConfirm}>
             <AlertTriangle size={16} />
             {confirmLabel}
           </button>

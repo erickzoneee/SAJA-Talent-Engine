@@ -31,7 +31,7 @@ export default function SupabaseGate({ children }: { children: React.ReactNode }
 
   if (!checked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-950">
+      <div className="min-h-dvh flex items-center justify-center bg-surface-950">
         <Loader2 className="animate-spin text-primary-400" size={28} />
       </div>
     );
@@ -67,12 +67,14 @@ function SupabaseLogin({ onSkip }: { onSkip: () => void }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-surface-950 via-surface-900 to-surface-950">
+    // v2.20: alto real del celular + desplazamiento, para que la tarjeta no se
+    // recorte arriba y abajo en pantallas bajas o con el teclado abierto.
+    <div className="min-h-dvh flex items-center justify-center overflow-y-auto p-3 sm:p-4 py-6 bg-gradient-to-br from-surface-950 via-surface-900 to-surface-950">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="glass-card w-full max-w-md p-8"
+        className="glass-card w-full max-w-md p-5 sm:p-8 my-auto"
       >
         <div className="flex flex-col items-center text-center mb-6">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500/25 to-accent-500/25 flex items-center justify-center mb-3">
@@ -133,7 +135,7 @@ function SupabaseLogin({ onSkip }: { onSkip: () => void }) {
           <button
             type="button"
             onClick={onSkip}
-            className="text-xs text-surface-500 hover:text-surface-300 transition-colors"
+            className="inline-flex items-center justify-center min-h-[44px] px-4 text-xs text-surface-400 hover:text-surface-200 active:text-surface-200 underline underline-offset-4 decoration-surface-600 transition-colors"
           >
             Usar solo en este dispositivo (sin sincronizar)
           </button>

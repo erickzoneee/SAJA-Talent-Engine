@@ -64,6 +64,9 @@
   body {
     background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
     min-height: 100vh;
+    /* v2.20: en Safari/Chrome de celular la barra del navegador hace que 100vh
+       sea MAS ALTO que lo visible; dvh sigue al viewport real. */
+    min-height: 100dvh;
     color: #e2e8f0;
     overflow: hidden;
     margin: 0;
@@ -71,6 +74,7 @@
 
   #root {
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
   }
 
@@ -159,6 +163,33 @@
     text-transform: uppercase;
   }
   .input-field::placeholder { text-transform: none; }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     v2.20 — Ajustes que SOLO aplican en celular (menos de 640px). El aspecto
+     en tablet y escritorio queda intacto: nada de esto se activa ahi.
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  @media (max-width: 639px) {
+    /* Area tocable comoda (44px) y etiquetas que caben sin partirse en 3 */
+    .btn-primary, .btn-secondary, .btn-danger, .btn-success {
+      padding: 11px 16px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      line-height: 1.15;
+    }
+    /* 16px evita que iOS haga zoom (y descuadre la pantalla) al enfocar */
+    .input-field,
+    input.input-field,
+    textarea.input-field,
+    select.input-field {
+      font-size: 16px;
+      padding: 11px 14px;
+      min-height: 44px;
+    }
+    .glass-card { border-radius: 14px; }
+  }
 
   .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
   .badge-green { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }

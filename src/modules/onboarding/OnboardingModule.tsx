@@ -219,13 +219,13 @@ function EmployeeListView({
   return (
     <div className="flex flex-col gap-6 overflow-hidden h-full">
       {/* Header */}
-      <div className="flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
+      <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shrink-0">
             <GraduationCap size={20} className="text-white" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-surface-100">Onboarding / Induccion</h1>
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold text-surface-100">Onboarding / Induccion</h1>
             <p className="text-sm text-surface-400">
               {eligibleEmployees.length} colaborador{eligibleEmployees.length !== 1 ? 'es' : ''} en proceso
             </p>
@@ -253,7 +253,7 @@ function EmployeeListView({
       {/* List */}
       <div className="flex-1 overflow-y-auto space-y-3 pr-1">
         {eligibleEmployees.length === 0 ? (
-          <motion.div {...fadeUp} className="glass-card p-12 text-center">
+          <motion.div {...fadeUp} className="glass-card p-8 sm:p-12 text-center">
             <GraduationCap size={48} className="mx-auto text-surface-500 mb-4" />
             <p className="text-surface-400 text-lg">No hay colaboradores en induccion</p>
             <p className="text-surface-500 text-sm mt-1">
@@ -275,7 +275,7 @@ function EmployeeListView({
                 initial="initial"
                 animate="animate"
                 exit="exit"
-                className="glass-card p-5 flex items-center gap-4 cursor-pointer group"
+                className="glass-card p-4 sm:p-5 flex items-center gap-4 cursor-pointer group"
                 onClick={() => onSelectEmployee(emp.id)}
               >
                 {/* Avatar */}
@@ -292,7 +292,7 @@ function EmployeeListView({
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-sm font-semibold text-surface-100 truncate">
+                    <h3 className="text-sm font-semibold text-surface-100 break-words sm:truncate">
                       {emp.fullName}
                     </h3>
                     {allDone && (
@@ -301,7 +301,7 @@ function EmployeeListView({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-surface-400">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-surface-400">
                     <span className="flex items-center gap-1">
                       <Briefcase size={12} />
                       {JOB_POSITIONS[emp.position]?.name ?? emp.position}
@@ -401,11 +401,11 @@ function OnboardingDashboard({
       <div className="flex items-center gap-3 shrink-0">
         <button
           onClick={onBack}
-          className="w-9 h-9 rounded-xl glass-light flex items-center justify-center text-surface-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl glass-light flex items-center justify-center text-surface-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer shrink-0"
         >
           <ArrowLeft size={18} />
         </button>
-        <div>
+        <div className="min-w-0">
           <h1 className="text-lg font-bold text-surface-100">Panel de Induccion</h1>
           <p className="text-xs text-surface-400">Progreso de modulos de induccion</p>
         </div>
@@ -413,7 +413,7 @@ function OnboardingDashboard({
 
       {/* Employee Info Card */}
       <motion.div {...fadeUp} className="glass-card p-5 shrink-0">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <div
             className={`w-14 h-14 rounded-xl bg-gradient-to-br ${getAvatarGradient(employee.fullName)} flex items-center justify-center text-white font-bold text-lg shrink-0`}
           >
@@ -424,7 +424,7 @@ function OnboardingDashboard({
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-base font-bold text-surface-100 truncate">{employee.fullName}</h2>
+            <h2 className="text-base font-bold text-surface-100 break-words sm:truncate">{employee.fullName}</h2>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-surface-400">
               <span className="flex items-center gap-1">
                 <Briefcase size={12} />
@@ -439,7 +439,7 @@ function OnboardingDashboard({
               </span>
             </div>
           </div>
-          <div className="text-right shrink-0">
+          <div className="basis-full text-left sm:basis-auto sm:text-right shrink-0">
             <div className="text-2xl font-bold gradient-text">{percent}%</div>
             <div className="text-xs text-surface-400">{completedCount}/{total} modulos</div>
           </div>
@@ -470,9 +470,9 @@ function OnboardingDashboard({
                 : 'bg-warning-500/10 border-warning-500/20'
             }`}
           >
-            <div className="flex items-center justify-between">
-              <div className={`flex items-center gap-2 text-sm ${cierreReady ? 'text-green-400' : 'text-yellow-400'}`}>
-                <Award size={18} />
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className={`flex items-start sm:items-center gap-2 text-sm ${cierreReady ? 'text-green-400' : 'text-yellow-400'}`}>
+                <Award size={18} className="shrink-0 mt-0.5 sm:mt-0" />
                 <span>
                   {cierreReady
                     ? 'Todos los requisitos cumplidos. Genera la constancia.'
@@ -482,13 +482,13 @@ function OnboardingDashboard({
               <button
                 onClick={onCompleted}
                 disabled={!cierreReady}
-                className="btn-success text-xs py-2 px-4 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="btn-success text-xs py-2 px-4 w-full sm:w-auto disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Generar Constancia
               </button>
             </div>
             {!cierreReady && (
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs sm:text-[11px]">
                 {isV2 && (
                   <span className={recorridoDone ? 'text-green-400' : 'text-surface-400'}>
                     {recorridoDone ? '✓' : '✗'} Recorrido firmado
@@ -558,7 +558,7 @@ function OnboardingDashboard({
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-surface-200 truncate group-hover:text-white transition-colors">
+                    <h3 className="text-sm font-semibold text-surface-200 break-words sm:truncate group-hover:text-white transition-colors">
                       {mod.name}
                     </h3>
 
@@ -693,7 +693,7 @@ function RecorridoSection({ employee }: { employee: Employee }) {
   return (
     <motion.div {...fadeUp} className="glass-card p-5">
       <div
-        className="flex items-center gap-3 cursor-pointer"
+        className="flex flex-wrap items-center gap-x-3 gap-y-2 cursor-pointer"
         onClick={() => setExpanded((e) => !e)}
       >
         <div
@@ -703,7 +703,7 @@ function RecorridoSection({ employee }: { employee: Employee }) {
         >
           {completed ? <CheckCircle size={18} /> : <MapPin size={18} />}
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-[60%] sm:min-w-0">
           <h3 className="text-sm font-semibold text-surface-200">
             Recorrido por instalaciones — checklist estandarizado
           </h3>
@@ -712,12 +712,12 @@ function RecorridoSection({ employee }: { employee: Employee }) {
             {completed && tour.completadoEn ? ` · completado ${formatDate(tour.completadoEn)}` : ''}
           </p>
         </div>
-        <span className={`badge ${completed ? 'badge-green' : allItemsDone ? 'badge-yellow' : 'badge-blue'}`}>
+        <span className={`badge shrink-0 ${completed ? 'badge-green' : allItemsDone ? 'badge-yellow' : 'badge-blue'}`}>
           {completed ? 'Completado y firmado' : `${doneCount}/${tour.items.length}`}
         </span>
         <ChevronRight
           size={16}
-          className={`text-surface-500 transition-transform ${expanded ? 'rotate-90' : ''}`}
+          className={`text-surface-500 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
         />
       </div>
 
@@ -817,21 +817,21 @@ function ModuleDetailView({
   return (
     <div className="flex flex-col gap-5 overflow-hidden h-full">
       {/* Back + Header */}
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-start sm:items-center gap-3 shrink-0">
         <button
           onClick={onBack}
-          className="w-9 h-9 rounded-xl glass-light flex items-center justify-center text-surface-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl glass-light flex items-center justify-center text-surface-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer shrink-0"
         >
           <ArrowLeft size={18} />
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-surface-100 truncate">
+          <h1 className="text-lg font-bold text-surface-100 break-words sm:truncate">
             Modulo {mod.id}: {mod.name}
           </h1>
           <p className="text-xs text-surface-400">{employee.fullName}</p>
         </div>
         {mod.completed && (
-          <span className="badge-green text-xs">Completado</span>
+          <span className="badge-green text-xs shrink-0">Completado</span>
         )}
       </div>
 
@@ -839,7 +839,7 @@ function ModuleDetailView({
       <div className="flex-1 overflow-y-auto pr-1 space-y-5">
         {/* Module info card */}
         <motion.div {...fadeUp} className="glass-card p-5">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <span className="text-xs text-surface-500 uppercase tracking-wider">Impartido por</span>
               <p className="text-sm text-surface-200 mt-1 flex items-center gap-2">
@@ -1118,15 +1118,15 @@ function VideoModuleView({
   return (
     <div className="flex flex-col gap-5 overflow-hidden h-full">
       {/* Back + Header */}
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex flex-wrap items-start sm:items-center gap-3 shrink-0">
         <button
           onClick={onBack}
-          className="w-9 h-9 rounded-xl glass-light flex items-center justify-center text-surface-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl glass-light flex items-center justify-center text-surface-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer shrink-0"
         >
           <ArrowLeft size={18} />
         </button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-surface-100 truncate">
+        <div className="flex-1 min-w-[60%] sm:min-w-0">
+          <h1 className="text-lg font-bold text-surface-100 break-words sm:truncate">
             Video {mod.id}: {mod.name}
           </h1>
           <p className="text-xs text-surface-400">
@@ -1134,9 +1134,9 @@ function VideoModuleView({
             {mod.critical ? ` · CRITICO — evaluacion ${questions.length} preguntas, minimo ${VIDEO_PASS_PERCENT}%` : ' · solo confirmacion'}
           </p>
         </div>
-        {mod.completed && <span className="badge badge-green text-xs">Completado</span>}
+        {mod.completed && <span className="badge badge-green text-xs shrink-0">Completado</span>}
         {mod.blocked && (
-          <span className="badge badge-red text-xs">
+          <span className="badge badge-red text-xs shrink-0">
             <Ban size={11} /> Bloqueado
           </span>
         )}
@@ -1176,7 +1176,7 @@ function VideoModuleView({
         {/* Resultado si ya esta completado */}
         {mod.completed && (
           <motion.div {...fadeUp} className="glass-card p-5">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="w-14 h-14 rounded-xl bg-green-500/20 text-green-400 flex items-center justify-center shrink-0">
                 <CheckCircle size={26} />
               </div>
@@ -1193,12 +1193,12 @@ function VideoModuleView({
               </div>
               {/* v2.8: volver a ver el video en cualquier momento */}
               {!rewatch ? (
-                <button className="btn-secondary text-sm flex items-center gap-2 shrink-0" onClick={startRewatch}>
+                <button className="btn-secondary text-sm flex items-center justify-center gap-2 w-full sm:w-auto sm:shrink-0" onClick={startRewatch}>
                   <RotateCcw size={15} />
                   Volver a ver el video
                 </button>
               ) : (
-                <button className="btn-secondary text-sm flex items-center gap-2 shrink-0" onClick={stopRewatch}>
+                <button className="btn-secondary text-sm flex items-center justify-center gap-2 w-full sm:w-auto sm:shrink-0" onClick={stopRewatch}>
                   <X size={15} />
                   Cerrar
                 </button>
@@ -1241,12 +1241,12 @@ function VideoModuleView({
                 />
               ) : (
                 <>
-                  <Video size={40} className="text-primary-400 mb-3 opacity-60" />
-                  <h2 className="text-lg font-bold text-surface-100 px-8 text-center">{mod.name}</h2>
+                  <Video size={40} className="text-primary-400 mb-3 opacity-60 hidden sm:block" />
+                  <h2 className="text-base sm:text-lg font-bold text-surface-100 px-4 sm:px-8 text-center">{mod.name}</h2>
                   <div className="absolute bottom-3 left-3 right-3">
-                    <div className="bg-black/70 rounded-lg px-4 py-2 flex items-start gap-2">
+                    <div className="bg-black/70 rounded-lg px-3 sm:px-4 py-2 flex items-start gap-2">
                       <Captions size={16} className="text-primary-400 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-white leading-snug">
+                      <p className="text-xs sm:text-sm text-white leading-snug">
                         {videoComplete
                           ? 'Video completo. Gracias por tu atencion.'
                           : `Reproduciendo '${mod.name}' — subtitulos activados.`}
@@ -1289,17 +1289,17 @@ function VideoModuleView({
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-y-2">
                   <div className="flex items-center gap-2">
                     <button
-                      className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
+                      className="p-3 sm:p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
                       onClick={() => setPlaying((p) => !p)}
                       disabled={videoComplete}
                     >
                       {playing && !videoComplete ? <Pause size={16} /> : <Play size={16} />}
                     </button>
                     <button
-                      className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
+                      className="p-3 sm:p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
                       onClick={restartVideo}
                     >
                       <RotateCcw size={16} />
@@ -1314,7 +1314,7 @@ function VideoModuleView({
                       <button
                         key={s}
                         onClick={() => setSpeed(s)}
-                        className={`px-2 py-1 rounded-lg text-xs font-bold transition-all ${
+                        className={`px-3 py-2.5 sm:px-2 sm:py-1 rounded-lg text-xs font-bold transition-all ${
                           speed === s
                             ? 'bg-primary-500/20 text-primary-300 ring-1 ring-primary-500/40'
                             : 'text-surface-500 hover:text-surface-300'
@@ -1403,12 +1403,12 @@ function VideoModuleView({
         {/* Mini evaluacion en curso */}
         {quizStarted && !mod.blocked && (
           <motion.div {...scaleIn} className="glass-card p-5 space-y-5">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-surface-200 flex items-center gap-2">
                 <BookOpen size={16} className="text-accent-400" />
                 Mini evaluacion — {mod.name}
               </h3>
-              <span className="badge badge-blue text-xs font-bold">
+              <span className="badge badge-blue text-xs font-bold shrink-0">
                 Pregunta {currentQ + 1} de {questions.length}
               </span>
             </div>
@@ -1464,7 +1464,7 @@ function VideoModuleView({
               <button
                 onClick={handleQuizAnswer}
                 disabled={selected === null}
-                className="btn-primary flex items-center gap-2 text-sm"
+                className="btn-primary flex items-center justify-center gap-2 text-sm w-full sm:w-auto"
               >
                 {currentQ < questions.length - 1 ? 'Siguiente' : 'Finalizar'}
                 <ChevronRight size={16} />
@@ -1474,15 +1474,15 @@ function VideoModuleView({
         )}
 
         {/* Boton 'Tengo dudas' — siempre disponible (regla de negocio 7) */}
-        <motion.div {...fadeUp} className="glass-card p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <HelpCircle size={18} className="text-warning-500" />
-            <p className="text-xs text-surface-400">
+        <motion.div {...fadeUp} className="glass-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-3">
+            <HelpCircle size={18} className="text-warning-500 shrink-0 mt-0.5 sm:mt-0" />
+            <p className="text-[13px] sm:text-xs text-surface-400">
               ¿El colaborador tiene dudas sobre este tema? Se genera alerta inmediata a RH y jefe directo.
             </p>
           </div>
           <button
-            className={`text-xs py-2 px-4 rounded-xl font-semibold transition-all ${
+            className={`text-xs py-2 px-4 rounded-xl font-semibold transition-all w-full sm:w-auto text-center ${
               dudasSent
                 ? 'bg-warning-500/15 text-warning-500 cursor-default'
                 : 'btn-secondary'
@@ -1720,12 +1720,12 @@ function QuizSection({
             <p className="text-xs text-surface-400">
               El colaborador no aprobo el quiz. El supervisor puede decidir repetirlo o continuar con una nota.
             </p>
-            <div className="flex gap-3">
-              <button onClick={handleRetakeQuiz} className="btn-secondary text-xs py-2 px-4 flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button onClick={handleRetakeQuiz} className="btn-secondary text-xs py-2 px-4 flex items-center justify-center gap-2 w-full sm:w-auto">
                 <RotateCcw size={14} />
                 Repetir Quiz
               </button>
-              <button onClick={handleSupervisorContinue} className="btn-primary text-xs py-2 px-4 flex items-center gap-2">
+              <button onClick={handleSupervisorContinue} className="btn-primary text-xs py-2 px-4 flex items-center justify-center gap-2 w-full sm:w-auto">
                 <ChevronRight size={14} />
                 Continuar con Nota
               </button>
@@ -1815,7 +1815,7 @@ function QuizSection({
         <button
           onClick={handleNextQuestion}
           disabled={selectedOption === null}
-          className="btn-primary flex items-center gap-2 text-sm"
+          className="btn-primary flex items-center justify-center gap-2 text-sm w-full sm:w-auto"
         >
           {currentQuestion < questions.length - 1 ? 'Siguiente' : 'Finalizar'}
           <ChevronRight size={16} />
@@ -2070,20 +2070,20 @@ function InlineSignaturePad({
         onTouchMove={draw}
         onTouchEnd={endDraw}
       />
-      <div className="flex justify-between">
-        <div className="flex gap-2">
-          <button onClick={handleClear} className="btn-secondary text-xs py-2 px-4 flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
+          <button onClick={handleClear} className="btn-secondary text-xs py-2 px-4 flex flex-1 sm:flex-initial items-center justify-center gap-2">
             <RotateCcw size={14} />
             Limpiar
           </button>
-          <button onClick={onCancel} className="btn-secondary text-xs py-2 px-4">
+          <button onClick={onCancel} className="btn-secondary text-xs py-2 px-4 flex-1 sm:flex-initial">
             Cancelar
           </button>
         </div>
         <button
           onClick={handleSave}
           disabled={!hasDrawn}
-          className="btn-success text-xs py-2 px-4 flex items-center gap-2"
+          className="btn-success text-xs py-2 px-4 flex items-center justify-center gap-2 w-full sm:w-auto"
         >
           <CheckCircle size={14} />
           Guardar Firma
@@ -2152,9 +2152,9 @@ function MarkCompleteSection({
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <CheckCircle size={20} className="text-green-400" />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-3">
+            <CheckCircle size={20} className="text-green-400 shrink-0 mt-0.5 sm:mt-0" />
             <div>
               <p className="text-sm text-surface-200 font-semibold">Listo para completar</p>
               <p className="text-xs text-surface-400 mt-0.5">
@@ -2162,7 +2162,7 @@ function MarkCompleteSection({
               </p>
             </div>
           </div>
-          <button onClick={handleMarkComplete} className="btn-success flex items-center gap-2 text-sm">
+          <button onClick={handleMarkComplete} className="btn-success flex items-center justify-center gap-2 text-sm w-full sm:w-auto">
             <CheckCircle size={16} />
             Marcar Completado
           </button>
@@ -2273,7 +2273,7 @@ function CompletionScreen({
       <div className="flex items-center gap-3 shrink-0 z-10">
         <button
           onClick={onBack}
-          className="w-9 h-9 rounded-xl glass-light flex items-center justify-center text-surface-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl glass-light flex items-center justify-center text-surface-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer shrink-0"
         >
           <ArrowLeft size={18} />
         </button>
@@ -2286,7 +2286,7 @@ function CompletionScreen({
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, ease: 'easeOut' as const }}
-          className="glass-card p-8 text-center relative overflow-hidden"
+          className="glass-card p-5 sm:p-8 text-center relative overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary-500/10 via-accent-500/10 to-green-500/10 pointer-events-none" />
 
@@ -2300,7 +2300,7 @@ function CompletionScreen({
             </div>
           </motion.div>
 
-          <h2 className="text-2xl font-bold gradient-text relative z-10">
+          <h2 className="text-xl sm:text-2xl font-bold gradient-text relative z-10">
             {generated ? 'Constancia Generada' : 'Induccion Completada'}
           </h2>
           <p className="text-surface-300 mt-2 relative z-10">
@@ -2310,7 +2310,7 @@ function CompletionScreen({
           {!generated && !employee.onboardingProgress.certificateGenerated && (
             <motion.button
               onClick={handleGenerate}
-              className="btn-success mt-6 inline-flex items-center gap-2 text-sm relative z-10"
+              className="btn-success mt-6 inline-flex items-center justify-center gap-2 text-sm relative z-10 w-full sm:w-auto"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -2343,7 +2343,7 @@ function CompletionScreen({
             <User size={16} className="text-primary-400" />
             Datos del Colaborador
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
             <div>
               <span className="text-surface-500 uppercase tracking-wider">Nombre</span>
               <p className="text-surface-200 mt-1 font-medium">{employee.fullName}</p>
@@ -2413,13 +2413,13 @@ function CompletionScreen({
             {modules.map((mod) => (
               <div
                 key={mod.id}
-                className="flex items-center gap-3 p-3 rounded-xl bg-surface-800/30 border border-surface-700/20"
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 rounded-xl bg-surface-800/30 border border-surface-700/20"
               >
                 <div className="w-7 h-7 rounded-lg bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0">
                   {mod.id}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-surface-200 font-medium truncate">{mod.name}</p>
+                <div className="flex-1 min-w-[55%] sm:min-w-0">
+                  <p className="text-xs text-surface-200 font-medium break-words sm:truncate">{mod.name}</p>
                 </div>
                 {mod.quizScore !== undefined && (
                   <span
@@ -2511,16 +2511,16 @@ function VideotecaView({ onBack }: { onBack: () => void }) {
       <div className="flex items-center gap-3 shrink-0">
         <button
           onClick={onBack}
-          className="w-9 h-9 rounded-xl glass-light flex items-center justify-center text-surface-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl glass-light flex items-center justify-center text-surface-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer shrink-0"
         >
           <ArrowLeft size={18} />
         </button>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shrink-0">
             <Film size={20} className="text-white" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-surface-100">Videoteca</h1>
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold text-surface-100">Videoteca</h1>
             <p className="text-sm text-surface-400">
               {items.length} videos del sistema — disponibles para verlos en cualquier momento
             </p>
@@ -2554,9 +2554,9 @@ function VideotecaView({ onBack }: { onBack: () => void }) {
                     <p className="text-[11px] text-surface-500 mt-1">{item.subtitulo}</p>
                     <div className="flex flex-wrap items-center gap-1.5 mt-2">
                       {item.critical && (
-                        <span className="text-[9px] px-2 py-0.5 rounded-full font-semibold badge-red">CRITICO</span>
+                        <span className="text-[11px] sm:text-[9px] px-2 py-0.5 rounded-full font-semibold badge-red">CRITICO</span>
                       )}
-                      <span className="text-[9px] px-2 py-0.5 rounded-full font-semibold badge-blue">
+                      <span className="text-[11px] sm:text-[9px] px-2 py-0.5 rounded-full font-semibold badge-blue">
                         {hasReal ? 'Video' : hasNarration ? 'Narrado' : 'Guion'}
                       </span>
                     </div>
@@ -2587,19 +2587,19 @@ function VideotecaPlayer({ item, onClose }: { item: VideotecaItem; onClose: () =
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="glass-card w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="glass-card w-full max-w-2xl max-h-[90dvh] overflow-y-auto overscroll-contain"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-4 border-b border-white/[0.06] flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="text-base font-bold text-white truncate">{item.titulo}</h3>
+            <h3 className="text-base font-bold text-white break-words sm:truncate">{item.titulo}</h3>
             <p className="text-xs text-surface-500">Videoteca · reproduccion libre</p>
           </div>
           <button className="btn-secondary text-sm flex items-center gap-1.5 shrink-0" onClick={onClose}>

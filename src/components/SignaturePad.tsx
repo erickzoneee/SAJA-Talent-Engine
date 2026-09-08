@@ -34,6 +34,29 @@ export default function SignaturePad({
     clearCanvas();
   }, [clearCanvas]);
 
+  // v2.20: en celular el lienzo se dibuja al ancho real del contenedor (por la
+  // densidad de la pantalla), no a los 400x200 fijos. Antes la firma se veia
+  // pixelada al reducirse a ~343px en un telefono de 3x.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || typeof ResizeObserver === 'undefined') return;
+    const apply = () => {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width < 1) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = Math.round(rect.width * dpr);
+      const h = Math.round(rect.width * (height / width) * dpr);
+      if (canvas.width === w && canvas.height === h) return;
+      canvas.width = w;
+      canvas.height = h;
+      clearCanvas();
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, [clearCanvas, width, height]);
+
   const getPosition = (
     e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
   ) => {
@@ -118,13 +141,13 @@ export default function SignaturePad({
       <p className="text-xs text-surface-500">
         Draw your signature above using mouse or touch
       </p>
-      <div className="flex gap-2">
-        <button type="button" className="btn-secondary text-sm" onClick={clearCanvas}>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn-secondary text-sm flex-1 sm:flex-none" onClick={clearCanvas}>
           Clear
         </button>
         <button
           type="button"
-          className="btn-primary text-sm"
+          className="btn-primary text-sm flex-1 sm:flex-none"
           onClick={handleSave}
           disabled={!hasContent}
         >

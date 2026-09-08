@@ -40,7 +40,7 @@ export default function QuestionBankModule() {
   // Permisos: solo Administrador del sistema y Direccion (BRD seccion 5)
   if (authRole !== 'direction') {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-surface-400">
+      <div className="flex flex-col items-center justify-center h-full text-surface-400 text-center px-4 sm:px-0 sm:text-left">
         <ShieldCheck size={48} className="mb-3 text-danger-500" />
         <p className="font-medium">Acceso restringido</p>
         <p className="text-sm mt-1">
@@ -114,33 +114,33 @@ function BankListView({ onNew, onEdit }: { onNew: () => void; onEdit: (id: strin
 
   return (
     <>
-      <div className="flex items-center justify-between px-6 pt-5 pb-3">
-        <div>
-          <h1 className="text-2xl font-bold gradient-text">Banco de Preguntas</h1>
-          <p className="text-sm text-surface-400 mt-0.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-0 sm:px-6 pt-5 pb-3">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text">Banco de Preguntas</h1>
+          <p className="text-sm text-surface-400 mt-0.5 break-words">
             Entrevista y examen viven en base de datos — nunca en el codigo · {questions.length} preguntas
           </p>
         </div>
-        <button className="btn-primary flex items-center gap-2" onClick={onNew}>
+        <button className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2" onClick={onNew}>
           <Plus size={18} />
           Agregar Pregunta
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-0 sm:px-6 pb-6 space-y-4">
         {/* Alerta de puestos con menos de 15 activas */}
         {lowPositions.length > 0 && (
           <motion.div
             {...fadeUp}
-            className="glass-card p-4 border-2 border-danger-500/50 bg-danger-500/5 flex items-start gap-3"
+            className="glass-card p-3 sm:p-4 border-2 border-danger-500/50 bg-danger-500/5 flex items-start gap-2 sm:gap-3"
           >
             <AlertTriangle size={20} className="text-danger-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-danger-400 text-sm">
+            <div className="min-w-0">
+              <p className="font-semibold text-danger-400 text-sm break-words">
                 Alerta: puestos con menos de {EXAM_SPECIFIC_COUNT} preguntas especificas activas
               </p>
-              <p className="text-xs text-surface-400 mt-1">
-                {lowPositions.map((p) => `${JOB_POSITIONS[p].name} (${counts[p].activas} activas)`).join(' · ')}
+              <p className="text-xs text-surface-400 mt-1 break-words">
+                {lowPositions.map((p) => `${JOB_POSITIONS[p]?.name ?? p} (${counts[p].activas} activas)`).join(' · ')}
                 {' — '}agrega o reactiva preguntas para completar el examen de estos puestos.
               </p>
             </div>
@@ -148,25 +148,25 @@ function BankListView({ onNew, onEdit }: { onNew: () => void; onEdit: (id: strin
         )}
 
         {/* Contadores por puesto */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <div className="glass-card p-4">
-            <p className="text-xs text-surface-500">Bloque comun</p>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3">
+          <div className="glass-card p-3 sm:p-4">
+            <p className="text-xs text-surface-500 break-words">Bloque comun</p>
             <p className="text-2xl font-bold text-surface-100">{comunesActivas}</p>
-            <p className="text-xs text-surface-400">activas (se usan 10 por examen)</p>
+            <p className="text-xs text-surface-400 break-words">activas (se usan 10 por examen)</p>
           </div>
           {(Object.keys(JOB_POSITIONS) as JobPosition[]).map((pos) => {
             const c = counts[pos];
             const low = c.activas < EXAM_SPECIFIC_COUNT;
             return (
-              <div key={pos} className={`glass-card p-4 ${low ? 'border border-danger-500/40' : ''}`}>
-                <p className="text-xs text-surface-500 truncate" title={JOB_POSITIONS[pos].name}>
-                  {JOB_POSITIONS[pos].name}
+              <div key={pos} className={`glass-card p-3 sm:p-4 ${low ? 'border border-danger-500/40' : ''}`}>
+                <p className="text-xs text-surface-500 break-words sm:truncate" title={JOB_POSITIONS[pos]?.name ?? pos}>
+                  {JOB_POSITIONS[pos]?.name ?? pos}
                 </p>
                 <p className={`text-2xl font-bold ${low ? 'text-danger-400' : 'text-surface-100'}`}>
                   {c.activas}
                   <span className="text-sm font-normal text-surface-500"> activas</span>
                 </p>
-                <p className="text-xs text-surface-400">
+                <p className="text-xs text-surface-400 break-words">
                   {c.inactivas} inactiva{c.inactivas !== 1 ? 's' : ''}
                   {low && <span className="text-danger-400 font-semibold"> · minimo {EXAM_SPECIFIC_COUNT}</span>}
                 </p>
@@ -177,7 +177,7 @@ function BankListView({ onNew, onEdit }: { onNew: () => void; onEdit: (id: strin
 
         {/* Filtros */}
         <div className="flex flex-wrap gap-2">
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative w-full min-w-0 sm:w-auto sm:flex-1 sm:min-w-[200px]">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
             <input
               type="text"
@@ -187,12 +187,12 @@ function BankListView({ onNew, onEdit }: { onNew: () => void; onEdit: (id: strin
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <select className="input-field w-auto" value={filterTipo} onChange={(e) => setFilterTipo(e.target.value as typeof filterTipo)}>
+          <select className="input-field w-full min-w-0 sm:w-auto sm:min-w-[auto]" value={filterTipo} onChange={(e) => setFilterTipo(e.target.value as typeof filterTipo)}>
             <option value="all">Comunes y especificas</option>
             <option value="comun">Solo comunes</option>
             <option value="especifica">Solo especificas</option>
           </select>
-          <select className="input-field w-auto" value={filterPuesto} onChange={(e) => setFilterPuesto(e.target.value as JobPosition | '')}>
+          <select className="input-field w-full min-w-0 sm:w-auto sm:min-w-[auto]" value={filterPuesto} onChange={(e) => setFilterPuesto(e.target.value as JobPosition | '')}>
             <option value="">Todos los puestos</option>
             {(Object.entries(JOB_POSITIONS) as [JobPosition, (typeof JOB_POSITIONS)[JobPosition]][]).map(([key, val]) => (
               <option key={key} value={key}>
@@ -200,7 +200,7 @@ function BankListView({ onNew, onEdit }: { onNew: () => void; onEdit: (id: strin
               </option>
             ))}
           </select>
-          <select className="input-field w-auto" value={filterEstado} onChange={(e) => setFilterEstado(e.target.value as typeof filterEstado)}>
+          <select className="input-field w-full min-w-0 sm:w-auto sm:min-w-[auto]" value={filterEstado} onChange={(e) => setFilterEstado(e.target.value as typeof filterEstado)}>
             <option value="all">Activas e inactivas</option>
             <option value="activa">Solo activas</option>
             <option value="inactiva">Solo inactivas</option>
@@ -208,7 +208,7 @@ function BankListView({ onNew, onEdit }: { onNew: () => void; onEdit: (id: strin
         </div>
 
         {/* Reglas */}
-        <p className="text-[11px] text-surface-500">
+        <p className="text-[13px] sm:text-[11px] text-surface-500">
           Las preguntas no se borran: se desactivan y quedan en historial. Los examenes ya realizados
           conservan las preguntas con las que se aplicaron. Si un puesto tiene mas de {EXAM_SPECIFIC_COUNT}{' '}
           activas, el sistema selecciona {EXAM_SPECIFIC_COUNT} aleatoriamente en cada examen.
@@ -216,31 +216,31 @@ function BankListView({ onNew, onEdit }: { onNew: () => void; onEdit: (id: strin
 
         {/* Lista */}
         {filtered.length === 0 ? (
-          <div className="glass-card p-10 text-center text-surface-500">
+          <div className="glass-card p-6 sm:p-10 text-center text-surface-500">
             <Database size={40} className="mx-auto mb-2 opacity-40" />
             <p className="text-sm">No hay preguntas con estos filtros.</p>
           </div>
         ) : (
           <div className="space-y-2">
             {filtered.map((q) => (
-              <div key={q.id} className={`glass-card p-4 ${!q.activa ? 'opacity-60' : ''}`}>
-                <div className="flex items-start gap-3">
+              <div key={q.id} className={`glass-card p-3 sm:p-4 ${!q.activa ? 'opacity-60' : ''}`}>
+                <div className="flex items-start gap-2 sm:gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
                       <span className={`badge ${q.tipo === 'comun' ? 'badge-blue' : 'badge-purple'}`}>
-                        {q.tipo === 'comun' ? 'Comun' : q.puesto ? JOB_POSITIONS[q.puesto].name : 'Especifica'}
+                        {q.tipo === 'comun' ? 'Comun' : q.puesto ? (JOB_POSITIONS[q.puesto]?.name ?? q.puesto) : 'Especifica'}
                       </span>
-                      <span className="text-xs text-surface-500">{q.categoria}</span>
+                      <span className="text-xs text-surface-500 min-w-0 break-words">{q.categoria}</span>
                       <span className={`badge ${q.activa ? 'badge-green' : 'badge-red'}`}>
                         {q.activa ? 'Activa' : 'Inactiva'}
                       </span>
                     </div>
-                    <p className="text-sm text-surface-100 font-medium">{q.texto}</p>
+                    <p className="text-sm text-surface-100 font-medium break-words">{q.texto}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 mt-2">
                       {OPTION_KEYS.map((k) => (
                         <p
                           key={k}
-                          className={`text-xs flex items-center gap-1.5 ${
+                          className={`text-xs flex items-center gap-1.5 min-w-0 break-words ${
                             q.correcta === k ? 'text-success-400 font-medium' : 'text-surface-400'
                           }`}
                         >
@@ -249,7 +249,7 @@ function BankListView({ onNew, onEdit }: { onNew: () => void; onEdit: (id: strin
                         </p>
                       ))}
                     </div>
-                    <p className="text-[11px] text-surface-600 mt-2">
+                    <p className="text-[13px] sm:text-[11px] text-surface-600 mt-2 break-words">
                       Creada por {q.creadaPor} · {formatDate(q.creadaEn)}
                       {q.modificadaPor && (
                         <>
@@ -258,28 +258,31 @@ function BankListView({ onNew, onEdit }: { onNew: () => void; onEdit: (id: strin
                       )}
                     </p>
                   </div>
-                  <div className="flex flex-col gap-1.5 flex-shrink-0">
+                  <div className="flex flex-col gap-2 sm:gap-1.5 flex-shrink-0">
                     <button
-                      className="p-2 rounded-xl hover:bg-primary-500/15 text-surface-400 hover:text-primary-400 transition-colors"
+                      className="p-2 rounded-xl hover:bg-primary-500/15 text-surface-400 hover:text-primary-400 transition-colors min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                       title="Editar"
+                      aria-label="Editar"
                       onClick={() => onEdit(q.id)}
                     >
                       <Pencil size={16} />
                     </button>
                     <button
-                      className={`p-2 rounded-xl transition-colors ${
+                      className={`p-2 rounded-xl transition-colors min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center ${
                         q.activa
                           ? 'hover:bg-danger-500/15 text-surface-400 hover:text-danger-400'
                           : 'hover:bg-success-500/15 text-surface-400 hover:text-success-400'
                       }`}
                       title={q.activa ? 'Desactivar' : 'Reactivar'}
+                      aria-label={q.activa ? 'Desactivar' : 'Reactivar'}
                       onClick={() => toggleActive(q.id, usuario)}
                     >
                       <Power size={16} />
                     </button>
                     <button
-                      className="p-2 rounded-xl hover:bg-surface-700/40 text-surface-400 hover:text-surface-200 transition-colors"
+                      className="p-2 rounded-xl hover:bg-surface-700/40 text-surface-400 hover:text-surface-200 transition-colors min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                       title="Historial"
+                      aria-label="Historial"
                       onClick={() => setHistoryId(historyId === q.id ? null : q.id)}
                     >
                       <History size={16} />
@@ -298,7 +301,7 @@ function BankListView({ onNew, onEdit }: { onNew: () => void; onEdit: (id: strin
                     >
                       <div className="mt-3 pt-3 border-t border-white/[0.06] space-y-1">
                         {q.historial.map((h, idx) => (
-                          <p key={idx} className="text-xs text-surface-500 flex items-center gap-2">
+                          <p key={idx} className="text-xs text-surface-500 flex items-start sm:items-center gap-2 min-w-0 break-words">
                             <History size={11} className="flex-shrink-0" />
                             {formatDate(h.fecha)}{' '}
                             {new Date(h.fecha).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} —{' '}
@@ -378,23 +381,27 @@ function QuestionFormView({ editId, onBack }: { editId?: string; onBack: () => v
 
   return (
     <>
-      <div className="flex items-center gap-3 px-6 pt-5 pb-3">
-        <button className="p-2 rounded-xl hover:bg-surface-800 transition-colors" onClick={onBack}>
+      <div className="flex items-center gap-3 px-0 sm:px-6 pt-5 pb-3">
+        <button
+          className="p-2 rounded-xl hover:bg-surface-800 transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
+          aria-label="Volver"
+          onClick={onBack}
+        >
           <ArrowLeft size={20} className="text-surface-300" />
         </button>
-        <div>
-          <h1 className="text-2xl font-bold gradient-text">{editing ? 'Editar Pregunta' : 'Agregar Pregunta'}</h1>
-          <p className="text-sm text-surface-400 mt-0.5">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text">{editing ? 'Editar Pregunta' : 'Agregar Pregunta'}</h1>
+          <p className="text-sm text-surface-400 mt-0.5 break-words">
             {editing ? 'Los cambios quedan registrados en el historial' : 'La pregunta queda activa al guardarla'}
           </p>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 max-w-5xl mx-auto">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-0 sm:px-6 pb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 max-w-5xl mx-auto">
           {/* Formulario */}
-          <div className="glass-card p-5 space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+          <div className="glass-card p-3 sm:p-5 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm text-surface-400 mb-1">Tipo *</label>
                 <select
@@ -453,12 +460,16 @@ function QuestionFormView({ editId, onBack }: { editId?: string; onBack: () => v
                   <button
                     type="button"
                     onClick={() => setField('correcta', k)}
-                    className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 transition-all cursor-pointer ${
+                    className={`w-11 h-11 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 transition-all cursor-pointer ${
                       form.correcta === k
                         ? 'bg-success-500 text-white ring-2 ring-success-500/50'
                         : 'bg-surface-800 text-surface-400 hover:bg-surface-700'
                     }`}
                     title={form.correcta === k ? 'Respuesta correcta' : 'Marcar como correcta'}
+                    aria-pressed={form.correcta === k}
+                    aria-label={`Opcion ${k.toUpperCase()}: ${
+                      form.correcta === k ? 'Respuesta correcta' : 'Marcar como correcta'
+                    }`}
                   >
                     {k.toUpperCase()}
                   </button>
@@ -483,11 +494,11 @@ function QuestionFormView({ editId, onBack }: { editId?: string; onBack: () => v
               />
             </div>
 
-            <div className="flex gap-3">
-              <button className="btn-secondary flex-1" onClick={onBack}>
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+              <button className="btn-secondary w-full sm:w-auto sm:flex-1" onClick={onBack}>
                 Cancelar
               </button>
-              <button className="btn-primary flex-1 flex items-center justify-center gap-2" disabled={!valid} onClick={handleSave}>
+              <button className="btn-primary w-full sm:w-auto sm:flex-1 flex items-center justify-center gap-2" disabled={!valid} onClick={handleSave}>
                 <Save size={16} />
                 {editing ? 'Guardar cambios' : 'Agregar pregunta'}
               </button>
@@ -496,22 +507,24 @@ function QuestionFormView({ editId, onBack }: { editId?: string; onBack: () => v
 
           {/* Vista previa de tablet */}
           <div>
-            <h3 className="text-sm font-semibold text-surface-300 mb-2 flex items-center gap-2">
-              <Eye size={15} className="text-primary-400" />
+            <h3 className="text-sm font-semibold text-surface-300 mb-2 flex flex-wrap items-center gap-2">
+              <Eye size={15} className="text-primary-400 flex-shrink-0" />
               Vista previa — asi se vera en la tablet
             </h3>
-            <div className="glass-card p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <span className={`badge ${form.tipo === 'comun' ? 'badge-blue' : 'badge-purple'}`}>
+            <div className="glass-card p-4 sm:p-6">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span
+                  className={`badge whitespace-nowrap ${form.tipo === 'comun' ? 'badge-blue' : 'badge-purple'}`}
+                >
                   {form.tipo === 'comun' ? 'Bloque comun' : 'Especifica del puesto'}
                 </span>
-                <span className="text-xs text-surface-500">{form.categoria || 'categoria'}</span>
+                <span className="text-xs text-surface-500 min-w-0 break-words">{form.categoria || 'categoria'}</span>
               </div>
-              <div className="flex items-start gap-3 mb-5">
+              <div className="flex items-start gap-2 sm:gap-3 mb-5">
                 <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary-500/20 text-primary-400 flex items-center justify-center text-sm font-bold">
                   ?
                 </span>
-                <p className="text-surface-100 font-medium leading-relaxed pt-1">
+                <p className="text-surface-100 font-medium leading-relaxed pt-1 min-w-0 break-words">
                   {form.texto || 'El texto de la pregunta aparecera aqui...'}
                 </p>
               </div>
@@ -519,14 +532,14 @@ function QuestionFormView({ editId, onBack }: { editId?: string; onBack: () => v
                 {OPTION_KEYS.map((k) => (
                   <div
                     key={k}
-                    className="w-full text-left p-4 rounded-xl border bg-surface-900/40 border-surface-700 text-surface-300 flex items-center gap-3"
+                    className="w-full text-left p-3 sm:p-4 rounded-xl border bg-surface-900/40 border-surface-700 text-surface-300 flex flex-wrap items-center gap-2 sm:gap-3"
                   >
                     <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 bg-surface-800 text-surface-400">
                       {k.toUpperCase()}
                     </span>
-                    <span className="text-sm">{form.opciones[k] || `Opcion ${k.toUpperCase()}`}</span>
+                    <span className="text-sm min-w-0 break-words">{form.opciones[k] || `Opcion ${k.toUpperCase()}`}</span>
                     {form.correcta === k && (
-                      <span className="badge badge-green ml-auto text-[10px]">
+                      <span className="badge badge-green ml-auto whitespace-nowrap text-[11px] sm:text-[10px]">
                         <CheckCircle size={10} /> correcta
                       </span>
                     )}
@@ -534,13 +547,13 @@ function QuestionFormView({ editId, onBack }: { editId?: string; onBack: () => v
                 ))}
               </div>
               {form.explicacion && (
-                <p className="text-xs text-surface-500 mt-3 flex items-start gap-1.5">
+                <p className="text-xs text-surface-500 mt-3 flex items-start gap-1.5 min-w-0 break-words">
                   <XCircle size={12} className="mt-0.5 flex-shrink-0 rotate-45 text-primary-400" />
                   Retroalimentacion: {form.explicacion}
                 </p>
               )}
             </div>
-            <p className="text-[11px] text-surface-500 mt-2">
+            <p className="text-[13px] sm:text-[11px] text-surface-500 mt-2">
               El candidato ve una pregunta a la vez con barra de avance, sin limite de tiempo. La marca
               de respuesta correcta solo es visible aqui, en administracion.
             </p>

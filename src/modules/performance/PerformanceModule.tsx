@@ -254,7 +254,7 @@ function EmployeeListView({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold gradient-text flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text flex items-center gap-3">
             <TrendingUp size={28} />
             Seguimiento y Desempeno
           </h1>
@@ -424,7 +424,7 @@ function EmployeeCard({
       animate="animate"
       custom={index}
       onClick={onClick}
-      className="glass-card p-4 flex items-center gap-4 cursor-pointer group"
+      className="glass-card p-4 flex flex-wrap items-center gap-3 sm:gap-4 cursor-pointer group"
     >
       {/* Avatar */}
       <div
@@ -444,9 +444,9 @@ function EmployeeCard({
       </div>
 
       {/* Info */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-[10rem] sm:min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="text-sm font-semibold text-surface-100 truncate">
+          <h3 className="text-sm font-semibold text-surface-100 break-words sm:truncate">
             {employee.fullName}
           </h3>
           <span className={`badge ${trial ? 'badge-yellow' : 'badge-green'} text-[10px]`}>
@@ -460,7 +460,7 @@ function EmployeeCard({
       </div>
 
       {/* Metrics */}
-      <div className="flex items-center gap-4 shrink-0">
+      <div className="flex items-center gap-3 sm:gap-4 shrink-0 w-full justify-between sm:w-auto sm:justify-end">
         {/* Evaluation Score */}
         <div className="text-center">
           {latestEval ? (
@@ -550,10 +550,10 @@ function EmployeeDashboard({
   return (
     <div className="flex flex-col gap-5 overflow-y-auto pr-1">
       {/* Back + Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         <button
           onClick={onBack}
-          className="p-2 rounded-xl glass-light text-surface-400 hover:text-surface-200 hover:bg-white/[0.06] transition-colors cursor-pointer"
+          className="p-2 rounded-xl glass-light text-surface-400 hover:text-surface-200 hover:bg-white/[0.06] transition-colors cursor-pointer flex items-center justify-center min-w-[44px] min-h-[44px] sm:min-w-[36px] sm:min-h-[36px]"
         >
           <ArrowLeft size={20} />
         </button>
@@ -574,7 +574,7 @@ function EmployeeDashboard({
             )}
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-surface-100 truncate">
+            <h1 className="text-xl font-bold text-surface-100 break-words sm:truncate">
               {employee.fullName}
             </h1>
             <div className="flex items-center gap-2 flex-wrap mt-0.5">
@@ -624,14 +624,14 @@ function EmployeeDashboard({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
+              className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
                 isActive
                   ? 'bg-primary-500/20 text-primary-400 shadow-sm'
                   : 'text-surface-400 hover:text-surface-200 hover:bg-white/[0.04]'
               }`}
             >
               <Icon size={16} />
-              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="text-[10px] sm:text-sm">{tab.label}</span>
             </button>
           );
         })}
@@ -745,11 +745,11 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-base font-semibold text-surface-200">
           Historial de Evaluaciones
         </h3>
-        <button className="btn-primary text-sm flex items-center gap-2" onClick={() => setShowForm(true)}>
+        <button className="btn-primary text-sm flex items-center justify-center gap-2 w-full sm:w-auto whitespace-nowrap" onClick={() => setShowForm(true)}>
           <Plus size={16} />
           Nueva Evaluacion
         </button>
@@ -795,10 +795,10 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
               </div>
 
               {/* Criteria breakdown */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 mt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1.5 sm:gap-y-1 mt-3">
                 {Object.entries(ev.ratings).map(([key, val]) => (
                   <div key={key} className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-surface-400 truncate">
+                    <span className="text-[11px] text-surface-400 break-words sm:truncate">
                       {CRITERIA_LABELS[key] ?? key}
                     </span>
                     <div className="flex items-center gap-0.5 shrink-0">
@@ -864,13 +864,13 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
         <div className="flex flex-col gap-3">
           {/* Type selector */}
           <div>
-            <label className="text-xs text-surface-300 font-medium mb-1 block">
+            <label className="text-[13px] sm:text-xs text-surface-300 font-medium mb-1 block">
               Tipo de Evaluacion
             </label>
             <select
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value })}
-              className="input-field text-sm py-2"
+              className="input-field text-base sm:text-sm py-2"
             >
               {EVALUATION_TYPES.map((t) => (
                 <option key={t} value={t}>
@@ -882,17 +882,17 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
 
           {/* Star Criteria */}
           <div>
-            <label className="text-xs text-surface-300 font-medium mb-1.5 block">
+            <label className="text-[13px] sm:text-xs text-surface-300 font-medium mb-1.5 block">
               Criterios de Evaluacion
             </label>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-1.5">
               {(Object.keys(CRITERIA_LABELS) as Array<keyof typeof CRITERIA_LABELS>).map(
                 (key) => (
                   <div
                     key={key}
-                    className="flex items-center justify-between gap-2 glass-light rounded-lg px-2.5 py-1.5"
+                    className="flex items-center justify-between gap-2 glass-light rounded-lg px-3 py-2 sm:px-2.5 sm:py-1.5"
                   >
-                    <span className="text-[11px] text-surface-200 leading-tight">
+                    <span className="text-[13px] sm:text-[11px] text-surface-200 leading-tight">
                       {CRITERIA_LABELS[key]}
                     </span>
                     <StarRating
@@ -952,13 +952,13 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
 
           {/* Observations */}
           <div>
-            <label className="text-xs text-surface-300 font-medium mb-1 block">
+            <label className="text-[13px] sm:text-xs text-surface-300 font-medium mb-1 block">
               Observaciones
             </label>
             <textarea
               value={form.observations}
               onChange={(e) => setForm({ ...form, observations: e.target.value })}
-              className="input-field min-h-[60px] resize-y text-sm"
+              className="input-field min-h-[60px] resize-y text-base sm:text-sm"
               placeholder="Comentarios sobre el desempeno del empleado..."
             />
           </div>
@@ -969,7 +969,7 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
               <p className="text-xs text-primary-300 font-semibold mb-1.5">
                 Comparativo vs dia 15 (promedio {eval15.averageScore.toFixed(2)})
               </p>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 sm:gap-y-0.5">
                 {Object.entries(form.ratings)
                   .filter(([, val]) => val > 0)
                   .map(([key, val]) => {
@@ -978,7 +978,7 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
                     const delta = val - prev;
                     return (
                       <div key={key} className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] text-surface-400 truncate">
+                        <span className="text-[11px] sm:text-[10px] text-surface-400 break-words sm:truncate">
                           {CRITERIA_LABELS[key] ?? key}
                         </span>
                         <span
@@ -998,7 +998,7 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
           {/* v2.0: decision dia 15 / dia 30 */}
           {isTrialEval && (
             <div>
-              <label className="text-xs text-surface-300 font-medium mb-1 block">
+              <label className="text-[13px] sm:text-xs text-surface-300 font-medium mb-1 block">
                 {form.type === EVAL_DIA_15
                   ? 'Decision — renueva o no (RH propone, Direccion aprueba)'
                   : 'Decision final (RH + Jefe + Direccion)'}
@@ -1009,7 +1009,7 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
                     key={d}
                     type="button"
                     onClick={() => setForm({ ...form, decision: d })}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer border ${
+                    className={`w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 sm:px-3 py-2.5 sm:py-1.5 rounded-lg text-sm sm:text-xs font-medium transition-all duration-200 cursor-pointer border ${
                       form.decision === d
                         ? d === 'Renovar contrato' || d === 'Contrato indefinido'
                           ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
@@ -1027,9 +1027,9 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
           )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-1">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-1">
             <button
-              className="btn-secondary text-sm"
+              className="btn-secondary text-sm w-full sm:w-auto"
               onClick={() => {
                 setShowForm(false);
                 setForm({ ...INITIAL_EVAL_FORM });
@@ -1038,7 +1038,7 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
               Cancelar
             </button>
             <button
-              className="btn-success text-sm flex items-center gap-2"
+              className="btn-success text-sm flex items-center justify-center gap-2 w-full sm:w-auto"
               onClick={handleSave}
               disabled={!allRated || (isTrialEval && !form.decision)}
             >
@@ -1127,11 +1127,11 @@ function IncidenciasTab({ employee }: { employee: Employee }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-base font-semibold text-surface-200">
           Registro de Incidencias
         </h3>
-        <button className="btn-primary text-sm flex items-center gap-2" onClick={() => setShowForm(true)}>
+        <button className="btn-primary text-sm flex items-center justify-center gap-2 w-full sm:w-auto whitespace-nowrap" onClick={() => setShowForm(true)}>
           <Plus size={16} />
           Registrar Incidencia
         </button>
@@ -1260,9 +1260,9 @@ function IncidenciasTab({ employee }: { employee: Employee }) {
           )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2">
             <button
-              className="btn-secondary text-sm"
+              className="btn-secondary text-sm w-full sm:w-auto"
               onClick={() => {
                 setShowForm(false);
                 setForm({
@@ -1276,7 +1276,7 @@ function IncidenciasTab({ employee }: { employee: Employee }) {
               Cancelar
             </button>
             <button
-              className="btn-danger text-sm flex items-center gap-2"
+              className="btn-danger text-sm flex items-center justify-center gap-2 w-full sm:w-auto"
               onClick={handleSave}
               disabled={!form.description.trim()}
             >
@@ -1339,7 +1339,7 @@ function BonosTab({ employee }: { employee: Employee }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-surface-200">
             Bonos de Productividad
@@ -1353,7 +1353,7 @@ function BonosTab({ employee }: { employee: Employee }) {
             </p>
           )}
         </div>
-        <button className="btn-primary text-sm flex items-center gap-2" onClick={() => setShowForm(true)}>
+        <button className="btn-primary text-sm flex items-center justify-center gap-2 w-full sm:w-auto whitespace-nowrap" onClick={() => setShowForm(true)}>
           <Plus size={16} />
           Registrar Bono
         </button>
@@ -1374,7 +1374,7 @@ function BonosTab({ employee }: { employee: Employee }) {
           initial="initial"
           animate="animate"
           custom={i}
-          className="glass-card p-4 flex items-center gap-4"
+          className="glass-card p-4 flex flex-wrap items-center gap-3 sm:gap-4"
         >
           <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
             <Award size={20} className="text-emerald-400" />
@@ -1393,7 +1393,7 @@ function BonosTab({ employee }: { employee: Employee }) {
             </div>
             <p className="text-xs text-surface-400 mt-1">{bonus.criteria}</p>
           </div>
-          <span className="text-xs text-surface-500 shrink-0">
+          <span className="text-xs text-surface-500 shrink-0 w-full sm:w-auto">
             {formatDate(bonus.date)}
           </span>
         </motion.div>
@@ -1450,9 +1450,9 @@ function BonosTab({ employee }: { employee: Employee }) {
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2">
             <button
-              className="btn-secondary text-sm"
+              className="btn-secondary text-sm w-full sm:w-auto"
               onClick={() => {
                 setShowForm(false);
                 setForm({
@@ -1465,7 +1465,7 @@ function BonosTab({ employee }: { employee: Employee }) {
               Cancelar
             </button>
             <button
-              className="btn-success text-sm flex items-center gap-2"
+              className="btn-success text-sm flex items-center justify-center gap-2 w-full sm:w-auto"
               onClick={handleSave}
               disabled={!form.amount || parseFloat(form.amount) <= 0 || !form.criteria.trim()}
             >
@@ -1524,11 +1524,11 @@ function CapacitacionesTab({ employee }: { employee: Employee }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-base font-semibold text-surface-200">
           Historial de Capacitaciones
         </h3>
-        <button className="btn-primary text-sm flex items-center gap-2" onClick={() => setShowForm(true)}>
+        <button className="btn-primary text-sm flex items-center justify-center gap-2 w-full sm:w-auto whitespace-nowrap" onClick={() => setShowForm(true)}>
           <Plus size={16} />
           Registrar Capacitacion
         </button>
@@ -1549,7 +1549,7 @@ function CapacitacionesTab({ employee }: { employee: Employee }) {
           initial="initial"
           animate="animate"
           custom={i}
-          className="glass-card p-4 flex items-center gap-4"
+          className="glass-card p-4 flex flex-wrap items-center gap-3 sm:gap-4"
         >
           <div className="w-11 h-11 rounded-xl bg-primary-500/15 border border-primary-500/30 flex items-center justify-center shrink-0">
             <BookOpen size={20} className="text-primary-400" />
@@ -1632,9 +1632,9 @@ function CapacitacionesTab({ employee }: { employee: Employee }) {
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2">
             <button
-              className="btn-secondary text-sm"
+              className="btn-secondary text-sm w-full sm:w-auto"
               onClick={() => {
                 setShowForm(false);
                 setForm({
@@ -1648,7 +1648,7 @@ function CapacitacionesTab({ employee }: { employee: Employee }) {
               Cancelar
             </button>
             <button
-              className="btn-success text-sm flex items-center gap-2"
+              className="btn-success text-sm flex items-center justify-center gap-2 w-full sm:w-auto"
               onClick={handleSave}
               disabled={!form.topic.trim() || !form.duration.trim()}
             >

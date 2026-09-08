@@ -47,7 +47,7 @@ export function TrainingHeader({
   right,
 }: TrainingHeaderProps) {
   return (
-    <div className="flex items-center gap-3 shrink-0">
+    <div className="flex flex-wrap items-center gap-3 shrink-0">
       {onBack && (
         <button
           onClick={onBack}
@@ -60,10 +60,10 @@ export function TrainingHeader({
         <Icon size={20} className="text-white" />
       </div>
       <div className="min-w-0 flex-1">
-        <h1 className="text-xl font-bold text-surface-100 truncate">{title}</h1>
-        {subtitle && <p className="text-sm text-surface-400 truncate">{subtitle}</p>}
+        <h1 className="text-xl font-bold text-surface-100 break-words sm:truncate">{title}</h1>
+        {subtitle && <p className="text-sm text-surface-400 break-words sm:truncate">{subtitle}</p>}
       </div>
-      {right && <div className="shrink-0">{right}</div>}
+      {right && <div className="w-full sm:w-auto shrink-0">{right}</div>}
     </div>
   );
 }
@@ -80,7 +80,7 @@ export function EmptyState({
   hint?: string;
 }) {
   return (
-    <motion.div {...fadeUp} className="glass-card p-12 text-center">
+    <motion.div {...fadeUp} className="glass-card p-6 sm:p-12 text-center">
       <Icon size={48} className="mx-auto text-surface-500 mb-4" />
       <p className="text-surface-300 text-lg">{title}</p>
       {hint && <p className="text-surface-500 text-sm mt-1">{hint}</p>}
@@ -124,7 +124,7 @@ export function ConfirmDialog({
             onClick={onCancel}
           />
           <motion.div
-            className="relative w-full max-w-md glass rounded-2xl border border-surface-600/20 shadow-2xl p-6"
+            className="relative w-full max-w-md glass rounded-2xl border border-surface-600/20 shadow-2xl p-4 sm:p-6 max-h-[85dvh] overflow-y-auto"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -138,18 +138,18 @@ export function ConfirmDialog({
               >
                 <AlertTriangle size={20} />
               </div>
-              <div>
-                <h3 className="text-base font-semibold text-surface-100">{title}</h3>
-                <p className="text-sm text-surface-400 mt-1 leading-relaxed">{message}</p>
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold text-surface-100 break-words">{title}</h3>
+                <p className="text-sm text-surface-400 mt-1 leading-relaxed break-words">{message}</p>
               </div>
             </div>
-            <div className="flex justify-end gap-3">
-              <button onClick={onCancel} className="btn-secondary text-sm">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+              <button onClick={onCancel} className="btn-secondary text-sm w-full sm:w-auto">
                 Cancelar
               </button>
               <button
                 onClick={onConfirm}
-                className={`${danger ? 'btn-danger' : 'btn-primary'} text-sm`}
+                className={`${danger ? 'btn-danger' : 'btn-primary'} text-sm w-full sm:w-auto`}
               >
                 {confirmLabel}
               </button>
@@ -179,7 +179,7 @@ export function FullscreenImage({ src, onClose }: { src: string; onClose: () => 
       >
         <X size={20} />
       </button>
-      <MediaImage value={src} alt="" className="max-h-[90vh] max-w-full object-contain rounded-xl" />
+      <MediaImage value={src} alt="" className="max-h-[85dvh] sm:max-h-[90vh] max-w-full object-contain rounded-xl" />
     </motion.div>,
     document.body,
   );
@@ -359,7 +359,7 @@ export function VideoPicker({
 
   return (
     <div className={compact ? '' : 'glass-card p-4'}>
-      <div className="flex items-center justify-between gap-2 mb-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
         <span className="text-sm font-semibold text-surface-300 flex items-center gap-1.5">
           <Video size={15} className="text-emerald-400" /> {label}
         </span>
@@ -367,13 +367,13 @@ export function VideoPicker({
           <button
             type="button"
             onClick={() => onChange(undefined)}
-            className="text-xs text-surface-400 hover:text-danger-500 cursor-pointer flex items-center gap-1"
+            className="text-xs text-surface-400 hover:text-danger-500 cursor-pointer flex items-center gap-1 shrink-0 sm:shrink px-2 py-2 -mr-2 min-h-[40px] sm:px-0 sm:py-0 sm:mr-0 sm:min-h-0"
           >
             <Trash2 size={13} /> Quitar
           </button>
         )}
       </div>
-      {hint && <p className="text-[11px] text-surface-500 mb-2">{hint}</p>}
+      {hint && <p className="text-[13px] sm:text-[11px] text-surface-500 mb-2">{hint}</p>}
 
       {value ? (
         <MediaVideo value={value} className="w-full max-h-64 rounded-xl bg-black/50" />
@@ -405,7 +405,7 @@ export function VideoPicker({
       )}
       {error && <p className="text-xs text-danger-400 mt-2 leading-relaxed">{error}</p>}
       {!value && !busy && !error && (
-        <p className="text-[11px] text-surface-500 mt-2">
+        <p className="text-[13px] sm:text-[11px] text-surface-500 mt-2">
           Opcional · máx 50 MB · se guarda en la nube para verse en todos los dispositivos.
         </p>
       )}
@@ -486,7 +486,7 @@ export function PhotoManager({
   return (
     <div className="space-y-3">
       {!full && (
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <button
             type="button"
             onClick={() => cameraRef.current?.click()}
@@ -505,7 +505,7 @@ export function PhotoManager({
           </button>
         </div>
       )}
-      <p className="text-[11px] text-surface-500">
+      <p className="text-[13px] sm:text-[11px] text-surface-500">
         La primera foto es la portada del paso. Máx {MAX_FOTOS} fotos · se comprimen automáticamente.
       </p>
 
@@ -521,7 +521,7 @@ export function PhotoManager({
           key={f.id}
           className="flex gap-3 bg-surface-800/30 border border-surface-700/30 rounded-xl p-3 items-start"
         >
-          <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-black/40 shrink-0">
+          <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden bg-black/40 shrink-0">
             <MediaImage
               value={f.url}
               alt=""
@@ -541,9 +541,9 @@ export function PhotoManager({
               onChange={(e) =>
                 onChange(fotos.map((ff, j) => (j === i ? { ...ff, desc: e.target.value } : ff)))
               }
-              className="input-field text-xs py-1.5"
+              className="input-field text-base sm:text-xs py-1.5"
             />
-            <div className="flex items-center gap-1 mt-2">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-1 mt-2">
               <IconBtn title="Subir" disabled={i === 0} onClick={() => move(i, -1)}>
                 <ChevronUp size={15} />
               </IconBtn>
@@ -592,9 +592,10 @@ function IconBtn({
     <button
       type="button"
       title={title}
+      aria-label={title}
       onClick={onClick}
       disabled={disabled}
-      className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+      className={`w-10 h-10 sm:w-7 sm:h-7 shrink-0 rounded-lg flex items-center justify-center transition-all ${
         disabled
           ? 'text-surface-700 cursor-not-allowed'
           : danger

@@ -62,7 +62,7 @@ export default function CatalogsManager({ onBack }: { onBack: () => void }) {
       />
 
       {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1 shrink-0">
+      <div className="flex flex-wrap gap-2 sm:flex-nowrap sm:overflow-x-auto pb-1 shrink-0">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -70,7 +70,7 @@ export default function CatalogsManager({ onBack }: { onBack: () => void }) {
               setTab(t.key);
               setEditId(null);
             }}
-            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
+            className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
               tab === t.key
                 ? 'bg-primary-500/20 text-primary-300 border border-primary-500/40'
                 : 'glass-light text-surface-400 hover:text-surface-200'
@@ -85,7 +85,7 @@ export default function CatalogsManager({ onBack }: { onBack: () => void }) {
       <div className="flex-1 overflow-y-auto pr-1 space-y-4">
         {/* Add row */}
         <motion.div {...fadeUp} className="glass-card p-4">
-          <p className="text-xs text-surface-400 mb-3">Agregar opción a «{meta.label}» — {meta.hint}</p>
+          <p className="text-sm sm:text-xs text-surface-400 mb-3">Agregar opción a «{meta.label}» — {meta.hint}</p>
           <div className="flex flex-wrap gap-2">
             {meta.conIcono && (
               <input
@@ -108,10 +108,10 @@ export default function CatalogsManager({ onBack }: { onBack: () => void }) {
                 value={nuevoUnidad}
                 onChange={(e) => setNuevoUnidad(e.target.value)}
                 placeholder="unidad (kg, pza…)"
-                className="input-field w-32"
+                className="input-field w-full sm:w-32"
               />
             )}
-            <button onClick={agregar} disabled={!nuevo.trim()} className="btn-primary text-sm flex items-center gap-1.5">
+            <button onClick={agregar} disabled={!nuevo.trim()} className="btn-primary text-sm flex items-center justify-center gap-1.5 w-full sm:w-auto">
               <Plus size={16} /> Agregar
             </button>
           </div>
@@ -131,7 +131,7 @@ export default function CatalogsManager({ onBack }: { onBack: () => void }) {
               variants={listItem}
               initial="initial"
               animate="animate"
-              className={`glass-card p-3 flex items-center gap-3 ${!it.activo ? 'opacity-50' : ''}`}
+              className={`glass-card p-3 flex items-center gap-2 sm:gap-3 ${!it.activo ? 'opacity-50' : ''}`}
             >
               {it.icono && <span className="text-2xl shrink-0">{it.icono}</span>}
               {editId === it.id ? (
@@ -143,41 +143,43 @@ export default function CatalogsManager({ onBack }: { onBack: () => void }) {
                     if (e.key === 'Enter') guardarEdicion(it.id);
                     if (e.key === 'Escape') setEditId(null);
                   }}
-                  className="input-field flex-1 py-1.5 text-sm"
+                  className="input-field flex-1 py-1.5 text-base sm:text-sm"
                 />
               ) : (
                 <div className="flex-1 min-w-0">
                   <span className="text-sm text-surface-200">{it.nombre}</span>
                   {it.unidad && <span className="text-xs text-surface-500 ml-2">({it.unidad})</span>}
-                  {!it.activo && <span className="badge badge-red text-[10px] ml-2">Inactivo</span>}
+                  {!it.activo && <span className="badge badge-red text-[11px] sm:text-[10px] ml-2">Inactivo</span>}
                 </div>
               )}
 
               {editId === it.id ? (
-                <div className="flex gap-1 shrink-0">
-                  <button onClick={() => guardarEdicion(it.id)} className="w-8 h-8 rounded-lg flex items-center justify-center text-green-400 hover:bg-green-500/10 cursor-pointer">
+                <div className="flex gap-2 sm:gap-1 shrink-0">
+                  <button onClick={() => guardarEdicion(it.id)} aria-label="Guardar" className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-green-400 hover:bg-green-500/10 cursor-pointer">
                     <Check size={16} />
                   </button>
-                  <button onClick={() => setEditId(null)} className="w-8 h-8 rounded-lg flex items-center justify-center text-surface-400 hover:bg-white/10 cursor-pointer">
+                  <button onClick={() => setEditId(null)} aria-label="Cancelar" className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-surface-400 hover:bg-white/10 cursor-pointer">
                     <X size={16} />
                   </button>
                 </div>
               ) : (
-                <div className="flex gap-1 shrink-0">
+                <div className="flex gap-2 sm:gap-1 shrink-0">
                   <button
                     onClick={() => {
                       setEditId(it.id);
                       setEditVal(it.nombre);
                     }}
                     title="Renombrar"
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-surface-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                    aria-label="Renombrar"
+                    className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-surface-400 hover:text-white hover:bg-white/10 cursor-pointer"
                   >
                     <SquarePen size={15} />
                   </button>
                   <button
                     onClick={() => toggleCatalogItem(tab, it.id)}
                     title={it.activo ? 'Desactivar' : 'Reactivar'}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-surface-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                    aria-label={it.activo ? 'Desactivar' : 'Reactivar'}
+                    className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-surface-400 hover:text-white hover:bg-white/10 cursor-pointer"
                   >
                     {it.activo ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>

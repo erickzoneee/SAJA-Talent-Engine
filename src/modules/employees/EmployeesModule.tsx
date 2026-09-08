@@ -147,10 +147,10 @@ function EmployeeCardsView({ onViewDossier }: { onViewDossier: (employeeId: stri
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4 mb-4 sm:mb-6">
         <div className="flex-1 min-w-0">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-500/20 to-primary-500/20 flex items-center justify-center shrink-0">
+          <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-accent-500/20 to-primary-500/20 flex items-center justify-center shrink-0">
               <Building size={22} className="text-accent-400" />
             </div>
             Expedientes de Empleados
@@ -164,10 +164,10 @@ function EmployeeCardsView({ onViewDossier }: { onViewDossier: (employeeId: stri
       </div>
 
       {/* Pestanas — colaboradores activos vs. bajas (ex-colaboradores) */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-3 sm:mb-4">
         <button
           onClick={() => setTab('activos')}
-          className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer ${
+          className={`whitespace-nowrap min-h-[44px] sm:min-h-0 px-3 sm:px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer ${
             tab === 'activos'
               ? 'bg-primary-500/20 text-primary-300 ring-1 ring-primary-500/40'
               : 'glass-card text-surface-400 hover:text-surface-200'
@@ -178,7 +178,7 @@ function EmployeeCardsView({ onViewDossier }: { onViewDossier: (employeeId: stri
         </button>
         <button
           onClick={() => setTab('bajas')}
-          className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer ${
+          className={`whitespace-nowrap min-h-[44px] sm:min-h-0 px-3 sm:px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer ${
             tab === 'bajas'
               ? 'bg-danger-500/20 text-danger-400 ring-1 ring-danger-500/40'
               : 'glass-card text-surface-400 hover:text-surface-200'
@@ -190,8 +190,8 @@ function EmployeeCardsView({ onViewDossier }: { onViewDossier: (employeeId: stri
       </div>
 
       {/* Filtros */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3 sm:mb-4">
+        <div className="relative flex-1 min-w-0 max-w-md">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" />
           <input
             type="text"
@@ -203,7 +203,7 @@ function EmployeeCardsView({ onViewDossier }: { onViewDossier: (employeeId: stri
         </div>
         {tab === 'activos' && (
           <select
-            className="input-field w-auto"
+            className="input-field w-full sm:w-auto"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
           >
@@ -216,12 +216,12 @@ function EmployeeCardsView({ onViewDossier }: { onViewDossier: (employeeId: stri
 
       {/* Resumen (solo en la pestana de activos) */}
       {tab === 'activos' && (
-        <div className="flex gap-3 mb-4">
+        <div className="grid grid-cols-2 sm:flex gap-3 mb-3 sm:mb-4">
           {(['trial', 'active'] as const).map((status) => {
             const count = employees.filter((e) => e.status === status).length;
             const cfg = statusConfig[status];
             return (
-              <div key={status} className="glass-card px-4 py-2 flex items-center gap-2">
+              <div key={status} className="glass-card min-w-0 px-3 sm:px-4 py-2 flex items-center gap-2">
                 <cfg.icon size={14} className={status === 'trial' ? 'text-warning-500' : 'text-success-500'} />
                 <span className="text-xs text-surface-400">{cfg.label}:</span>
                 <span className="text-sm font-bold text-white">{count}</span>
@@ -234,11 +234,11 @@ function EmployeeCardsView({ onViewDossier }: { onViewDossier: (employeeId: stri
       {/* Fichas */}
       <div className="flex-1 overflow-y-auto pr-1">
         {filteredEmployees.length === 0 ? (
-          <motion.div {...fadeUp} className="glass-card p-12 text-center">
+          <motion.div {...fadeUp} className="glass-card p-6 sm:p-12 text-center">
             {tab === 'bajas' ? (
               <>
                 <UserX size={48} className="mx-auto text-surface-600 mb-4" />
-                <p className="text-surface-400 text-lg font-medium">No hay ex-colaboradores</p>
+                <p className="text-surface-400 text-base sm:text-lg font-medium">No hay ex-colaboradores</p>
                 <p className="text-surface-500 text-sm mt-1">
                   Los colaboradores a los que se les da egreso apareceran aqui
                 </p>
@@ -246,7 +246,7 @@ function EmployeeCardsView({ onViewDossier }: { onViewDossier: (employeeId: stri
             ) : (
               <>
                 <Building size={48} className="mx-auto text-surface-600 mb-4" />
-                <p className="text-surface-400 text-lg font-medium">
+                <p className="text-surface-400 text-base sm:text-lg font-medium">
                   {search.trim() ? 'Ningun colaborador coincide con la busqueda' : 'No hay empleados registrados'}
                 </p>
                 <p className="text-surface-500 text-sm mt-1">
@@ -304,7 +304,7 @@ function EmployeeCard({
       initial="initial"
       animate="animate"
       onClick={onClick}
-      className="glass-card p-5 text-left flex flex-col gap-4 cursor-pointer group w-full"
+      className="glass-card p-4 sm:p-5 text-left flex flex-col gap-4 cursor-pointer group w-full"
     >
       {/* Encabezado: foto + nombre + puesto */}
       <div className="flex items-start gap-3">
@@ -312,22 +312,22 @@ function EmployeeCard({
           <MediaImage
             value={employee.photoUrl}
             alt={employee.fullName}
-            className="w-16 h-16 rounded-2xl object-cover border border-surface-600/30 shrink-0"
+            className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-surface-600/30 shrink-0"
           />
         ) : (
           <div
-            className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${getAvatarGradient(employee.fullName)} flex items-center justify-center text-white font-bold text-lg shrink-0`}
+            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${getAvatarGradient(employee.fullName)} flex items-center justify-center text-white font-bold text-base sm:text-lg shrink-0`}
           >
             {getInitials(employee.fullName)}
           </div>
         )}
         <div className="flex-1 min-w-0">
           <p className="text-white font-semibold leading-snug break-words">{employee.fullName}</p>
-          <p className="text-surface-400 text-xs mt-1 truncate" title={positionLabel(employee.position)}>
+          <p className="text-surface-400 text-xs mt-1 break-words sm:truncate" title={positionLabel(employee.position)}>
             {positionLabel(employee.position)}
           </p>
           {employee.area && (
-            <p className="text-surface-500 text-[11px] mt-0.5 truncate" title={employee.area}>
+            <p className="text-surface-500 text-[13px] sm:text-[11px] mt-0.5 break-words sm:truncate" title={employee.area}>
               {employee.area}
             </p>
           )}
@@ -340,7 +340,7 @@ function EmployeeCard({
 
       {/* Expediente + estatus */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span className="inline-flex items-center gap-1.5 text-[11px] text-surface-400 bg-surface-800/50 rounded-lg px-2 py-1">
+        <span className="inline-flex items-center gap-1.5 text-[13px] sm:text-[11px] text-surface-400 bg-surface-800/50 rounded-lg px-2 py-1">
           <IdCard size={13} className="text-surface-500" />
           Expediente <span className="font-bold text-surface-200">#{String(employee.expedientNumber).padStart(3, '0')}</span>
         </span>
@@ -391,12 +391,12 @@ function EmployeeCard({
       </div>
 
       {/* Pie: ingreso y antiguedad */}
-      <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/[0.06] text-[11px] text-surface-500">
-        <span className="inline-flex items-center gap-1.5 truncate">
+      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-x-2 gap-y-1 pt-1 border-t border-white/[0.06] text-[13px] sm:text-[11px] text-surface-500">
+        <span className="inline-flex items-center gap-1.5 whitespace-nowrap sm:truncate">
           <Calendar size={12} className="shrink-0" />
           {employee.hireDate ? formatDate(employee.hireDate) : '—'}
         </span>
-        <span className="truncate">
+        <span className="whitespace-nowrap sm:truncate">
           {esBaja ? 'Duro' : 'Antiguedad'}: {antiguedad(employee.hireDate, hasta)}
         </span>
       </div>
@@ -419,14 +419,14 @@ function ProgressLine({
 }) {
   return (
     <div>
-      <div className="flex items-center justify-between text-[11px] mb-1">
+      <div className="flex items-center justify-between text-[13px] sm:text-[11px] mb-1">
         <span className="inline-flex items-center gap-1.5 text-surface-400">
           <Icon size={12} />
           {label}
         </span>
         <span className="font-semibold text-surface-300">{value}</span>
       </div>
-      <div className="h-1.5 rounded-full bg-surface-800/70 overflow-hidden">
+      <div className="h-2 sm:h-1.5 rounded-full bg-surface-800/70 overflow-hidden">
         <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${percent}%` }} />
       </div>
     </div>

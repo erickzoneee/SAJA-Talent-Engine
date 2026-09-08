@@ -333,8 +333,8 @@ function DashboardView({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-2xl font-bold gradient-text flex items-center gap-3">
-          <LayoutDashboard size={24} />
+        <h1 className="text-xl sm:text-2xl font-bold gradient-text flex items-center gap-2 sm:gap-3">
+          <LayoutDashboard size={24} className="shrink-0" />
           Panel del Supervisor
         </h1>
         <p className="text-surface-400 text-sm mt-1">
@@ -343,7 +343,7 @@ function DashboardView({
       </motion.div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         {statCards.map((card, i) => {
           const Icon = card.icon;
           return (
@@ -354,14 +354,14 @@ function DashboardView({
               initial="initial"
               animate="animate"
               whileHover={{ y: -4, transition: { duration: 0.2 } }}
-              className={`glass-card p-5 cursor-default hover:shadow-xl ${card.glow}`}
+              className={`glass-card p-4 sm:p-5 cursor-default hover:shadow-xl ${card.glow}`}
             >
               <div className="flex items-center justify-between mb-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${card.color} bg-white/5`}>
                   <Icon size={20} />
                 </div>
               </div>
-              <p className="text-3xl font-bold text-surface-100">{card.value}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-surface-100">{card.value}</p>
               <p className="text-sm text-surface-400 mt-1">{card.label}</p>
             </motion.div>
           );
@@ -374,14 +374,14 @@ function DashboardView({
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.2 }}
-          className="glass-card p-5"
+          className="glass-card p-4 sm:p-5"
           style={{ borderColor: 'rgba(245,158,11,0.3)' }}
         >
           <h2 className="text-base font-semibold text-amber-400 flex items-center gap-2 mb-4">
             <AlertTriangle size={18} />
             Alertas y Pendientes ({alerts.length})
           </h2>
-          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-none sm:max-h-[300px] overflow-y-auto pr-1">
             {alerts.map((alert, i) => (
               <motion.div
                 key={i}
@@ -403,7 +403,7 @@ function DashboardView({
                 {alert.employeeId && (
                   <button
                     onClick={() => onSelectEmployee(alert.employeeId!)}
-                    className="text-primary-400 hover:text-primary-300 transition-colors opacity-0 group-hover:opacity-100"
+                    className="text-primary-400 hover:text-primary-300 transition-colors shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                   >
                     <Eye size={16} />
                   </button>
@@ -420,7 +420,7 @@ function DashboardView({
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.3 }}
-          className="glass-card p-5 xl:col-span-1"
+          className="glass-card p-4 sm:p-5 xl:col-span-1"
         >
           <h2 className="text-base font-semibold text-surface-100 flex items-center gap-2 mb-4">
             <ClipboardList size={18} className="text-primary-400" />
@@ -438,13 +438,13 @@ function DashboardView({
                     <span className="text-white text-xs font-bold">{getInitials(c.fullName)}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-surface-200 truncate">{c.fullName}</p>
+                    <p className="text-sm font-medium text-surface-200 break-words sm:truncate">{c.fullName}</p>
                     <p className="text-xs text-surface-500">
                       {c.interviewData ? formatDate(c.interviewData.date) : '---'}
                     </p>
                   </div>
                   {c.verdict && (
-                    <span className={`badge ${getVerdictColor(c.verdict)} text-[10px] whitespace-nowrap`}>
+                    <span className={`badge ${getVerdictColor(c.verdict)} text-[10px] shrink-0 text-center max-w-[45%] sm:max-w-none sm:whitespace-nowrap`}>
                       {getVerdictLabel(c.verdict)}
                     </span>
                   )}
@@ -459,20 +459,20 @@ function DashboardView({
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.35 }}
-          className="glass-card p-5 xl:col-span-2"
+          className="glass-card p-4 sm:p-5 xl:col-span-2"
         >
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <h2 className="text-base font-semibold text-surface-100 flex items-center gap-2">
               <Users size={18} className="text-primary-400" />
               Colaboradores Activos
             </h2>
-            <div className="relative w-60">
+            <div className="relative w-full sm:w-60">
               <input
                 type="text"
                 placeholder="Buscar..."
                 value={searchGrid}
                 onChange={(e) => setSearchGrid(e.target.value)}
-                className="input-field text-sm py-2 pl-9"
+                className="input-field text-base sm:text-sm py-2 pl-9"
               />
               <Eye size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" />
             </div>
@@ -486,7 +486,7 @@ function DashboardView({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-none sm:max-h-[500px] overflow-y-auto pr-1">
               {activeEmployees.map((emp, i) => {
                 const latestEval =
                   emp.evaluations.length > 0
@@ -521,7 +521,7 @@ function DashboardView({
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-surface-100 truncate">
+                        <p className="text-sm font-semibold text-surface-100 break-words sm:truncate">
                           {emp.fullName}
                         </p>
                         <p className="text-xs text-surface-400">
@@ -582,7 +582,7 @@ function DossierView({
 
   if (!employee) {
     return (
-      <div className="glass-card p-12 text-center">
+      <div className="glass-card p-6 sm:p-12 text-center">
         <AlertTriangle size={40} className="mx-auto text-amber-400 mb-3" />
         <p className="text-surface-400">Colaborador no encontrado</p>
         <button onClick={onBack} className="btn-secondary mt-4">
@@ -601,17 +601,17 @@ function DossierView({
   return (
     <div className="space-y-6">
       {/* Header bar */}
-      <div className="flex items-center justify-between print:hidden">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="btn-secondary p-2.5 rounded-xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <button onClick={onBack} className="btn-secondary p-2.5 rounded-xl shrink-0">
             <ArrowLeft size={18} />
           </button>
-          <div>
-            <h1 className="text-2xl font-bold gradient-text">Expediente del Colaborador</h1>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold gradient-text break-words">Expediente del Colaborador</h1>
             <p className="text-surface-400 text-sm mt-0.5">Dossier completo</p>
           </div>
         </div>
-        <button onClick={handlePrint} className="btn-secondary flex items-center gap-2">
+        <button onClick={handlePrint} className="btn-secondary flex items-center justify-center gap-2 w-full sm:w-auto shrink-0 whitespace-nowrap">
           <Printer size={16} />
           Imprimir
         </button>
@@ -621,21 +621,21 @@ function DossierView({
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card p-6 glow-primary"
+        className="glass-card p-4 sm:p-6 glow-primary"
       >
-        <div className="flex items-center gap-5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5">
           {/* Avatar */}
           <div
-            className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${getAvatarGradient(employee.fullName)} flex items-center justify-center shrink-0 shadow-lg`}
+            className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br ${getAvatarGradient(employee.fullName)} flex items-center justify-center shrink-0 shadow-lg`}
           >
             {employee.photoUrl ? (
               <img
                 src={employee.photoUrl}
                 alt=""
-                className="w-20 h-20 rounded-2xl object-cover"
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover"
               />
             ) : (
-              <span className="text-white text-2xl font-bold">
+              <span className="text-white text-xl sm:text-2xl font-bold">
                 {getInitials(employee.fullName)}
               </span>
             )}
@@ -643,12 +643,12 @@ function DossierView({
 
           {/* Details */}
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold text-surface-100">{employee.fullName}</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-surface-100 break-words">{employee.fullName}</h2>
             <p className="text-surface-400 text-sm mt-0.5">
               {JOB_POSITIONS[employee.position]?.name ?? employee.position} &mdash;{' '}
               {employee.area}
             </p>
-            <div className="flex items-center gap-3 mt-2 flex-wrap">
+            <div className="flex items-center gap-2 sm:gap-3 mt-2 flex-wrap">
               <span
                 className={`badge ${
                   employee.status === 'trial'
@@ -697,14 +697,14 @@ function DossierView({
       </motion.div>
 
       {/* Tabs */}
-      <div className="glass-card p-1 inline-flex gap-1 flex-wrap print:hidden">
+      <div className="glass-card p-1 flex flex-nowrap gap-1 overflow-x-auto sm:inline-flex sm:flex-wrap sm:overflow-visible print:hidden [scrollbar-width:none]">
         {DOSSIER_TABS.map((tab) => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
+              className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 shrink-0 whitespace-nowrap min-h-11 sm:min-h-0 ${
                 activeTab === tab.id
                   ? 'bg-primary-500/20 text-primary-400 shadow-lg'
                   : 'text-surface-400 hover:text-surface-200 hover:bg-white/5'
@@ -763,7 +763,7 @@ function PersonalInfoTab({
 }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="glass-card p-6 space-y-4">
+      <div className="glass-card p-4 sm:p-6 space-y-4">
         <h3 className="text-base font-semibold text-surface-100 flex items-center gap-2">
           <User size={16} className="text-primary-400" />
           Datos Personales
@@ -784,7 +784,7 @@ function PersonalInfoTab({
         </div>
       </div>
 
-      <div className="glass-card p-6 space-y-4">
+      <div className="glass-card p-4 sm:p-6 space-y-4">
         <h3 className="text-base font-semibold text-surface-100 flex items-center gap-2">
           <Briefcase size={16} className="text-primary-400" />
           Datos Laborales
@@ -813,9 +813,9 @@ function PersonalInfoTab({
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between items-center py-1 border-b border-white/5 last:border-none">
-      <span className="text-xs text-surface-500">{label}</span>
-      <span className="text-sm text-surface-200 font-medium text-right max-w-[60%] break-words">
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-0 sm:justify-between sm:items-center py-1 border-b border-white/5 last:border-none">
+      <span className="text-xs text-surface-500 shrink-0">{label}</span>
+      <span className="text-sm text-surface-200 font-medium break-words sm:text-right sm:max-w-[60%]">
         {value}
       </span>
     </div>
@@ -830,13 +830,13 @@ function DocumentsTab({ employee }: { employee: Employee }) {
   const completedCount = entries.filter(([, v]) => v.done).length;
 
   return (
-    <div className="glass-card p-6 space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="glass-card p-4 sm:p-6 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-base font-semibold text-surface-100 flex items-center gap-2">
           <FileText size={16} className="text-primary-400" />
           Documentos ({completedCount}/{entries.length})
         </h3>
-        <div className="w-32 h-2 rounded-full bg-surface-800 overflow-hidden">
+        <div className="w-full sm:w-32 shrink-0 h-2 rounded-full bg-surface-800 overflow-hidden">
           <div
             className="h-full rounded-full bg-gradient-to-r from-primary-500 to-accent-500 transition-all duration-500"
             style={{ width: `${(completedCount / entries.length) * 100}%` }}
@@ -857,11 +857,11 @@ function DocumentsTab({ employee }: { employee: Employee }) {
             ) : (
               <XCircle size={16} className="text-red-400 shrink-0" />
             )}
-            <span className="text-sm text-surface-300 flex-1">
+            <span className="text-sm text-surface-300 flex-1 min-w-0 break-words">
               {DOCUMENT_LABELS[key] ?? key}
             </span>
             {val.done && val.photoUrl && (
-              <Eye size={14} className="text-primary-400 cursor-pointer" />
+              <Eye size={14} className="text-primary-400 cursor-pointer shrink-0" />
             )}
           </div>
         ))}
@@ -879,14 +879,14 @@ function OnboardingTab({ employee }: { employee: Employee }) {
 
   return (
     <div className="space-y-4">
-      <div className="glass-card p-6 space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="glass-card p-4 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-base font-semibold text-surface-100 flex items-center gap-2">
             <GraduationCap size={16} className="text-primary-400" />
             Progreso de Onboarding ({completedModules}/{totalModules})
           </h3>
           {progress.certificateGenerated && (
-            <span className="badge badge-green">Certificado Generado</span>
+            <span className="badge badge-green shrink-0 whitespace-nowrap">Certificado Generado</span>
           )}
         </div>
 
@@ -907,15 +907,15 @@ function OnboardingTab({ employee }: { employee: Employee }) {
         )}
       </div>
 
-      <div className="glass-card p-6 space-y-2">
+      <div className="glass-card p-4 sm:p-6 space-y-2">
         <h3 className="text-sm font-semibold text-surface-300 uppercase tracking-wider mb-3">
           Modulos
         </h3>
-        <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+        <div className="space-y-2 max-h-none sm:max-h-[500px] overflow-y-auto pr-1">
           {progress.modules.map((mod) => (
             <div
               key={mod.id}
-              className={`glass-light p-3 rounded-xl flex items-center gap-3 ${
+              className={`glass-light p-3 rounded-xl flex flex-wrap items-center gap-x-3 gap-y-1 ${
                 mod.completed ? 'opacity-100' : 'opacity-60'
               }`}
             >
@@ -924,20 +924,20 @@ function OnboardingTab({ employee }: { employee: Employee }) {
               ) : (
                 <div className="w-4 h-4 rounded-full border-2 border-surface-600 shrink-0" />
               )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-surface-200 truncate">{mod.name}</p>
+              <div className="flex-1 min-w-0 basis-[calc(100%-2rem)] sm:basis-0">
+                <p className="text-sm text-surface-200 break-words sm:truncate">{mod.name}</p>
                 <p className="text-xs text-surface-500">
                   {mod.deliveredBy} &middot; {mod.duration}
                 </p>
               </div>
               {mod.completed && mod.completedDate && (
-                <span className="text-xs text-surface-500">{formatDate(mod.completedDate)}</span>
+                <span className="text-xs text-surface-500 shrink-0 whitespace-nowrap">{formatDate(mod.completedDate)}</span>
               )}
               {mod.quizScore !== undefined && (
-                <span className="badge badge-blue text-[10px]">Quiz: {mod.quizScore}%</span>
+                <span className="badge badge-blue text-[10px] shrink-0 whitespace-nowrap">Quiz: {mod.quizScore}%</span>
               )}
               {mod.requiresSignature && mod.signatureUrl && (
-                <span className="badge badge-purple text-[10px]">Firmado</span>
+                <span className="badge badge-purple text-[10px] shrink-0 whitespace-nowrap">Firmado</span>
               )}
             </div>
           ))}
@@ -956,7 +956,7 @@ function EvaluationsTab({ employee }: { employee: Employee }) {
 
   if (evaluations.length === 0) {
     return (
-      <div className="glass-card p-12 text-center">
+      <div className="glass-card p-6 sm:p-12 text-center">
         <TrendingUp size={40} className="mx-auto text-surface-600 mb-3" />
         <p className="text-surface-400">No hay evaluaciones registradas</p>
       </div>
@@ -975,23 +975,23 @@ function EvaluationsTab({ employee }: { employee: Employee }) {
   return (
     <div className="space-y-4">
       {evaluations.map((evalItem) => (
-        <div key={evalItem.id} className="glass-card p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-surface-100">
+        <div key={evalItem.id} className="glass-card p-4 sm:p-5 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="text-sm font-semibold text-surface-100 break-words">
                 {evalItem.type || 'Evaluacion'}
               </span>
-              <span className="text-xs text-surface-500">{formatDate(evalItem.date)}</span>
+              <span className="text-xs text-surface-500 whitespace-nowrap">{formatDate(evalItem.date)}</span>
             </div>
-            <span className={`badge ${getPerformanceColor(evalItem.averageScore)}`}>
+            <span className={`badge ${getPerformanceColor(evalItem.averageScore)} shrink-0 whitespace-nowrap`}>
               Promedio: {evalItem.averageScore.toFixed(2)}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
             {Object.entries(evalItem.ratings).map(([key, val]) => (
-              <div key={key} className="glass-light p-2.5 rounded-lg">
-                <p className="text-xs text-surface-500 mb-1">
+              <div key={key} className="glass-light p-2.5 rounded-lg flex items-center justify-between gap-2 sm:block">
+                <p className="text-xs text-surface-500 sm:mb-1">
                   {RATING_LABELS[key] ?? key}
                 </p>
                 <StarRating value={val} readOnly size={16} />
@@ -1008,8 +1008,8 @@ function EvaluationsTab({ employee }: { employee: Employee }) {
 
           {evalItem.decision && (
             <div className="flex items-center gap-2">
-              <Shield size={14} className="text-primary-400" />
-              <p className="text-sm text-surface-300">
+              <Shield size={14} className="text-primary-400 shrink-0" />
+              <p className="text-sm text-surface-300 break-words">
                 Decision: <strong className="text-surface-100">{evalItem.decision}</strong>
               </p>
             </div>
@@ -1029,7 +1029,7 @@ function IncidentsTab({ employee }: { employee: Employee }) {
 
   if (incidents.length === 0) {
     return (
-      <div className="glass-card p-12 text-center">
+      <div className="glass-card p-6 sm:p-12 text-center">
         <ShieldAlert size={40} className="mx-auto text-surface-600 mb-3" />
         <p className="text-surface-400">No hay incidencias registradas</p>
         <p className="text-xs text-surface-500 mt-1">Historial limpio</p>
@@ -1047,7 +1047,7 @@ function IncidentsTab({ employee }: { employee: Employee }) {
   };
 
   return (
-    <div className="glass-card p-6 space-y-3">
+    <div className="glass-card p-4 sm:p-6 space-y-3">
       <h3 className="text-base font-semibold text-surface-100 flex items-center gap-2 mb-2">
         <ShieldAlert size={16} className="text-amber-400" />
         Incidencias ({incidents.length})
@@ -1055,13 +1055,13 @@ function IncidentsTab({ employee }: { employee: Employee }) {
       <div className="space-y-2">
         {incidents.map((inc) => (
           <div key={inc.id} className="glass-light p-4 rounded-xl">
-            <div className="flex items-center justify-between mb-2">
-              <span className={`badge ${typeColorMap[inc.type] ?? 'badge-yellow'} text-xs`}>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <span className={`badge ${typeColorMap[inc.type] ?? 'badge-yellow'} text-xs shrink-0`}>
                 {INCIDENT_LABELS[inc.type] ?? inc.type}
               </span>
-              <span className="text-xs text-surface-500">{formatDate(inc.date)}</span>
+              <span className="text-xs text-surface-500 shrink-0 whitespace-nowrap">{formatDate(inc.date)}</span>
             </div>
-            <p className="text-sm text-surface-300">{inc.description}</p>
+            <p className="text-sm text-surface-300 break-words">{inc.description}</p>
             {inc.signatureUrl && (
               <p className="text-xs text-primary-400 mt-2 flex items-center gap-1">
                 <CheckCircle2 size={12} />
@@ -1086,7 +1086,7 @@ function BonusesTab({ employee }: { employee: Employee }) {
 
   if (bonuses.length === 0) {
     return (
-      <div className="glass-card p-12 text-center">
+      <div className="glass-card p-6 sm:p-12 text-center">
         <Award size={40} className="mx-auto text-surface-600 mb-3" />
         <p className="text-surface-400">No hay bonos registrados</p>
       </div>
@@ -1096,32 +1096,32 @@ function BonusesTab({ employee }: { employee: Employee }) {
   return (
     <div className="space-y-4">
       {/* Summary */}
-      <div className="glass-card p-5 flex items-center gap-6">
+      <div className="glass-card p-4 sm:p-5 flex flex-wrap items-center gap-4 sm:gap-6">
         <div>
           <p className="text-xs text-surface-500">Total bonos</p>
-          <p className="text-2xl font-bold text-emerald-400">${totalAmount.toLocaleString()}</p>
+          <p className="text-xl sm:text-2xl font-bold text-emerald-400">${totalAmount.toLocaleString()}</p>
         </div>
-        <div className="w-px h-10 bg-white/10" />
+        <div className="w-px h-10 bg-white/10 shrink-0" />
         <div>
           <p className="text-xs text-surface-500">Cantidad</p>
-          <p className="text-2xl font-bold text-surface-100">{bonuses.length}</p>
+          <p className="text-xl sm:text-2xl font-bold text-surface-100">{bonuses.length}</p>
         </div>
       </div>
 
       {/* List */}
-      <div className="glass-card p-6 space-y-3">
+      <div className="glass-card p-4 sm:p-6 space-y-3">
         {bonuses.map((bonus) => (
-          <div key={bonus.id} className="glass-light p-4 rounded-xl flex items-center gap-4">
+          <div key={bonus.id} className="glass-light p-4 rounded-xl flex flex-wrap items-center gap-3 sm:gap-4">
             <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
               <DollarSign size={18} className="text-emerald-400" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-surface-200">{bonus.period}</p>
-              <p className="text-xs text-surface-500">{bonus.criteria}</p>
+            <div className="flex-1 min-w-0 basis-[calc(100%-3.75rem)] sm:basis-0">
+              <p className="text-sm font-semibold text-surface-200 break-words">{bonus.period}</p>
+              <p className="text-xs text-surface-500 break-words">{bonus.criteria}</p>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-bold text-emerald-400">${bonus.amount.toLocaleString()}</p>
-              <p className="text-xs text-surface-500">{formatDate(bonus.date)}</p>
+            <div className="text-right shrink-0 ml-auto">
+              <p className="text-sm font-bold text-emerald-400 whitespace-nowrap">${bonus.amount.toLocaleString()}</p>
+              <p className="text-xs text-surface-500 whitespace-nowrap">{formatDate(bonus.date)}</p>
             </div>
           </div>
         ))}

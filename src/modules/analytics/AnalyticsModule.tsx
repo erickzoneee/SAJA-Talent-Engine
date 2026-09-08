@@ -162,9 +162,9 @@ const TABS: TabDef[] = [
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-      <BarChart3 className="w-16 h-16 mb-4 opacity-30" />
-      <p className="text-sm text-center max-w-xs">{message}</p>
+    <div className="flex flex-col items-center justify-center py-8 sm:py-16 text-slate-400">
+      <BarChart3 className="w-12 h-12 sm:w-16 sm:h-16 mb-3 sm:mb-4 opacity-30" />
+      <p className="text-sm text-center max-w-xs px-2 sm:px-0">{message}</p>
     </div>
   );
 }
@@ -183,16 +183,16 @@ interface StatCardProps {
 function StatCard({ label, value, icon, color = 'text-blue-400', subtitle, index }: StatCardProps) {
   return (
     <motion.div
-      className="glass-card p-5 flex items-start gap-4"
+      className="glass-card p-4 sm:p-5 flex items-start gap-3 sm:gap-4"
       variants={cardEntrance}
       initial="initial"
       animate="animate"
       custom={index}
     >
-      <div className={`p-3 rounded-xl bg-slate-800/60 ${color}`}>{icon}</div>
+      <div className={`shrink-0 p-3 rounded-xl bg-slate-800/60 ${color}`}>{icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">{label}</p>
-        <p className="text-2xl font-bold text-white truncate">{value}</p>
+        <p className="text-2xl font-bold text-white break-words sm:truncate">{value}</p>
         {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
       </div>
     </motion.div>
@@ -211,7 +211,7 @@ interface ChartCardProps {
 function ChartCard({ title, children, index, className = '' }: ChartCardProps) {
   return (
     <motion.div
-      className={`glass-card p-5 ${className}`}
+      className={`glass-card p-3 sm:p-5 ${className}`}
       variants={cardEntrance}
       initial="initial"
       animate="animate"
@@ -221,7 +221,7 @@ function ChartCard({ title, children, index, className = '' }: ChartCardProps) {
         <PieChart className="w-4 h-4 text-blue-400" />
         {title}
       </h3>
-      <div className="relative h-64">{children}</div>
+      <div className="relative h-72 sm:h-64">{children}</div>
     </motion.div>
   );
 }
@@ -350,7 +350,7 @@ function ReclutamientoTab({ candidates }: { candidates: Candidate[] }) {
   return (
     <motion.div variants={tabContent} initial="initial" animate="animate" exit="exit" key="reclutamiento">
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <StatCard label="Total Candidatos" value={totalCandidates} icon={<Users className="w-5 h-5" />} color="text-blue-400" index={0} />
         <StatCard
           label="Tasa de Conversion"
@@ -523,7 +523,7 @@ function RetencionTab({ employees }: { employees: Employee[] }) {
   return (
     <motion.div variants={tabContent} initial="initial" animate="animate" exit="exit" key="retencion">
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <StatCard
           label="Antiguedad Promedio"
           value={`${Math.round(avgTenure)} meses`}
@@ -689,7 +689,7 @@ function DesempenoTab({ employees }: { employees: Employee[] }) {
   return (
     <motion.div variants={tabContent} initial="initial" animate="animate" exit="exit" key="desempeno">
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <StatCard
           label="Score Promedio"
           value={Math.round(avgPerf * 100) / 100}
@@ -718,7 +718,7 @@ function DesempenoTab({ employees }: { employees: Employee[] }) {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="Perfil de Competencias (Promedio)" index={3}>
+        <ChartCard title="Perfil de Competencias (Promedio)" index={3} className="max-sm:[&>div]:h-80">
           <Radar data={radarData} options={radarOptions} />
         </ChartCard>
         <ChartCard title="Distribucion de Desempeno (Semaforo)" index={4}>
@@ -842,7 +842,7 @@ function OnboardingTab({ employees }: { employees: Employee[] }) {
   return (
     <motion.div variants={tabContent} initial="initial" animate="animate" exit="exit" key="onboarding">
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <StatCard
           label="Tasa de Completado"
           value={`${Math.round(avgCompletionRate)}%`}
@@ -900,8 +900,8 @@ export default function AnalyticsModule() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-2xl font-bold gradient-text flex items-center gap-3">
-          <BarChart3 className="w-7 h-7 text-blue-400" />
+        <h1 className="text-xl sm:text-2xl font-bold gradient-text flex items-center gap-3">
+          <BarChart3 className="w-7 h-7 shrink-0 text-blue-400" />
           Analitica e Inteligencia de Datos
         </h1>
         <p className="text-sm text-slate-400 mt-1">
@@ -911,7 +911,9 @@ export default function AnalyticsModule() {
 
       {/* Tab Navigation */}
       <motion.div
-        className="glass flex gap-1 p-1 rounded-xl overflow-x-auto"
+        // v2.20: en tablet (768px menos el menu de 280px) las 4 pestanas no caben en
+        // una tira; se acomodan en dos renglones hasta lg y de ahi en fila como siempre.
+        className="glass flex flex-wrap lg:flex-nowrap gap-1 p-1 rounded-xl lg:overflow-x-auto"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.35 }}
@@ -920,7 +922,7 @@ export default function AnalyticsModule() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+            className={`flex flex-1 lg:flex-none min-w-[45%] lg:min-w-0 items-center justify-center lg:justify-start gap-2 px-4 py-3 lg:py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === tab.key
                 ? 'bg-blue-600/20 text-blue-300 shadow-lg shadow-blue-500/10 glow-primary'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'

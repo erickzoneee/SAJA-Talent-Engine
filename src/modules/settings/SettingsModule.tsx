@@ -126,14 +126,14 @@ export default function SettingsModule() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="p-6 max-w-4xl mx-auto space-y-6"
+      className="p-0 sm:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6"
     >
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-600 to-accent-600 flex items-center justify-center">
+      <div className="flex items-center gap-3 mb-6 sm:mb-8">
+        <div className="w-12 h-12 shrink-0 rounded-xl bg-gradient-to-br from-primary-600 to-accent-600 flex items-center justify-center">
           <Settings className="w-6 h-6 text-white" />
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-surface-100">Configuracion del Sistema</h1>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-surface-100">Configuracion del Sistema</h1>
           <p className="text-surface-400 text-sm">Solo accesible para Direccion General</p>
         </div>
       </div>
@@ -143,7 +143,7 @@ export default function SettingsModule() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="glass-card p-6"
+        className="glass-card p-4 sm:p-6"
       >
         <div className="flex items-center gap-2 mb-4">
           <Building className="w-5 h-5 text-primary-400" />
@@ -198,7 +198,7 @@ export default function SettingsModule() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="glass-card p-6"
+        className="glass-card p-4 sm:p-6"
       >
         <div className="flex items-center gap-2 mb-4">
           <Sliders className="w-5 h-5 text-accent-400" />
@@ -247,7 +247,7 @@ export default function SettingsModule() {
           </div>
         </div>
         <div className="mt-4 p-3 rounded-lg bg-surface-900/50 border border-surface-700/50">
-          <p className="text-xs text-surface-400">
+          <p className="text-[13px] sm:text-xs text-surface-400">
             <strong className="text-surface-300">Como funciona:</strong> Puntaje ≥ {form.recommendedThreshold} = Recomendado |
             Puntaje {form.reservationsThreshold}-{form.recommendedThreshold - 1} = Con Reservas |
             Puntaje &lt; {form.reservationsThreshold} = No Recomendado
@@ -260,7 +260,7 @@ export default function SettingsModule() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="glass-card p-6"
+        className="glass-card p-4 sm:p-6"
       >
         <div className="flex items-center gap-2 mb-4">
           <Shield className="w-5 h-5 text-warning-500" />
@@ -297,10 +297,10 @@ export default function SettingsModule() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.32 }}
-        className="glass-card p-6"
+        className="glass-card p-4 sm:p-6"
       >
         <div className="flex items-center gap-2 mb-1">
-          <Clock className="w-5 h-5 text-primary-400" />
+          <Clock className="w-5 h-5 shrink-0 text-primary-400" />
           <h2 className="text-lg font-semibold text-surface-100">Horarios, Areas y Supervisores</h2>
         </div>
         <p className="text-sm text-surface-400 mb-5">
@@ -317,9 +317,9 @@ export default function SettingsModule() {
               {schedules.map((s) => (
                 <div key={s} className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-800/40 border border-surface-700/30">
                   <Clock size={14} className="text-primary-400 shrink-0" />
-                  <span className="flex-1 text-sm text-surface-200">{s}</span>
+                  <span className="flex-1 min-w-0 break-words text-sm text-surface-200">{s}</span>
                   <button
-                    className="p-1 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer"
+                    className="p-1 shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px] sm:block sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer"
                     onClick={() => removeSchedule(s)}
                     title="Quitar horario"
                   >
@@ -328,15 +328,15 @@ export default function SettingsModule() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-2 mt-3">
+            <div className="flex flex-col sm:flex-row gap-2 mt-3">
               <input
-                className="input-field text-xs"
+                className="input-field min-w-0 text-base sm:text-xs"
                 placeholder="Ej: TURNO NOCTURNO · LUN-SAB 22:00 - 6:00"
                 value={newSchedule}
                 onChange={(e) => setNewSchedule(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addSchedule()}
               />
-              <button className="btn-primary text-xs px-3 flex items-center gap-1" onClick={addSchedule}>
+              <button className="btn-primary text-xs px-3 shrink-0 flex items-center justify-center gap-1" onClick={addSchedule}>
                 <Plus size={13} /> Agregar
               </button>
             </div>
@@ -350,9 +350,9 @@ export default function SettingsModule() {
               {areas.map((a) => (
                 <div key={a} className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-800/40 border border-surface-700/30">
                   <Building size={14} className="text-accent-400 shrink-0" />
-                  <span className="flex-1 text-sm text-surface-200">{a}</span>
+                  <span className="flex-1 min-w-0 break-words text-sm text-surface-200">{a}</span>
                   <button
-                    className="p-1 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer"
+                    className="p-1 shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px] sm:block sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer"
                     onClick={() => removeArea(a)}
                     title="Quitar area"
                   >
@@ -361,15 +361,15 @@ export default function SettingsModule() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-2 mt-3">
+            <div className="flex flex-col sm:flex-row gap-2 mt-3">
               <input
-                className="input-field text-xs"
+                className="input-field min-w-0 text-base sm:text-xs"
                 placeholder="Nombre de la nueva area"
                 value={newArea}
                 onChange={(e) => setNewArea(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addArea()}
               />
-              <button className="btn-primary text-xs px-3 flex items-center gap-1" onClick={addArea}>
+              <button className="btn-primary text-xs px-3 shrink-0 flex items-center justify-center gap-1" onClick={addArea}>
                 <Plus size={13} /> Agregar
               </button>
             </div>
@@ -384,9 +384,9 @@ export default function SettingsModule() {
               {supervisors.map((s) => (
                 <div key={s} className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-800/40 border border-surface-700/30">
                   <Shield size={14} className="text-success-500 shrink-0" />
-                  <span className="flex-1 text-sm text-surface-200">{s}</span>
+                  <span className="flex-1 min-w-0 break-words text-sm text-surface-200">{s}</span>
                   <button
-                    className="p-1 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer"
+                    className="p-1 shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px] sm:block sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-danger-500/20 text-surface-500 hover:text-danger-400 transition-colors cursor-pointer"
                     onClick={() => removeSupervisor(s)}
                     title="Quitar supervisor"
                   >
@@ -395,15 +395,15 @@ export default function SettingsModule() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-2 mt-3">
+            <div className="flex flex-col sm:flex-row gap-2 mt-3">
               <input
-                className="input-field text-xs"
+                className="input-field min-w-0 text-base sm:text-xs"
                 placeholder="Nombre o puesto del supervisor"
                 value={newSupervisor}
                 onChange={(e) => setNewSupervisor(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addSupervisor()}
               />
-              <button className="btn-primary text-xs px-3 flex items-center gap-1" onClick={addSupervisor}>
+              <button className="btn-primary text-xs px-3 shrink-0 flex items-center justify-center gap-1" onClick={addSupervisor}>
                 <Plus size={13} /> Agregar
               </button>
             </div>
@@ -424,7 +424,7 @@ export default function SettingsModule() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.35 }}
-        className="glass-card p-6"
+        className="glass-card p-4 sm:p-6"
       >
         <div className="flex items-center gap-2 mb-4">
           <Video className="w-5 h-5 text-primary-400" />
@@ -493,13 +493,13 @@ export default function SettingsModule() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="flex items-center gap-3"
+        className="flex flex-wrap items-center gap-3"
       >
-        <button className="btn-primary flex items-center gap-2" onClick={handleSave}>
+        <button className="btn-primary flex-1 sm:flex-none flex items-center justify-center gap-2" onClick={handleSave}>
           {saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
           {saved ? 'Guardado!' : 'Guardar Cambios'}
         </button>
-        <button className="btn-secondary flex items-center gap-2" onClick={handleReset}>
+        <button className="btn-secondary flex-1 sm:flex-none flex items-center justify-center gap-2" onClick={handleReset}>
           <RotateCcw className="w-4 h-4" />
           Restaurar
         </button>
@@ -507,7 +507,7 @@ export default function SettingsModule() {
           <motion.span
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            className="text-success-500 text-sm"
+            className="w-full sm:w-auto text-success-500 text-sm"
           >
             Configuracion actualizada correctamente
           </motion.span>
@@ -597,7 +597,7 @@ function ResetDataSection() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.36 }}
-      className="glass-card p-6 border border-danger-500/30"
+      className="glass-card p-4 sm:p-6 border border-danger-500/30"
     >
       <div className="flex items-center gap-2 mb-1">
         <AlertTriangle className="w-5 h-5 text-danger-400" />
@@ -634,14 +634,14 @@ function ResetDataSection() {
           Borrar los datos y empezar en limpio
         </button>
       ) : (
-        <div className="space-y-3 p-4 rounded-xl bg-danger-500/5 border border-danger-500/20">
+        <div className="space-y-3 p-3 sm:p-4 rounded-xl bg-danger-500/5 border border-danger-500/20">
           {authRole !== 'direction' && (
             <div>
               <label className="block text-xs text-surface-400 mb-1">PIN de Direccion</label>
               <input
                 type="password"
                 inputMode="numeric"
-                className="input-field text-sm"
+                className="input-field text-base sm:text-sm"
                 placeholder="PIN de Direccion"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
@@ -653,14 +653,14 @@ function ResetDataSection() {
               Escribe <strong className="text-danger-400">{CONFIRM_WORD}</strong> para confirmar
             </label>
             <input
-              className="input-field text-sm"
+              className="input-field text-base sm:text-sm"
               placeholder={CONFIRM_WORD}
               value={word}
               onChange={(e) => setWord(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <button className="btn-danger text-sm flex items-center gap-2" disabled={!canReset} onClick={() => void handleReset()}>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <button className="btn-danger text-sm flex items-center justify-center gap-2" disabled={!canReset} onClick={() => void handleReset()}>
               <Trash2 size={15} />
               {working ? 'Borrando...' : `Borrar ${total} registros definitivamente`}
             </button>
@@ -709,12 +709,12 @@ function SupabaseSyncSection() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.34 }}
-      className="glass-card p-6"
+      className="glass-card p-4 sm:p-6"
     >
-      <div className="flex items-center gap-2 mb-1">
-        <Database className="w-5 h-5 text-accent-400" />
+      <div className="flex flex-wrap items-center gap-2 mb-1">
+        <Database className="w-5 h-5 shrink-0 text-accent-400" />
         <h2 className="text-lg font-semibold text-surface-100">Base de Datos en la Nube</h2>
-        <span className={`badge ml-2 ${badge}`}>{badgeText}</span>
+        <span className={`badge ml-0 sm:ml-2 ${badge}`}>{badgeText}</span>
       </div>
       <p className="text-sm text-surface-400 mb-4">
         Todos los datos se guardan en una base de datos real protegida por inicio de sesion, y se
@@ -726,7 +726,7 @@ function SupabaseSyncSection() {
         <div className="space-y-4">
           <div className="p-3 rounded-xl bg-surface-900/50 border border-surface-700/50">
             <p className="text-sm text-surface-200">
-              Sesion iniciada como <strong className="text-white">{status.email}</strong>
+              Sesion iniciada como <strong className="text-white break-all">{status.email}</strong>
             </p>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-surface-400 mt-2">
               <span>Ultimo envio: {fmtTime(status.lastPush)}</span>
@@ -751,7 +751,7 @@ function SupabaseSyncSection() {
           </div>
         </div>
       ) : (
-        <div className="p-4 rounded-xl bg-warning-500/10 border border-warning-500/20 text-sm text-surface-300">
+        <div className="p-3 sm:p-4 rounded-xl bg-warning-500/10 border border-warning-500/20 text-sm text-surface-300">
           Este dispositivo esta trabajando <strong>sin sincronizar</strong>. Para ver los mismos datos en
           las demas tablets, recarga la app e inicia sesion con la cuenta de la empresa.
         </div>
@@ -802,13 +802,13 @@ function SyncSection() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.34 }}
-      className="glass-card p-6"
+      className="glass-card p-4 sm:p-6"
     >
-      <div className="flex items-center gap-2 mb-1">
-        <Cloud className="w-5 h-5 text-accent-400" />
+      <div className="flex flex-wrap items-center gap-2 mb-1">
+        <Cloud className="w-5 h-5 shrink-0 text-accent-400" />
         <h2 className="text-lg font-semibold text-surface-100">Sincronizacion entre Dispositivos</h2>
         {connected && (
-          <span className={`badge ml-2 ${status.state === 'error' ? 'badge-red' : status.state === 'syncing' ? 'badge-yellow' : 'badge-green'}`}>
+          <span className={`badge ml-0 sm:ml-2 ${status.state === 'error' ? 'badge-red' : status.state === 'syncing' ? 'badge-yellow' : 'badge-green'}`}>
             {status.state === 'error' ? 'Error' : status.state === 'syncing' ? 'Sincronizando...' : 'Conectado'}
           </span>
         )}
@@ -821,7 +821,7 @@ function SyncSection() {
 
       {!connected ? (
         <div className="space-y-3">
-          <div className="p-4 rounded-xl bg-surface-900/50 border border-surface-700/50 text-sm text-surface-300 space-y-2">
+          <div className="p-3 sm:p-4 rounded-xl bg-surface-900/50 border border-surface-700/50 text-sm text-surface-300 space-y-2">
             <p className="font-semibold text-surface-200">Como conectar (solo una vez):</p>
             <p>
               1. En el PRIMER dispositivo: entra gratis a{' '}
@@ -841,16 +841,16 @@ function SyncSection() {
               Conectar. Listo — todos ven la misma informacion.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
-              className="input-field no-uppercase font-mono text-sm"
+              className="input-field no-uppercase font-mono min-w-0 text-base sm:text-sm"
               placeholder="Pantry ID (primer dispositivo) o codigo de sincronizacion (los demas)"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleConnect()}
             />
             <button
-              className="btn-primary flex items-center gap-2 shrink-0"
+              className="btn-primary flex items-center justify-center gap-2 shrink-0"
               disabled={!input.trim() || busy}
               onClick={handleConnect}
             >
@@ -870,14 +870,14 @@ function SyncSection() {
             <label className="block text-xs uppercase tracking-wider text-surface-500 mb-1.5">
               Codigo de sincronizacion — pegalo en los demas dispositivos
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
-                className="input-field no-uppercase font-mono text-xs"
+                className="input-field no-uppercase font-mono min-w-0 text-base sm:text-xs"
                 readOnly
                 value={status.code ?? ''}
                 onFocus={(e) => e.currentTarget.select()}
               />
-              <button className="btn-secondary flex items-center gap-1.5 text-xs shrink-0" onClick={handleCopy}>
+              <button className="btn-secondary flex items-center justify-center gap-1.5 text-xs shrink-0" onClick={handleCopy}>
                 <Copy size={13} />
                 {copied ? 'Copiado!' : 'Copiar'}
               </button>
@@ -918,7 +918,7 @@ function SyncSection() {
             </button>
           </div>
 
-          <p className="text-[11px] text-surface-500">
+          <p className="text-[12px] sm:text-[11px] text-surface-500">
             Los cambios se envian solos unos segundos despues de capturar, y se revisan
             actualizaciones cada minuto y al volver a la app. Si dos dispositivos editan al mismo
             tiempo, gana el ultimo que guarda.

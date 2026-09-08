@@ -148,29 +148,29 @@ export default function TrainingModule() {
 
   return (
     <Wrap k="home">
-      <div className="flex flex-col gap-6 h-full overflow-y-auto">
+      <div className="flex flex-col gap-4 sm:gap-6 h-full overflow-y-auto">
         {/* Hero */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-6 relative overflow-hidden"
+          className="glass-card p-4 sm:p-6 relative overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-blue-500/5 to-fuchsia-500/10 pointer-events-none" />
-          <div className="relative z-10 flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-lg shrink-0" style={{ background: '#f5c518', color: '#1a5c3a' }}>
+          <div className="relative z-10 flex flex-wrap items-center gap-4">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center font-black text-lg shrink-0" style={{ background: '#f5c518', color: '#1a5c3a' }}>
               JAC
             </div>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold gradient-text">JAC Capacita</h1>
-              <p className="text-sm text-surface-400 mt-0.5">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold gradient-text">JAC Capacita</h1>
+              <p className="text-sm text-surface-400 mt-0.5 break-words">
                 Sistema de capacitación interna · {creadoPor}
-                <span className="inline-flex items-center gap-1 ml-2 text-blue-400">
+                <span className="flex sm:inline-flex items-center gap-1 mt-1 sm:mt-0 sm:ml-2 text-blue-400">
                   <ShieldCheck size={13} />
                   {isAdmin ? 'Acceso de administrador' : 'Acceso de supervisor'}
                 </span>
               </p>
             </div>
-            <div className="hidden sm:flex gap-6 text-right">
+            <div className="grid grid-cols-2 w-full gap-3 sm:w-auto sm:flex sm:gap-6 sm:text-right">
               <div>
                 <div className="text-2xl font-bold text-emerald-400">{publicados}</div>
                 <div className="text-xs text-surface-500">procesos activos</div>
@@ -186,7 +186,7 @@ export default function TrainingModule() {
         <p className="text-sm text-surface-400 -mb-2">¿Qué quieres hacer hoy?</p>
 
         {/* Mode cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {modos
             .filter((m) => m.show)
             .map((m, i) => {
@@ -198,16 +198,16 @@ export default function TrainingModule() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05 }}
                   onClick={m.go}
-                  className={`glass-card p-5 flex items-center gap-4 text-left cursor-pointer group border border-transparent ${m.ring} transition-colors`}
+                  className={`glass-card p-4 sm:p-5 flex items-center gap-3 sm:gap-4 text-left cursor-pointer group border border-transparent max-sm:active:scale-[0.99] ${m.ring} transition-colors`}
                 >
-                  <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${m.gradient} flex items-center justify-center shrink-0`}>
+                  <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br ${m.gradient} flex items-center justify-center shrink-0`}>
                     <Icon size={26} className="text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-bold text-surface-100">{m.title}</h3>
+                    <h3 className="text-base font-bold text-surface-100 break-words">{m.title}</h3>
                     <p className="text-sm text-surface-400 mt-0.5">{m.desc}</p>
                   </div>
-                  <ArrowRight size={20} className="text-surface-500 group-hover:text-primary-400 transition-colors shrink-0" />
+                  <ArrowRight size={20} className="text-surface-500 group-hover:text-primary-400 max-sm:group-active:text-primary-400 transition-colors shrink-0" />
                 </motion.button>
               );
             })}

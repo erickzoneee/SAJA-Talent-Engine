@@ -31,8 +31,10 @@ export default function StarRating({
             readOnly
               ? 'cursor-default'
               : 'cursor-pointer hover:scale-110 active:scale-95'
-          } disabled:opacity-100 bg-transparent border-none p-0`}
-          aria-label={`${star} star${star > 1 ? 's' : ''}`}
+          } disabled:opacity-100 bg-transparent border-none ${
+            readOnly ? 'p-0' : 'p-1.5 min-w-[40px] min-h-[40px] flex items-center justify-center'
+          }`}
+          aria-label={`${star} estrella${star > 1 ? 's' : ''}`}
         >
           <Star
             size={size}

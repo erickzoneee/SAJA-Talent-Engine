@@ -160,14 +160,19 @@ export default function CreatorWizard({ procesoId, creadoPor, onDone }: CreatorW
                   initial={{ opacity: 0, x: 8 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0 }}
-                  className="badge badge-green text-xs"
+                  className="badge badge-green text-xs hidden sm:inline-flex"
                 >
                   <Check size={12} /> Guardado
                 </motion.span>
               )}
             </AnimatePresence>
-            <button onClick={() => persist()} className="btn-secondary text-xs flex items-center gap-1.5">
-              <Save size={14} /> Borrador
+            <button
+              onClick={() => persist()}
+              aria-label="Guardar borrador"
+              className="btn-secondary text-xs flex items-center gap-1.5"
+            >
+              <Save size={14} />
+              <span className="hidden sm:inline">Borrador</span>
             </button>
           </div>
         }
@@ -184,7 +189,7 @@ export default function CreatorWizard({ procesoId, creadoPor, onDone }: CreatorW
                 }`}
               />
               <span
-                className={`text-[10px] mt-1 block ${i === step ? 'text-emerald-400 font-semibold' : 'text-surface-500'}`}
+                className={`text-[10px] mt-1 ${i === step ? 'block text-emerald-400 font-semibold' : 'hidden sm:block text-surface-500'}`}
               >
                 {s}
               </span>
@@ -444,7 +449,7 @@ function ChipListEditor({
           onChange={(e) => setVal(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), add())}
           placeholder={placeholder}
-          className="input-field flex-1"
+          className="input-field flex-1 min-w-0"
           list={suggestions ? listId : undefined}
         />
         {suggestions && (
@@ -454,8 +459,14 @@ function ChipListEditor({
             ))}
           </datalist>
         )}
-        <button onClick={add} disabled={!val.trim()} className="btn-secondary text-sm flex items-center gap-1.5">
-          <Plus size={15} /> Agregar
+        <button
+          onClick={add}
+          disabled={!val.trim()}
+          aria-label="Agregar"
+          className="btn-secondary text-sm flex items-center gap-1.5 shrink-0"
+        >
+          <Plus size={15} />
+          <span className="hidden sm:inline">Agregar</span>
         </button>
       </div>
       {items.length > 0 && (
@@ -468,7 +479,8 @@ function ChipListEditor({
               {it}
               <button
                 onClick={() => onChange(items.filter((_, j) => j !== i))}
-                className="text-surface-500 hover:text-danger-500 cursor-pointer"
+                aria-label="Quitar"
+                className="text-surface-500 hover:text-danger-500 cursor-pointer p-2 -m-1.5 sm:p-0 sm:m-0"
               >
                 <X size={14} />
               </button>
@@ -613,7 +625,7 @@ function StepPasos({
         const incompleto = !mp.nombre.trim() || !mp.narrativa.trim();
         return (
           <div key={mp.id} className="glass-card overflow-hidden">
-            <div className="flex items-center gap-3 p-4">
+            <div className="flex flex-wrap items-center gap-3 p-4">
               <span className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm shrink-0">
                 {i + 1}
               </span>
@@ -630,7 +642,7 @@ function StepPasos({
                   {incompleto && <span className="text-amber-400 ml-2">• incompleto</span>}
                 </span>
               </button>
-              <div className="flex items-center gap-0.5 shrink-0">
+              <div className="flex items-center gap-1 sm:gap-0.5 shrink-0 w-full sm:w-auto justify-end">
                 <MiniBtn title="Subir" disabled={i === 0} onClick={() => move(i, -1)}>
                   <ChevronUp size={15} />
                 </MiniBtn>
@@ -730,9 +742,10 @@ function MiniBtn({
     <button
       type="button"
       title={title}
+      aria-label={title}
       onClick={onClick}
       disabled={disabled}
-      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+      className={`w-10 h-10 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-all ${
         disabled
           ? 'text-surface-700 cursor-not-allowed'
           : danger
@@ -787,7 +800,11 @@ function NarrativaEditor({
         {narrativaMejorada && (
           <span className="badge badge-purple text-[11px] flex items-center gap-1">
             <Sparkles size={11} /> Texto mejorado aplicado
-            <button onClick={() => onMejorada(undefined)} className="ml-1 hover:text-white cursor-pointer">
+            <button
+              onClick={() => onMejorada(undefined)}
+              aria-label="Quitar texto mejorado"
+              className="ml-1 hover:text-white cursor-pointer p-2 -my-1.5 -mr-1.5 sm:p-0 sm:my-0 sm:mr-0"
+            >
               <X size={11} />
             </button>
           </span>
@@ -948,13 +965,13 @@ function PreguntaCard({
           onChange={(e) => onChange({ texto: e.target.value })}
           placeholder="Escribe la pregunta…"
           rows={2}
-          className="input-field resize-y text-sm flex-1"
+          className="input-field resize-y text-sm flex-1 min-w-0"
         />
-        <button onClick={onDelete} className="w-8 h-8 rounded-lg flex items-center justify-center text-surface-400 hover:text-danger-500 hover:bg-danger-500/10 cursor-pointer shrink-0">
+        <button onClick={onDelete} aria-label="Eliminar pregunta" className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-surface-400 hover:text-danger-500 hover:bg-danger-500/10 cursor-pointer shrink-0">
           <Trash2 size={15} />
         </button>
       </div>
-      <div className="space-y-2 pl-9">
+      <div className="space-y-2 pl-0 sm:pl-9">
         {pregunta.opciones.map((op, oi) => {
           const correcta = pregunta.correcta === oi;
           return (
@@ -962,7 +979,7 @@ function PreguntaCard({
               <button
                 onClick={() => onChange({ correcta: oi })}
                 title="Marcar como correcta"
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 border-2 transition-all cursor-pointer ${
+                className={`w-10 h-10 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 border-2 transition-all cursor-pointer ${
                   correcta
                     ? 'bg-green-500/20 border-green-500/50 text-green-400'
                     : 'border-surface-600 text-surface-400 hover:border-surface-500'
@@ -981,7 +998,7 @@ function PreguntaCard({
             </div>
           );
         })}
-        <p className="text-[11px] text-surface-500">Toca el círculo de la izquierda para marcar la respuesta correcta.</p>
+        <p className="text-xs sm:text-[11px] text-surface-500">Toca el círculo de la izquierda para marcar la respuesta correcta.</p>
       </div>
     </motion.div>
   );
@@ -1014,7 +1031,7 @@ function StepPublicar({
       <motion.div {...scaleIn} className="glass-card p-8 text-center max-w-lg mx-auto relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-green-500/5 pointer-events-none" />
         <div className="text-6xl mb-3 relative z-10">🎉</div>
-        <h2 className="text-2xl font-bold gradient-text relative z-10">¡Proceso publicado!</h2>
+        <h2 className="text-xl sm:text-2xl font-bold gradient-text relative z-10">¡Proceso publicado!</h2>
         <p className="text-surface-300 mt-2 relative z-10">
           «{proc.nombre}» ya está disponible para que el personal se capacite.
         </p>
@@ -1073,8 +1090,8 @@ function StepPublicar({
         </div>
       </div>
 
-      <div className="flex justify-end gap-3">
-        <button onClick={onDone} className="btn-secondary text-sm">
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+        <button onClick={onDone} className="btn-secondary text-sm w-full sm:w-auto">
           Guardar como borrador
         </button>
         <button
@@ -1083,7 +1100,7 @@ function StepPublicar({
             setDone(true);
           }}
           disabled={!allOk}
-          className="btn-primary text-sm flex items-center gap-1.5"
+          className="btn-primary text-sm flex items-center justify-center gap-1.5 w-full sm:w-auto"
         >
           <Megaphone size={16} /> Publicar proceso
         </button>

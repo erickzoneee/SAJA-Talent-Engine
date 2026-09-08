@@ -205,24 +205,24 @@ function EmployeeListView({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold gradient-text">Modulo de Egreso</h1>
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text">Modulo de Egreso</h1>
           <p className="text-surface-400 text-sm mt-1">
             Gestion de egresos, entrevistas de salida y cartas de recomendacion
           </p>
         </div>
-        <button onClick={onReferences} className="btn-secondary flex items-center gap-2">
+        <button onClick={onReferences} className="btn-secondary flex items-center justify-center gap-2 w-full sm:w-auto">
           <Phone size={16} />
           Consulta de Referencias
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="glass-card p-1 inline-flex gap-1">
+      <div className="glass-card p-1 flex gap-1 overflow-x-auto sm:inline-flex">
         <button
           onClick={() => setTab('active')}
-          className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+          className={`px-2.5 sm:px-5 py-2.5 rounded-xl text-[13px] sm:text-sm font-semibold whitespace-nowrap shrink-0 transition-all duration-200 ${
             tab === 'active'
               ? 'bg-primary-500/20 text-primary-400 shadow-lg'
               : 'text-surface-400 hover:text-surface-200 hover:bg-white/5'
@@ -233,7 +233,7 @@ function EmployeeListView({
         </button>
         <button
           onClick={() => setTab('exited')}
-          className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+          className={`px-2.5 sm:px-5 py-2.5 rounded-xl text-[13px] sm:text-sm font-semibold whitespace-nowrap shrink-0 transition-all duration-200 ${
             tab === 'exited'
               ? 'bg-primary-500/20 text-primary-400 shadow-lg'
               : 'text-surface-400 hover:text-surface-200 hover:bg-white/5'
@@ -278,7 +278,7 @@ function EmployeeListView({
               initial="initial"
               animate="animate"
               exit="exit"
-              className="glass-card p-4 flex items-center gap-4 group"
+              className="glass-card p-4 flex flex-wrap items-center gap-3 sm:gap-4 group"
             >
               {/* Avatar */}
               <div
@@ -293,14 +293,14 @@ function EmployeeListView({
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-surface-100 font-semibold truncate">{emp.fullName}</p>
+                <p className="text-surface-100 font-semibold break-words sm:truncate">{emp.fullName}</p>
                 <p className="text-surface-400 text-sm">
                   {JOB_POSITIONS[emp.position]?.name ?? emp.position}
                 </p>
               </div>
 
               {/* Date & badges */}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 basis-full sm:basis-auto">
                 {tab === 'active' && (
                   <span className="text-surface-500 text-xs">
                     Ingreso: {formatDate(emp.hireDate)}
@@ -322,7 +322,7 @@ function EmployeeListView({
               {tab === 'active' ? (
                 <button
                   onClick={() => onRegister(emp.id)}
-                  className="btn-danger flex items-center gap-2 text-sm py-2 px-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="btn-danger flex items-center justify-center gap-2 text-sm py-2 px-4 w-full sm:w-auto opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                 >
                   <LogOut size={14} />
                   Registrar Egreso
@@ -330,7 +330,7 @@ function EmployeeListView({
               ) : (
                 <button
                   onClick={() => onDetail(emp.id)}
-                  className="btn-secondary flex items-center gap-2 text-sm py-2 px-4"
+                  className="btn-secondary flex items-center justify-center gap-2 text-sm py-2 px-4 w-full sm:w-auto"
                 >
                   <Eye size={14} />
                   Ver Detalle
@@ -523,11 +523,11 @@ function ExitRegistrationView({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <button onClick={onBack} className="btn-secondary p-2.5 rounded-xl">
+        <button onClick={onBack} className="btn-secondary p-2.5 rounded-xl shrink-0 min-w-[44px] sm:min-w-0">
           <ArrowLeft size={18} />
         </button>
         <div>
-          <h1 className="text-2xl font-bold gradient-text">Registro de Egreso</h1>
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text">Registro de Egreso</h1>
           <p className="text-surface-400 text-sm mt-0.5">
             {employee.fullName} - {JOB_POSITIONS[employee.position]?.name}
           </p>
@@ -538,7 +538,7 @@ function ExitRegistrationView({
         {/* Main form - 2 columns */}
         <div className="xl:col-span-2 space-y-6">
           {/* Exit Data Section */}
-          <div className="glass-card p-6 space-y-4">
+          <div className="glass-card p-4 sm:p-6 space-y-4">
             <h2 className="text-lg font-semibold text-surface-100 flex items-center gap-2">
               <LogOut size={18} className="text-primary-400" />
               Datos del Egreso
@@ -595,7 +595,7 @@ function ExitRegistrationView({
           </div>
 
           {/* Exit Interview Section */}
-          <div className="glass-card p-6 space-y-5">
+          <div className="glass-card p-4 sm:p-6 space-y-5">
             <h2 className="text-lg font-semibold text-surface-100 flex items-center gap-2">
               <FileText size={18} className="text-primary-400" />
               Entrevista de Salida
@@ -667,13 +667,13 @@ function ExitRegistrationView({
                 <label className="block text-sm text-surface-400 mb-2">
                   Recomendaria la empresa a un conocido?
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {(['Si', 'No', 'Tal vez'] as const).map((opt) => (
                     <button
                       key={opt}
                       type="button"
                       onClick={() => updateInterview('wouldRecommend', opt)}
-                      className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${
+                      className={`px-5 py-2 min-h-[40px] sm:min-h-0 rounded-xl text-sm font-semibold transition-all duration-200 border ${
                         form.interview.wouldRecommend === opt
                           ? opt === 'Si'
                             ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
@@ -706,7 +706,7 @@ function ExitRegistrationView({
           {/* v2.13: Carta de renuncia voluntaria — solo para renuncia. Va SIN
               logo ni datos de la empresa (la persona la escribe para renunciar). */}
           {form.exitType === 'renuncia' && renunciaDoc && (
-            <div className="glass-card p-6 space-y-3">
+            <div className="glass-card p-4 sm:p-6 space-y-3">
               <h2 className="text-lg font-semibold text-surface-100 flex items-center gap-2">
                 <FileText size={18} className="text-primary-400" />
                 Carta de Renuncia Voluntaria
@@ -739,22 +739,22 @@ function ExitRegistrationView({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6"
+                className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6"
                 onClick={() => setRenunciaPreview(false)}
               >
                 <motion.div
                   initial={{ scale: 0.95, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.95, opacity: 0 }}
-                  className="glass-card w-full max-w-2xl max-h-[85vh] flex flex-col"
+                  className="glass-card w-full max-w-2xl max-h-[85dvh] flex flex-col"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="p-5 border-b border-white/[0.06] flex items-center justify-between">
+                  <div className="p-4 sm:p-5 border-b border-white/[0.06] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <h3 className="text-lg font-bold text-white">{renunciaDoc.titulo}</h3>
                       <p className="text-xs text-surface-500">Sin logo ni datos de la empresa · autollenada</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center">
                       <button
                         className="btn-primary text-sm flex items-center gap-2"
                         onClick={() => printSignedDocument(renunciaDoc, settings.companyName)}
@@ -767,20 +767,20 @@ function ExitRegistrationView({
                       </button>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-6 bg-white/[0.02]">
-                    <div className="bg-surface-50 text-surface-900 rounded-xl p-8 font-serif">
+                  <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-white/[0.02]">
+                    <div className="bg-surface-50 text-surface-900 rounded-xl p-4 sm:p-8 font-serif">
                       <h4 className="text-center font-bold uppercase text-base mb-6">{renunciaDoc.titulo}</h4>
                       {renunciaDoc.parrafos.map((p, idx) => (
                         <p
                           key={idx}
                           className={`text-[13px] leading-relaxed mb-3 ${
-                            p === 'A T E N T A M E N T E' ? 'text-center tracking-widest my-6' : 'text-justify'
+                            p === 'A T E N T A M E N T E' ? 'text-center tracking-widest my-6' : 'text-left sm:text-justify'
                           }`}
                         >
                           {p}
                         </p>
                       ))}
-                      <div className="flex gap-10 mt-16">
+                      <div className="flex flex-col gap-8 sm:flex-row sm:gap-10 mt-10 sm:mt-16">
                         <div className="flex-1 text-center border-t border-surface-900 pt-2 text-xs">
                           {renunciaDoc.firmaIzquierda}
                           <br />
@@ -800,7 +800,7 @@ function ExitRegistrationView({
           </AnimatePresence>
 
           {/* Letter Type Selection */}
-          <div className="glass-card p-6 space-y-4">
+          <div className="glass-card p-4 sm:p-6 space-y-4">
             <h2 className="text-lg font-semibold text-surface-100 flex items-center gap-2">
               <Award size={18} className="text-primary-400" />
               Tipo de Carta de Recomendacion
@@ -810,7 +810,7 @@ function ExitRegistrationView({
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass-light p-3 rounded-xl flex items-center gap-3"
+                className="glass-light p-3 rounded-xl flex flex-wrap items-start gap-2 sm:flex-nowrap sm:items-center sm:gap-3"
               >
                 <CheckCircle2 size={18} className="text-primary-400 shrink-0" />
                 <p className="text-sm text-surface-300">
@@ -821,7 +821,7 @@ function ExitRegistrationView({
                 </p>
                 <button
                   onClick={() => setForm((prev) => ({ ...prev, letterType: suggestedType }))}
-                  className="btn-secondary text-xs py-1.5 px-3 ml-auto shrink-0"
+                  className="btn-secondary text-xs py-1.5 px-3 w-full sm:w-auto ml-0 sm:ml-auto shrink-0"
                 >
                   Usar sugerencia
                 </button>
@@ -886,7 +886,7 @@ function ExitRegistrationView({
                   exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="bg-white text-gray-900 rounded-xl p-8 mt-2 max-h-[400px] overflow-y-auto">
+                  <div className="bg-white text-gray-900 rounded-xl p-4 sm:p-8 mt-2 max-h-[400px] overflow-y-auto">
                     <LetterContent employee={employee} letterType={form.letterType} exitDate={form.exitDate} companyName={settings.companyName} directorName={settings.directorName} />
                   </div>
                 </motion.div>
@@ -895,14 +895,14 @@ function ExitRegistrationView({
           </div>
 
           {/* Submit */}
-          <div className="flex items-center gap-3 justify-end">
-            <button onClick={onBack} className="btn-secondary">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center gap-3 sm:justify-end">
+            <button onClick={onBack} className="btn-secondary w-full sm:w-auto">
               Cancelar
             </button>
             <button
               onClick={() => setConfirmBaja(true)}
               disabled={!form.exitDate || !form.reason}
-              className="btn-danger flex items-center gap-2"
+              className="btn-danger flex items-center justify-center gap-2 w-full sm:w-auto"
             >
               <LogOut size={16} />
               Registrar Egreso
@@ -924,7 +924,7 @@ function ExitRegistrationView({
 
         {/* Sidebar: History Summary */}
         <div className="space-y-4">
-          <div className="glass-card p-6 space-y-4">
+          <div className="glass-card p-4 sm:p-6 space-y-4">
             <h3 className="text-base font-semibold text-surface-100 flex items-center gap-2">
               <TrendingUp size={16} className="text-primary-400" />
               Resumen del Colaborador
@@ -974,7 +974,7 @@ function ExitRegistrationView({
           </div>
 
           {/* Employment details */}
-          <div className="glass-card p-6 space-y-3">
+          <div className="glass-card p-4 sm:p-6 space-y-3">
             <h3 className="text-sm font-semibold text-surface-300 uppercase tracking-wider">
               Datos Laborales
             </h3>
@@ -1005,7 +1005,7 @@ function HistoryRow({ icon, label, value }: { icon: React.ReactNode; label: stri
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex flex-wrap justify-between items-center">
       <span className="text-xs text-surface-500">{label}</span>
       <span className="text-sm text-surface-200">{value}</span>
     </div>
@@ -1046,23 +1046,23 @@ function ExitDetailView({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="btn-secondary p-2.5 rounded-xl">
+          <button onClick={onBack} className="btn-secondary p-2.5 rounded-xl shrink-0 min-w-[44px] sm:min-w-0">
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold gradient-text">Detalle de Egreso</h1>
+            <h1 className="text-xl sm:text-2xl font-bold gradient-text">Detalle de Egreso</h1>
             <p className="text-surface-400 text-sm mt-0.5">{employee.fullName}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <span className={`badge ${letterBadgeClass(exit.letterType)} text-sm`}>
             Carta {exit.letterType} - {LETTER_TYPE_LABELS[exit.letterType].name}
           </span>
           <button
             onClick={() => onViewLetter(employee.id)}
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
           >
             <FileText size={16} />
             Ver Carta
@@ -1072,7 +1072,7 @@ function ExitDetailView({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Exit data */}
-        <div className="glass-card p-6 space-y-4">
+        <div className="glass-card p-4 sm:p-6 space-y-4">
           <h2 className="text-lg font-semibold text-surface-100 flex items-center gap-2">
             <LogOut size={18} className="text-primary-400" />
             Datos del Egreso
@@ -1092,7 +1092,7 @@ function ExitDetailView({
         </div>
 
         {/* Interview */}
-        <div className="glass-card p-6 space-y-4">
+        <div className="glass-card p-4 sm:p-6 space-y-4">
           <h2 className="text-lg font-semibold text-surface-100 flex items-center gap-2">
             <FileText size={18} className="text-primary-400" />
             Entrevista de Salida
@@ -1143,9 +1143,9 @@ function ExitDetailView({
       </div>
 
       {/* Employment summary */}
-      <div className="glass-card p-6 space-y-3">
+      <div className="glass-card p-4 sm:p-6 space-y-3">
         <h2 className="text-lg font-semibold text-surface-100">Resumen Laboral</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <SummaryCard
             label="Puesto"
             value={JOB_POSITIONS[employee.position]?.name ?? employee.position}
@@ -1168,9 +1168,9 @@ function ExitDetailView({
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="glass-light p-4 rounded-xl">
+    <div className="glass-light p-3 sm:p-4 rounded-xl">
       <p className="text-xs text-surface-500 mb-1">{label}</p>
-      <p className="text-sm font-semibold text-surface-100">{value}</p>
+      <p className="text-sm font-semibold text-surface-100 break-words">{value}</p>
     </div>
   );
 }
@@ -1292,19 +1292,19 @@ function LetterPreviewView({
   return (
     <div className="space-y-6">
       {/* Header (hidden in print) */}
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="btn-secondary p-2.5 rounded-xl">
+          <button onClick={onBack} className="btn-secondary p-2.5 rounded-xl shrink-0 min-w-[44px] sm:min-w-0">
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold gradient-text">Carta de Recomendacion</h1>
+            <h1 className="text-xl sm:text-2xl font-bold gradient-text">Carta de Recomendacion</h1>
             <p className="text-surface-400 text-sm mt-0.5">
               {employee.fullName} - Carta {employee.exitData.letterType}
             </p>
           </div>
         </div>
-        <button onClick={handlePrint} className="btn-primary flex items-center gap-2">
+        <button onClick={handlePrint} className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto">
           <Printer size={16} />
           Imprimir
         </button>
@@ -1312,7 +1312,7 @@ function LetterPreviewView({
 
       {/* Vista previa en pantalla (la impresion usa un documento HTML centrado
           aparte, via printHtmlDocument). */}
-      <div className="bg-white text-gray-900 rounded-xl p-10 max-w-3xl mx-auto shadow-2xl">
+      <div className="bg-white text-gray-900 rounded-xl p-5 sm:p-10 max-w-3xl mx-auto shadow-2xl">
         <LetterContent
           employee={employee}
           letterType={employee.exitData.letterType}
@@ -1429,7 +1429,7 @@ function LetterContent({
       {/* Signature */}
       <div className="mt-12 text-center">
         <p className="text-sm text-gray-600">Atentamente,</p>
-        <div className="mt-10 border-t border-gray-400 w-64 mx-auto pt-2">
+        <div className="mt-10 border-t border-gray-400 w-full max-w-[16rem] mx-auto pt-2">
           <p className="font-bold text-gray-800 text-sm">{directorName}</p>
           <p className="text-xs text-gray-500">{companyName}</p>
         </div>
@@ -1463,11 +1463,11 @@ function ReferenceLookupView({ onBack }: { onBack: () => void }) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <button onClick={onBack} className="btn-secondary p-2.5 rounded-xl">
+        <button onClick={onBack} className="btn-secondary p-2.5 rounded-xl shrink-0 min-w-[44px] sm:min-w-0">
           <ArrowLeft size={18} />
         </button>
         <div>
-          <h1 className="text-2xl font-bold gradient-text">Consulta de Referencias</h1>
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text">Consulta de Referencias</h1>
           <p className="text-surface-400 text-sm mt-0.5">
             Busque ex-colaboradores para consulta telefonica de referencias
           </p>
@@ -1488,7 +1488,7 @@ function ReferenceLookupView({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Reference Guide */}
-      <div className="glass-card p-5 border-amber-500/30">
+      <div className="glass-card p-4 sm:p-5 border-amber-500/30">
         <h3 className="text-sm font-semibold text-amber-400 flex items-center gap-2 mb-3">
           <Phone size={14} />
           Guia para Referencias Telefonicas
@@ -1540,9 +1540,9 @@ function ReferenceLookupView({ onBack }: { onBack: () => void }) {
                 variants={listItem}
                 initial="initial"
                 animate="animate"
-                className="glass-card p-5"
+                className="glass-card p-4 sm:p-5"
               >
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                   {/* Avatar */}
                   <div
                     className={`w-14 h-14 rounded-full bg-gradient-to-br ${getAvatarGradient(emp.fullName)} flex items-center justify-center shrink-0`}
@@ -1556,13 +1556,13 @@ function ReferenceLookupView({ onBack }: { onBack: () => void }) {
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-1">
-                      <p className="font-semibold text-surface-100 text-lg">{emp.fullName}</p>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1">
+                      <p className="font-semibold text-surface-100 text-lg min-w-0 break-words">{emp.fullName}</p>
                       <span className={`badge ${letterBadgeClass(exit.letterType)} text-sm`}>
                         Carta {exit.letterType} - {LETTER_TYPE_LABELS[exit.letterType].name}
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-surface-400">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-surface-400">
                       <span>{JOB_POSITIONS[emp.position]?.name}</span>
                       <span>Ingreso: {formatDate(emp.hireDate)}</span>
                       <span>Egreso: {formatDate(exit.exitDate)}</span>

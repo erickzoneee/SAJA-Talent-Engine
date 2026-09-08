@@ -293,21 +293,21 @@ function CandidateListView({ onNewCandidate, onSelectCandidate }: CandidateListV
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-5 pb-3">
-        <div>
-          <h1 className="text-2xl font-bold gradient-text">Recepcion de Candidatos</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 px-0 sm:px-6 pt-5 pb-3">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text">Recepcion de Candidatos</h1>
           <p className="text-sm text-surface-400 mt-0.5">
             Etapa 0 — filtro previo · {candidates.length} candidato{candidates.length !== 1 ? 's' : ''} registrado{candidates.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <button className="btn-primary flex items-center gap-2" onClick={onNewCandidate}>
+        <button className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2" onClick={onNewCandidate}>
           <UserPlus size={18} />
           Nueva Ficha (Tablet)
         </button>
       </div>
 
       {/* Search & Filters */}
-      <div className="px-6 pb-3 space-y-2">
+      <div className="px-0 sm:px-6 pb-3 space-y-2">
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
@@ -320,7 +320,7 @@ function CandidateListView({ onNewCandidate, onSelectCandidate }: CandidateListV
             />
           </div>
           <button
-            className={`btn-secondary flex items-center gap-2 ${showFilters ? 'border-primary-500' : ''}`}
+            className={`btn-secondary shrink-0 flex items-center gap-2 ${showFilters ? 'border-primary-500' : ''}`}
             onClick={() => setShowFilters(!showFilters)}
           >
             <Filter size={16} />
@@ -336,7 +336,7 @@ function CandidateListView({ onNewCandidate, onSelectCandidate }: CandidateListV
               exit={{ height: 0, opacity: 0, transition: { duration: 0.2 } }}
               className="overflow-hidden"
             >
-              <div className="flex gap-3 pt-1">
+              <div className="flex flex-col sm:flex-row gap-3 pt-1">
                 <select
                   className="input-field"
                   value={filterPosition}
@@ -369,7 +369,7 @@ function CandidateListView({ onNewCandidate, onSelectCandidate }: CandidateListV
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-2">
+      <div className="flex-1 overflow-y-auto px-0 sm:px-6 pb-6 space-y-2">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
             <motion.div {...fadeUp} className="flex flex-col items-center justify-center py-20 text-surface-500">
@@ -393,7 +393,7 @@ function CandidateListView({ onNewCandidate, onSelectCandidate }: CandidateListV
                   animate="animate"
                   exit="exit"
                   layout
-                  className="glass-card p-4 flex items-center gap-4 cursor-pointer group"
+                  className="glass-card p-3 sm:p-4 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4 cursor-pointer group"
                   onClick={() => onSelectCandidate(c.id)}
                 >
                   {c.photoUrl ? (
@@ -411,11 +411,11 @@ function CandidateListView({ onNewCandidate, onSelectCandidate }: CandidateListV
                   )}
 
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-surface-100 truncate">{c.fullName}</p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-surface-400">
+                    <p className="font-semibold text-surface-100 whitespace-normal break-words sm:truncate">{c.fullName}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-surface-400">
                       <span className="flex items-center gap-1">
                         <Briefcase size={12} />
-                        {JOB_POSITIONS[c.position].name}
+                        {JOB_POSITIONS[c.position]?.name ?? c.position}
                       </span>
                       <span className="flex items-center gap-1">
                         <CalendarDays size={12} />
@@ -430,7 +430,7 @@ function CandidateListView({ onNewCandidate, onSelectCandidate }: CandidateListV
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:flex-shrink-0">
                     {c.admissionExam && (
                       <span className="badge badge-blue">
                         <GraduationCap size={12} />
@@ -440,7 +440,7 @@ function CandidateListView({ onNewCandidate, onSelectCandidate }: CandidateListV
                     <span className={`badge ${status.className}`}>{status.label}</span>
                   </div>
 
-                  <ChevronRight size={18} className="text-surface-600 group-hover:text-surface-300 transition-colors flex-shrink-0" />
+                  <ChevronRight size={18} className="hidden sm:block text-surface-600 group-hover:text-surface-300 transition-colors flex-shrink-0" />
                 </motion.div>
               );
             })
@@ -566,17 +566,17 @@ function FichaRecepcionView({ onBack, onCreated, onRejected }: FichaRecepcionVie
   return (
     <>
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 pt-5 pb-3">
-        <button className="p-2 rounded-xl hover:bg-surface-800 transition-colors" onClick={onBack}>
+      <div className="flex items-start sm:items-center gap-2 sm:gap-3 px-0 sm:px-6 pt-5 pb-3">
+        <button className="p-2.5 sm:p-2 shrink-0 rounded-xl hover:bg-surface-800 transition-colors" onClick={onBack}>
           <ArrowLeft size={20} className="text-surface-300" />
         </button>
-        <div>
-          <h1 className="text-2xl font-bold gradient-text">Datos del candidato — Recepcion</h1>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text">Datos del candidato — Recepcion</h1>
           <p className="text-sm text-surface-400 mt-0.5">Etapa 0 · el candidato ya vio el video y le interesa</p>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="flex-1 overflow-y-auto px-0 sm:px-6 pb-6">
         <motion.div {...fadeUp} className="space-y-5 max-w-2xl mx-auto">
           {/* Guion de recepcion */}
           <div className="glass-card p-4 border-l-4 border-l-success-500">
@@ -585,7 +585,7 @@ function FichaRecepcionView({ onBack, onCreated, onRejected }: FichaRecepcionVie
             </p>
           </div>
 
-          <div className="glass-card p-5 space-y-4">
+          <div className="glass-card p-4 sm:p-5 space-y-4">
             <h2 className="text-base font-semibold text-surface-200 flex items-center gap-2">
               <User size={18} className="text-primary-400" />
               Datos del candidato
@@ -603,7 +603,7 @@ function FichaRecepcionView({ onBack, onCreated, onRejected }: FichaRecepcionVie
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm text-surface-400 mb-1">
                     <span className="flex items-center gap-1"><Phone size={14} /> Telefono de contacto *</span>
@@ -658,13 +658,13 @@ function FichaRecepcionView({ onBack, onCreated, onRejected }: FichaRecepcionVie
               {/* ─── v2.4 Req 2: Reingreso ─── */}
               <div>
                 <label className="block text-sm text-surface-400 mb-1">¿Es reingreso? (ya trabajo aqui antes)</label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   {[{ v: false, t: 'NO' }, { v: true, t: 'SI, ES REINGRESO' }].map((opt) => (
                     <button
                       key={opt.t}
                       type="button"
                       onClick={() => setField('reingreso', opt.v)}
-                      className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                      className={`flex-1 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-medium border transition-all ${
                         form.reingreso === opt.v
                           ? opt.v
                             ? 'bg-warning-500/20 border-warning-500/60 text-warning-500'
@@ -686,7 +686,7 @@ function FichaRecepcionView({ onBack, onCreated, onRejected }: FichaRecepcionVie
           </div>
 
           {/* ─── v2.13: filtro de lectura y suma (compuerta) ─── */}
-          <div className="glass-card p-5 space-y-4">
+          <div className="glass-card p-4 sm:p-5 space-y-4">
             <h2 className="text-base font-semibold text-surface-200 flex items-center gap-2">
               <BookOpen size={18} className="text-accent-400" />
               Filtro basico
@@ -718,13 +718,13 @@ function FichaRecepcionView({ onBack, onCreated, onRejected }: FichaRecepcionVie
             )}
           </div>
 
-          <div className="flex gap-3">
-            <button className="btn-secondary flex-1" onClick={onBack}>
+          <div className="flex flex-col-reverse sm:flex-row gap-3">
+            <button className="btn-secondary w-full sm:w-auto sm:flex-1" onClick={onBack}>
               Cancelar
             </button>
             {rejected ? (
               <button
-                className="btn-danger flex-1 flex items-center justify-center gap-2"
+                className="btn-danger w-full sm:w-auto sm:flex-1 flex items-center justify-center gap-2"
                 onClick={onRejected}
               >
                 <XCircle size={18} />
@@ -732,7 +732,7 @@ function FichaRecepcionView({ onBack, onCreated, onRejected }: FichaRecepcionVie
               </button>
             ) : (
               <button
-                className="btn-primary flex-1 flex items-center justify-center gap-2"
+                className="btn-primary w-full sm:w-auto sm:flex-1 flex items-center justify-center gap-2"
                 disabled={!captureValid || !screeningAnswered || saving}
                 onClick={handleSave}
               >
@@ -759,8 +759,8 @@ function FinRecepcionView({
   onDone: () => void;
 }) {
   return (
-    <div className="flex-1 flex items-center justify-center px-6">
-      <motion.div {...fadeUp} className="glass-card p-8 max-w-md w-full text-center">
+    <div className="flex-1 flex items-center justify-center px-0 sm:px-6">
+      <motion.div {...fadeUp} className="glass-card p-6 sm:p-8 max-w-md w-full text-center">
         <div className="w-20 h-20 rounded-full mx-auto flex items-center justify-center mb-4 bg-surface-800/60 text-surface-300 ring-4 ring-surface-700/40">
           <CheckCircle size={36} />
         </div>
@@ -880,25 +880,25 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined, onBack }:
 
   return (
     <>
-      <div className="flex items-center gap-3 px-6 pt-5 pb-3">
+      <div className="flex items-start sm:items-center gap-2 sm:gap-3 px-0 sm:px-6 pt-5 pb-3">
         {/* v2.5: salida de emergencia — sin este boton, si el audio fallaba la
             recepcion quedaba atrapada en esta pantalla sin poder regresar */}
         <button
-          className="p-2 rounded-xl hover:bg-surface-800 transition-colors"
+          className="p-2.5 sm:p-2 shrink-0 rounded-xl hover:bg-surface-800 transition-colors"
           onClick={onBack}
           title="Regresar a la lista"
         >
           <ArrowLeft size={20} className="text-surface-300" />
         </button>
-        <div>
-          <h1 className="text-2xl font-bold gradient-text">Video Informativo</h1>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text">Video Informativo</h1>
           <p className="text-sm text-surface-400 mt-0.5">
             {candidate ? `${candidate.fullName} · ` : 'Nuevo candidato · '}2:30 min · asi trabajamos aqui
           </p>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="flex-1 overflow-y-auto px-0 sm:px-6 pb-6">
         <motion.div {...fadeUp} className="max-w-2xl mx-auto space-y-4">
           {/* Reproductor: narrado (audio TTS), video real, o demostracion */}
           <div className="glass-card overflow-hidden">
@@ -934,18 +934,18 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined, onBack }:
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 1.05 }}
                       transition={{ duration: 0.4 }}
-                      className="text-center px-10"
+                      className="text-center px-4 sm:px-10"
                     >
-                      <Video size={40} className="text-primary-400 mx-auto mb-4 opacity-60" />
-                      <h2 className="text-xl font-bold text-surface-100 mb-2">{caption.titulo}</h2>
+                      <Video size={40} className="text-primary-400 mx-auto mb-2 sm:mb-4 opacity-60" />
+                      <h2 className="text-base sm:text-xl font-bold text-surface-100 mb-2">{caption.titulo}</h2>
                     </motion.div>
                   </AnimatePresence>
 
                   {/* Subtitulos — activados siempre (BRD) */}
-                  <div className="absolute bottom-3 left-3 right-3">
-                    <div className="bg-black/70 rounded-lg px-4 py-2 flex items-start gap-2">
+                  <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
+                    <div className="bg-black/70 rounded-lg px-2.5 py-1.5 sm:px-4 sm:py-2 flex items-start gap-2">
                       <Captions size={16} className="text-primary-400 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-white leading-snug">{caption.texto}</p>
+                      <p className="text-xs sm:text-sm text-white leading-snug">{caption.texto}</p>
                     </div>
                   </div>
                 </>
@@ -985,17 +985,17 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined, onBack }:
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-0">
                   <div className="flex items-center gap-2">
                     <button
-                      className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
+                      className="p-3 sm:p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
                       onClick={() => setPlaying((p) => !p)}
                       disabled={complete}
                     >
                       {playing && !complete ? <Pause size={16} /> : <Play size={16} />}
                     </button>
                     <button
-                      className="p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
+                      className="p-3 sm:p-2 rounded-xl bg-surface-800 hover:bg-surface-700 transition-colors text-surface-200"
                       onClick={() => {
                         completedRef.current = false;
                         setProgress(0);
@@ -1014,7 +1014,7 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined, onBack }:
                       <button
                         key={s}
                         onClick={() => setSpeed(s)}
-                        className={`px-2 py-1 rounded-lg text-xs font-bold transition-all ${
+                        className={`px-3 py-2.5 sm:px-2 sm:py-1 rounded-lg text-xs font-bold transition-all ${
                           speed === s
                             ? 'bg-primary-500/20 text-primary-300 ring-1 ring-primary-500/40'
                             : 'text-surface-500 hover:text-surface-300'
@@ -1042,7 +1042,7 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined, onBack }:
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass-card p-5 space-y-4"
+                className="glass-card p-4 sm:p-5 space-y-4"
               >
                 <p className="text-center text-surface-200 font-medium">
                   Ya viste como trabajamos aqui. ¿Te interesa la vacante?
@@ -1121,22 +1121,22 @@ function CitaView({ candidateId, onDone }: CitaViewProps) {
 
   return (
     <>
-      <div className="flex items-center gap-3 px-6 pt-5 pb-3">
-        <div>
-          <h1 className="text-2xl font-bold gradient-text">Agendar Cita de Entrevista</h1>
-          <p className="text-sm text-surface-400 mt-0.5">{candidate.fullName}</p>
+      <div className="flex items-center gap-3 px-0 sm:px-6 pt-5 pb-3">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text">Agendar Cita de Entrevista</h1>
+          <p className="text-sm text-surface-400 mt-0.5 break-words">{candidate.fullName}</p>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="flex-1 overflow-y-auto px-0 sm:px-6 pb-6">
         <motion.div {...fadeUp} className="max-w-lg mx-auto space-y-4">
-          <div className="glass-card p-5 space-y-4">
+          <div className="glass-card p-4 sm:p-5 space-y-4">
             <h2 className="text-base font-semibold text-surface-200 flex items-center gap-2">
               <CalendarClock size={18} className="text-primary-400" />
               Cita con Direccion
             </h2>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="min-w-0">
                 <label className="block text-sm text-surface-400 mb-1">Fecha *</label>
                 <input
                   type="date"
@@ -1146,7 +1146,7 @@ function CitaView({ candidateId, onDone }: CitaViewProps) {
                   onChange={(e) => setFecha(e.target.value)}
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block text-sm text-surface-400 mb-1">Hora *</label>
                 <input
                   type="time"
@@ -1221,38 +1221,38 @@ function CandidateDetail({ candidateId, onBack, onStartExam, onWatchVideo, onSch
 
   return (
     <>
-      <div className="flex items-center gap-3 px-6 pt-5 pb-3">
-        <button className="p-2 rounded-xl hover:bg-surface-800 transition-colors" onClick={onBack}>
+      <div className="flex items-center gap-2 sm:gap-3 px-0 sm:px-6 pt-5 pb-3">
+        <button className="p-2.5 sm:p-2 shrink-0 rounded-xl hover:bg-surface-800 transition-colors" onClick={onBack}>
           <ArrowLeft size={20} className="text-surface-300" />
         </button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold gradient-text">Detalle del Candidato</h1>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text">Detalle del Candidato</h1>
         </div>
         <button
-          className="p-2 rounded-xl hover:bg-danger-500/20 transition-colors text-surface-500 hover:text-danger-400"
+          className="p-3 sm:p-2 shrink-0 rounded-xl hover:bg-danger-500/20 transition-colors text-surface-500 hover:text-danger-400"
           onClick={() => setShowDeleteConfirm(true)}
         >
           <Trash2 size={18} />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="flex-1 overflow-y-auto px-0 sm:px-6 pb-6">
         <motion.div {...fadeUp} className="space-y-4 max-w-2xl mx-auto">
           {/* Perfil */}
-          <div className="glass-card p-5">
-            <div className="flex items-start gap-4">
+          <div className="glass-card p-4 sm:p-5">
+            <div className="flex items-start gap-3 sm:gap-4">
               <div
-                className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${getAvatarGradient(candidate.fullName)} flex items-center justify-center text-white font-bold text-xl flex-shrink-0`}
+                className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br ${getAvatarGradient(candidate.fullName)} flex items-center justify-center text-white font-bold text-xl flex-shrink-0`}
               >
                 {getInitials(candidate.fullName)}
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-xl font-bold text-surface-100">{candidate.fullName}</h2>
+                  <h2 className="text-lg sm:text-xl font-bold text-surface-100 break-words">{candidate.fullName}</h2>
                   <span className={`badge ${status.className}`}>{status.label}</span>
                 </div>
                 <p className="text-sm text-primary-400 font-medium mt-0.5">
-                  {JOB_POSITIONS[candidate.position].name}
+                  {JOB_POSITIONS[candidate.position]?.name ?? candidate.position}
                 </p>
                 <div className="flex flex-wrap gap-3 mt-2 text-xs text-surface-400">
                   <span className="flex items-center gap-1">
@@ -1265,7 +1265,7 @@ function CandidateDetail({ candidateId, onBack, onStartExam, onWatchVideo, onSch
                 </div>
                 {candidate.email && (
                   <p className="text-xs text-surface-500 mt-1 flex items-center gap-1">
-                    <Mail size={11} /> {candidate.email}
+                    <Mail size={11} className="flex-shrink-0" /> <span className="min-w-0 break-all">{candidate.email}</span>
                   </p>
                 )}
                 <p className="text-xs text-surface-500 mt-1">
@@ -1299,12 +1299,12 @@ function CandidateDetail({ candidateId, onBack, onStartExam, onWatchVideo, onSch
                 ? ''
                 : `Leer: ${r?.sabeLeer ? 'SI' : 'NO'} · Sumar: ${r?.sabeSumar ? 'SI' : 'NO'}`;
             return (
-              <div className="glass-card p-5">
+              <div className="glass-card p-4 sm:p-5">
                 <h3 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
                   <FileText size={16} className="text-primary-400" />
                   Ficha de Recepcion (Etapa 0)
                 </h3>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   <DetailRow label="Correo" value={candidate.email ?? ''} />
                   <DetailRow label="Filtro lectura/suma" value={filtro} />
                   <DetailRow label="Escolaridad" value={escolaridad ?? ''} />
@@ -1320,13 +1320,13 @@ function CandidateDetail({ candidateId, onBack, onStartExam, onWatchVideo, onSch
 
           {/* Video informativo */}
           {r && (
-            <div className="glass-card p-5">
+            <div className="glass-card p-4 sm:p-5">
               <h3 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
                 <MonitorPlay size={16} className="text-primary-400" />
                 Video Informativo y Decision
               </h3>
               <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {r.videoCompleto ? (
                     <span className="badge badge-green">
                       <CheckCircle size={12} /> Video visto completo
@@ -1354,13 +1354,13 @@ function CandidateDetail({ candidateId, onBack, onStartExam, onWatchVideo, onSch
                   </p>
                 )}
                 {r.cita ? (
-                  <p className="text-surface-300 flex items-center gap-2">
-                    <CalendarClock size={14} className="text-primary-400" />
+                  <p className="text-surface-300 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <CalendarClock size={14} className="text-primary-400 flex-shrink-0" />
                     Cita con Direccion: <span className="font-medium text-surface-100">{formatDate(r.cita.fecha)} a las {r.cita.hora}</span>
                     <span className="text-xs text-surface-500">(agendada por {r.cita.agendadaPor})</span>
                   </p>
                 ) : (
-                  <div className="flex gap-2 pt-1">
+                  <div className="flex flex-wrap gap-2 pt-1">
                     {!r.videoCompleto && (
                       <button className="btn-secondary text-sm flex items-center gap-2" onClick={() => onWatchVideo(candidateId)}>
                         <Play size={14} /> Ver video
@@ -1378,7 +1378,7 @@ function CandidateDetail({ candidateId, onBack, onStartExam, onWatchVideo, onSch
           )}
 
           {/* Entrevista */}
-          <div className="glass-card p-5">
+          <div className="glass-card p-4 sm:p-5">
             <h3 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
               <Award size={16} className="text-primary-400" />
               Entrevista con Direccion
@@ -1427,15 +1427,15 @@ function CandidateDetail({ candidateId, onBack, onStartExam, onWatchVideo, onSch
           </div>
 
           {/* Examen de admision */}
-          <div className="glass-card p-5">
+          <div className="glass-card p-4 sm:p-5">
             <h3 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
               <GraduationCap size={16} className="text-primary-400" />
               Examen de Admision por Puesto
             </h3>
             {exam ? (
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 <div
-                  className={`w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold ${
+                  className={`w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold flex-shrink-0 ${
                     exam.resultado === 'aprobado'
                       ? 'bg-success-500/15 text-success-500 ring-1 ring-success-500/30'
                       : exam.resultado === 'con_reserva'
@@ -1445,7 +1445,7 @@ function CandidateDetail({ candidateId, onBack, onStartExam, onWatchVideo, onSch
                 >
                   {exam.aciertosTotales}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-surface-200 font-medium">
                     {exam.aciertosTotales} / {exam.totalPreguntas} aciertos
                   </p>
@@ -1461,11 +1461,11 @@ function CandidateDetail({ candidateId, onBack, onStartExam, onWatchVideo, onSch
                 </div>
               </div>
             ) : passedFilter ? (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
                 <p className="text-sm text-surface-400">
                   El candidato paso el filtro de entrevista. Aplicar examen en tablet.
                 </p>
-                <button className="btn-primary flex items-center gap-2" onClick={() => onStartExam(candidateId)}>
+                <button className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2" onClick={() => onStartExam(candidateId)}>
                   <Play size={16} />
                   Iniciar Examen
                 </button>
@@ -1499,7 +1499,7 @@ function CandidateDetail({ candidateId, onBack, onStartExam, onWatchVideo, onSch
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="glass-card p-6 w-full max-w-sm mx-4"
+              className="glass-card p-5 sm:p-6 w-full max-w-sm mx-4 max-h-[90dvh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="text-lg font-bold text-surface-100 mb-2">Eliminar Candidato</h3>
@@ -1526,9 +1526,9 @@ function CandidateDetail({ candidateId, onBack, onStartExam, onWatchVideo, onSch
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-xs text-surface-500">{label}</p>
-      <p className="text-surface-200">{value || '—'}</p>
+      <p className="text-surface-200 break-words">{value || '—'}</p>
     </div>
   );
 }
@@ -1628,21 +1628,21 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
     const outcome = EXAM_OUTCOME_LABELS[exam.resultado];
     return (
       <>
-        <div className="flex items-center gap-3 px-6 pt-5 pb-3">
-          <button className="p-2 rounded-xl hover:bg-surface-800 transition-colors" onClick={() => onBack(candidateId)}>
+        <div className="flex items-center gap-2 sm:gap-3 px-0 sm:px-6 pt-5 pb-3">
+          <button className="p-2.5 sm:p-2 shrink-0 rounded-xl hover:bg-surface-800 transition-colors" onClick={() => onBack(candidateId)}>
             <ArrowLeft size={20} className="text-surface-300" />
           </button>
-          <h1 className="text-2xl font-bold gradient-text">Resultado del Examen</h1>
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text">Resultado del Examen</h1>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-6">
+        <div className="flex-1 overflow-y-auto px-0 sm:px-6 pb-6">
           <motion.div {...fadeUp} className="max-w-lg mx-auto space-y-5">
-            <div className="glass-card p-8 text-center">
+            <div className="glass-card p-5 sm:p-8 text-center">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
-                className={`w-32 h-32 rounded-full mx-auto flex items-center justify-center text-5xl font-bold ring-4 ${
+                className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full mx-auto flex items-center justify-center text-4xl sm:text-5xl font-bold ring-4 ${
                   exam.resultado === 'aprobado'
                     ? 'bg-success-500/15 text-success-500 ring-success-500/30'
                     : exam.resultado === 'con_reserva'
@@ -1671,7 +1671,7 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
             </div>
 
             {/* Resumen */}
-            <div className="glass-card p-5">
+            <div className="glass-card p-4 sm:p-5">
               <h3 className="text-sm font-semibold text-surface-300 mb-3">Resumen de Respuestas</h3>
               <div className="grid grid-cols-5 gap-2">
                 {exam.preguntas.map((q, idx) => {
@@ -1720,20 +1720,20 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
 
   return (
     <>
-      <div className="px-6 pt-5 pb-3">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <button className="p-2 rounded-xl hover:bg-surface-800 transition-colors" onClick={() => onBack(candidateId)}>
+      <div className="px-0 sm:px-6 pt-5 pb-3">
+        <div className="flex flex-wrap items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3">
+          <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0">
+            <button className="p-2.5 sm:p-2 shrink-0 rounded-xl hover:bg-surface-800 transition-colors" onClick={() => onBack(candidateId)}>
               <ArrowLeft size={20} className="text-surface-300" />
             </button>
-            <div>
-              <h1 className="text-lg font-bold gradient-text">Examen de Admision — {JOB_POSITIONS[candidate.position].name}</h1>
-              <p className="text-xs text-surface-400">
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-bold gradient-text break-words">Examen de Admision — {JOB_POSITIONS[candidate.position]?.name ?? candidate.position}</h1>
+              <p className="text-xs text-surface-400 break-words">
                 {candidate.fullName} · sin limite de tiempo · una pregunta a la vez
               </p>
             </div>
           </div>
-          <span className="text-sm text-surface-400">
+          <span className="text-sm text-surface-400 shrink-0">
             {answeredCount}/{examQuestions.length}
           </span>
         </div>
@@ -1757,12 +1757,12 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
           />
         </div>
 
-        <div className="flex gap-1 mt-3 justify-center flex-wrap">
+        <div className="flex gap-1.5 sm:gap-1 mt-3 justify-center flex-wrap">
           {examQuestions.map((_, idx) => (
             <button
               key={idx}
               onClick={() => setCurrentQuestion(idx)}
-              className={`w-7 h-7 rounded-lg text-xs font-bold transition-all flex items-center justify-center ${
+              className={`w-8 h-8 sm:w-7 sm:h-7 shrink-0 rounded-lg text-xs font-bold transition-all flex items-center justify-center ${
                 idx === currentQuestion
                   ? 'bg-primary-500 text-white scale-110'
                   : answers[idx] !== null
@@ -1776,7 +1776,7 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="flex-1 overflow-y-auto px-0 sm:px-6 pb-6">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentQuestion}
@@ -1786,8 +1786,8 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
             transition={{ duration: 0.25 }}
             className="max-w-xl mx-auto"
           >
-            <div className="glass-card p-6 mt-4">
-              <div className="flex items-center gap-2 mb-3">
+            <div className="glass-card p-4 sm:p-6 mt-4">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
                 <span className={`badge ${question.tipo === 'comun' ? 'badge-blue' : 'badge-purple'}`}>
                   {question.tipo === 'comun' ? 'Bloque comun' : 'Especifica del puesto'}
                 </span>
@@ -1797,7 +1797,7 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
                 <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary-500/20 text-primary-400 flex items-center justify-center text-sm font-bold">
                   {currentQuestion + 1}
                 </span>
-                <p className="text-surface-100 font-medium leading-relaxed pt-1">{question.texto}</p>
+                <p className="min-w-0 text-surface-100 font-medium leading-relaxed pt-1 break-words">{question.texto}</p>
               </div>
 
               <div className="space-y-2">
@@ -1808,7 +1808,7 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
                       key={key}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => selectAnswer(key)}
-                      className={`w-full text-left p-4 rounded-xl border transition-all duration-200 flex items-center gap-3 ${
+                      className={`w-full text-left p-3.5 sm:p-4 rounded-xl border transition-all duration-200 flex items-center gap-3 ${
                         isSelected
                           ? 'bg-primary-500/15 border-primary-500/50 text-surface-100'
                           : 'bg-surface-900/40 border-surface-700 text-surface-300 hover:border-surface-500 hover:bg-surface-800/60'
@@ -1821,16 +1821,16 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
                       >
                         {key.toUpperCase()}
                       </span>
-                      <span className="text-sm">{question.opciones[key]}</span>
+                      <span className="min-w-0 text-sm break-words">{question.opciones[key]}</span>
                     </motion.button>
                   );
                 })}
               </div>
             </div>
 
-            <div className="flex items-center justify-between mt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-0 mt-4">
               <button
-                className="btn-secondary flex items-center gap-2"
+                className="btn-secondary flex items-center justify-center gap-2"
                 disabled={currentQuestion === 0}
                 onClick={() => setCurrentQuestion((p) => Math.max(0, p - 1))}
               >
@@ -1840,7 +1840,7 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
 
               {currentQuestion === examQuestions.length - 1 ? (
                 <button
-                  className="btn-primary flex items-center gap-2"
+                  className="btn-primary flex items-center justify-center gap-2"
                   onClick={() => {
                     if (answeredCount < examQuestions.length) setShowConfirmFinish(true);
                     else finishExam();
@@ -1851,7 +1851,7 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
                 </button>
               ) : (
                 <button
-                  className="btn-primary flex items-center gap-2"
+                  className="btn-primary flex items-center justify-center gap-2"
                   onClick={() => setCurrentQuestion((p) => Math.min(examQuestions.length - 1, p + 1))}
                 >
                   Siguiente
@@ -1877,7 +1877,7 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="glass-card p-6 w-full max-w-sm mx-4"
+              className="glass-card p-5 sm:p-6 w-full max-w-sm mx-4 max-h-[90dvh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="text-lg font-bold text-surface-100 mb-2">Finalizar Examen</h3>

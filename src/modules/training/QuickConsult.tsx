@@ -34,7 +34,7 @@ export default function QuickConsult({ onBack }: { onBack: () => void }) {
   if (proc) {
     const mp = proc.pasos[mpIdx];
     return (
-      <div className="flex flex-col gap-4 overflow-hidden h-full">
+      <div className="flex flex-col gap-4 overflow-hidden h-full min-h-0 max-h-[100dvh]">
         <TrainingHeader
           icon={BookOpen}
           gradient="from-amber-500 to-orange-600"
@@ -49,7 +49,7 @@ export default function QuickConsult({ onBack }: { onBack: () => void }) {
             <button
               key={m.id}
               onClick={() => setMpIdx(i)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
+              className={`shrink-0 px-3.5 py-2.5 min-h-[44px] text-sm sm:px-3 sm:py-1.5 sm:min-h-0 sm:text-xs rounded-lg font-medium whitespace-nowrap transition-all cursor-pointer ${
                 i === mpIdx ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'glass-light text-surface-400 hover:text-surface-200'
               }`}
             >
@@ -67,12 +67,12 @@ export default function QuickConsult({ onBack }: { onBack: () => void }) {
                     <p className="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
                       <Video size={13} /> Video del proceso completo
                     </p>
-                    <MediaVideo value={proc.portadaVideo} className="w-full max-h-64 rounded-xl bg-black/50" />
+                    <MediaVideo value={proc.portadaVideo} className="w-full max-h-[60dvh] sm:max-h-64 rounded-xl bg-black/50" />
                   </div>
                 )}
                 {mp.fotos.length > 0 && (
                   <div className="glass-card p-2">
-                    <MediaImage value={mp.fotos[0].url} alt="" onClick={() => setZoom(mp.fotos[0].url)} className="w-full max-h-64 object-contain rounded-xl cursor-zoom-in bg-black/40" />
+                    <MediaImage value={mp.fotos[0].url} alt="" onClick={() => setZoom(mp.fotos[0].url)} className="w-full max-h-[55dvh] sm:max-h-64 object-contain rounded-xl cursor-zoom-in bg-black/40" />
                   </div>
                 )}
                 {mp.videoUrl && (
@@ -80,13 +80,17 @@ export default function QuickConsult({ onBack }: { onBack: () => void }) {
                     <p className="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
                       <Video size={13} /> Video del paso
                     </p>
-                    <MediaVideo value={mp.videoUrl} className="w-full max-h-64 rounded-xl bg-black/50" />
+                    <MediaVideo value={mp.videoUrl} className="w-full max-h-[60dvh] sm:max-h-64 rounded-xl bg-black/50" />
                   </div>
                 )}
-                <div className="glass-card p-5">
+                <div className="glass-card p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-3">
-                    <h2 className="text-xl font-bold text-amber-300">{mp.nombre}</h2>
-                    <NarrationButton text={`${mp.nombre}. ${narrativaVisible(mp)}`} compact />
+                    <h2 className="text-lg sm:text-xl font-bold text-amber-300 min-w-0 flex-1 break-words">{mp.nombre}</h2>
+                    <NarrationButton
+                      text={`${mp.nombre}. ${narrativaVisible(mp)}`}
+                      compact
+                      className="shrink-0 justify-center min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0"
+                    />
                   </div>
                   <p className="text-lg text-surface-300 leading-relaxed mt-3">{narrativaVisible(mp)}</p>
                   {mp.fotos.length > 1 && (
@@ -126,7 +130,7 @@ export default function QuickConsult({ onBack }: { onBack: () => void }) {
 
   // Biblioteca de consulta
   return (
-    <div className="flex flex-col gap-5 overflow-hidden h-full">
+    <div className="flex flex-col gap-5 overflow-hidden h-full min-h-0 max-h-[100dvh]">
       <TrainingHeader icon={SearchIcon} gradient="from-amber-500 to-orange-600" title="Consulta rápida" subtitle="Repasa cualquier proceso sin evaluación" onBack={onBack} />
       <div className="relative shrink-0">
         <SearchIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400" />
@@ -150,11 +154,11 @@ export default function QuickConsult({ onBack }: { onBack: () => void }) {
               className="glass-card p-4 w-full text-left flex items-center gap-3 cursor-pointer group"
             >
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-amber-300 truncate">{p.nombre}</h3>
+                <h3 className="text-sm font-semibold text-amber-300 break-words sm:truncate">{p.nombre}</h3>
                 <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  <span className="badge badge-green text-[10px]">{p.area}</span>
-                  <span className="badge badge-yellow text-[10px]">{p.linea}</span>
-                  <span className="text-[11px] text-surface-500 self-center">{p.pasos.length} pasos</span>
+                  <span className="badge badge-green text-xs sm:text-[10px]">{p.area}</span>
+                  <span className="badge badge-yellow text-xs sm:text-[10px]">{p.linea}</span>
+                  <span className="text-xs sm:text-[11px] text-surface-500 self-center">{p.pasos.length} pasos</span>
                 </div>
               </div>
               <ArrowRight size={18} className="text-surface-500 group-hover:text-amber-400 transition-colors shrink-0" />
