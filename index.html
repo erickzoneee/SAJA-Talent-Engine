@@ -1,15 +1,45 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/SAJA-Talent-Engine/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- v2.21 — Pantalla completa en celular.
+         `viewport-fit=cover` deja que la app llegue hasta los bordes fisicos
+         (debajo de la muesca y del indicador de inicio); los margenes de
+         seguridad se manejan en el CSS con env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- Safari pinta SUS barras (la del reloj arriba y la de la direccion
+         abajo) con este color. Sin esto se veian blancas y partian la
+         pantalla en tres. Es el mismo azul con el que arranca el fondo. -->
+    <meta name="theme-color" content="#0f172a" />
+
     <title>SAJA Talent Engine - Sistema Integral de RH</title>
+
+    <!-- Instalable: al usar "Agregar a pantalla de inicio" abre sin ninguna
+         barra del navegador, con su propio icono. -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SAJA RH" />
+    <meta name="application-name" content="SAJA RH" />
+
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <!-- iOS no acepta SVG aqui: tiene que ser PNG. -->
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/SAJA-Talent-Engine/assets/index-MxI6yYJ3.js"></script>
-    <link rel="stylesheet" crossorigin href="/SAJA-Talent-Engine/assets/index-CD3S0ang.css">
+
+    <!-- Fondo pintado desde el HTML: sin esto la pantalla parpadeaba en BLANCO
+         entre que llega el documento y arranca React. -->
+    <style>
+      html, body { background-color: #0f172a; }
+    </style>
+    <script type="module" crossorigin src="/SAJA-Talent-Engine/assets/index-CdwRrgKH.js"></script>
+    <link rel="stylesheet" crossorigin href="/SAJA-Talent-Engine/assets/index-C0yABbcQ.css">
   </head>
   <body>
     <div id="root"></div>
