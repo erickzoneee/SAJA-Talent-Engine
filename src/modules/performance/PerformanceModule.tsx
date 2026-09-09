@@ -258,7 +258,7 @@ function EmployeeListView({
             <TrendingUp size={28} />
             Seguimiento y Desempeno
           </h1>
-          <p className="text-surface-400 text-sm mt-1">
+          <p className="text-surface-400 text-xs sm:text-sm mt-1">
             Evaluaciones, incidencias, bonos y capacitaciones
           </p>
         </div>
@@ -392,7 +392,7 @@ function StatCard({
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`glass-card p-4 border-t-2 ${borderColor[accent] ?? ''}`}
+      className={`glass-card p-3 sm:p-4 border-t-2 ${borderColor[accent] ?? ''}`}
     >
       <div className="flex items-center gap-2 mb-2">{icon}</div>
       <p className="text-2xl font-bold text-surface-100">{value}</p>
@@ -424,7 +424,7 @@ function EmployeeCard({
       animate="animate"
       custom={index}
       onClick={onClick}
-      className="glass-card p-4 flex flex-wrap items-center gap-3 sm:gap-4 cursor-pointer group"
+      className="glass-card p-3 sm:p-4 flex flex-wrap items-center gap-3 sm:gap-4 cursor-pointer group"
     >
       {/* Avatar */}
       <div
@@ -574,7 +574,7 @@ function EmployeeDashboard({
             )}
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-surface-100 break-words sm:truncate">
+            <h1 className="text-lg sm:text-xl font-bold text-surface-100 break-words sm:truncate">
               {employee.fullName}
             </h1>
             <div className="flex items-center gap-2 flex-wrap mt-0.5">
@@ -744,7 +744,7 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
   }, [allRated, form, average, employee, updateEmployee, isTrialEval, addAlert]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3 sm:gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-base font-semibold text-surface-200">
           Historial de Evaluaciones
@@ -770,7 +770,7 @@ function EvaluacionesTab({ employee }: { employee: Employee }) {
           initial="initial"
           animate="animate"
           custom={i}
-          className="glass-card p-4"
+          className="glass-card p-3 sm:p-4"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
@@ -1126,7 +1126,7 @@ function IncidenciasTab({ employee }: { employee: Employee }) {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3 sm:gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-base font-semibold text-surface-200">
           Registro de Incidencias
@@ -1152,7 +1152,7 @@ function IncidenciasTab({ employee }: { employee: Employee }) {
           initial="initial"
           animate="animate"
           custom={i}
-          className="glass-card p-4"
+          className="glass-card p-3 sm:p-4"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
@@ -1338,7 +1338,7 @@ function BonosTab({ employee }: { employee: Employee }) {
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3 sm:gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-surface-200">
@@ -1374,7 +1374,7 @@ function BonosTab({ employee }: { employee: Employee }) {
           initial="initial"
           animate="animate"
           custom={i}
-          className="glass-card p-4 flex flex-wrap items-center gap-3 sm:gap-4"
+          className="glass-card p-3 sm:p-4 flex flex-wrap items-center gap-3 sm:gap-4"
         >
           <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
             <Award size={20} className="text-emerald-400" />
@@ -1523,7 +1523,7 @@ function CapacitacionesTab({ employee }: { employee: Employee }) {
   }, [form, employee, updateEmployee]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3 sm:gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-base font-semibold text-surface-200">
           Historial de Capacitaciones
@@ -1549,7 +1549,7 @@ function CapacitacionesTab({ employee }: { employee: Employee }) {
           initial="initial"
           animate="animate"
           custom={i}
-          className="glass-card p-4 flex flex-wrap items-center gap-3 sm:gap-4"
+          className="glass-card p-3 sm:p-4 flex flex-wrap items-center gap-3 sm:gap-4"
         >
           <div className="w-11 h-11 rounded-xl bg-primary-500/15 border border-primary-500/30 flex items-center justify-center shrink-0">
             <BookOpen size={20} className="text-primary-400" />

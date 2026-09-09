@@ -34,7 +34,7 @@ export default function QuickConsult({ onBack }: { onBack: () => void }) {
   if (proc) {
     const mp = proc.pasos[mpIdx];
     return (
-      <div className="flex flex-col gap-4 overflow-hidden h-full min-h-0 max-h-[100dvh]">
+      <div className="flex flex-col gap-3 sm:gap-4 overflow-hidden h-full min-h-0 max-h-[100dvh]">
         <TrainingHeader
           icon={BookOpen}
           gradient="from-amber-500 to-orange-600"
@@ -151,7 +151,7 @@ export default function QuickConsult({ onBack }: { onBack: () => void }) {
                 setProc(p);
                 setMpIdx(0);
               }}
-              className="glass-card p-4 w-full text-left flex items-center gap-3 cursor-pointer group"
+              className="glass-card p-3 sm:p-4 w-full text-left flex items-center gap-3 cursor-pointer group"
             >
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold text-amber-300 break-words sm:truncate">{p.nombre}</h3>

@@ -114,10 +114,10 @@ function BankListView({ onNew, onEdit }: { onNew: () => void; onEdit: (id: strin
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3 px-0 sm:px-6 pt-5 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-0 sm:px-6 pt-1 sm:pt-5 pb-3">
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold gradient-text">Banco de Preguntas</h1>
-          <p className="text-sm text-surface-400 mt-0.5 break-words">
+          <p className="text-xs sm:text-sm text-surface-400 mt-0.5 break-words">
             Entrevista y examen viven en base de datos — nunca en el codigo · {questions.length} preguntas
           </p>
         </div>
@@ -381,7 +381,7 @@ function QuestionFormView({ editId, onBack }: { editId?: string; onBack: () => v
 
   return (
     <>
-      <div className="flex items-center gap-3 px-0 sm:px-6 pt-5 pb-3">
+      <div className="flex items-center gap-3 px-0 sm:px-6 pt-1 sm:pt-5 pb-3">
         <button
           className="p-2 rounded-xl hover:bg-surface-800 transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
           aria-label="Volver"
@@ -391,7 +391,7 @@ function QuestionFormView({ editId, onBack }: { editId?: string; onBack: () => v
         </button>
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold gradient-text">{editing ? 'Editar Pregunta' : 'Agregar Pregunta'}</h1>
-          <p className="text-sm text-surface-400 mt-0.5 break-words">
+          <p className="text-xs sm:text-sm text-surface-400 mt-0.5 break-words">
             {editing ? 'Los cambios quedan registrados en el historial' : 'La pregunta queda activa al guardarla'}
           </p>
         </div>

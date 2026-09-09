@@ -217,7 +217,7 @@ function EmployeeListView({
   }
 
   return (
-    <div className="flex flex-col gap-6 overflow-hidden h-full">
+    <div className="flex flex-col gap-4 sm:gap-6 overflow-hidden h-full">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
@@ -226,7 +226,7 @@ function EmployeeListView({
           </div>
           <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-bold text-surface-100">Onboarding / Induccion</h1>
-            <p className="text-sm text-surface-400">
+            <p className="text-xs sm:text-sm text-surface-400">
               {eligibleEmployees.length} colaborador{eligibleEmployees.length !== 1 ? 'es' : ''} en proceso
             </p>
           </div>
@@ -280,7 +280,7 @@ function EmployeeListView({
               >
                 {/* Avatar */}
                 <div
-                  className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getAvatarGradient(emp.fullName)} flex items-center justify-center text-white font-bold text-sm shrink-0`}
+                  className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${getAvatarGradient(emp.fullName)} flex items-center justify-center text-white font-bold text-sm shrink-0`}
                 >
                   {emp.photoUrl ? (
                     <img src={emp.photoUrl} alt="" className="w-full h-full rounded-xl object-cover" />
@@ -412,7 +412,7 @@ function OnboardingDashboard({
       </div>
 
       {/* Employee Info Card */}
-      <motion.div {...fadeUp} className="glass-card p-5 shrink-0">
+      <motion.div {...fadeUp} className="glass-card p-3.5 sm:p-5 shrink-0">
         <div className="flex flex-wrap items-center gap-4">
           <div
             className={`w-14 h-14 rounded-xl bg-gradient-to-br ${getAvatarGradient(employee.fullName)} flex items-center justify-center text-white font-bold text-lg shrink-0`}
@@ -531,7 +531,7 @@ function OnboardingDashboard({
                 variants={listItem}
                 initial="initial"
                 animate="animate"
-                className={`glass-card p-4 group relative overflow-hidden ${
+                className={`glass-card p-3 sm:p-4 group relative overflow-hidden ${
                   mod.completed ? 'border-green-500/20' : ''
                 } ${locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 onClick={() => {
@@ -691,7 +691,7 @@ function RecorridoSection({ employee }: { employee: Employee }) {
   };
 
   return (
-    <motion.div {...fadeUp} className="glass-card p-5">
+    <motion.div {...fadeUp} className="glass-card p-3.5 sm:p-5">
       <div
         className="flex flex-wrap items-center gap-x-3 gap-y-2 cursor-pointer"
         onClick={() => setExpanded((e) => !e)}
@@ -1145,7 +1145,7 @@ function VideoModuleView({
       <div className="flex-1 overflow-y-auto pr-1 space-y-4">
         {/* Bloqueado: 3 intentos fallidos */}
         {mod.blocked && (
-          <motion.div {...fadeUp} className="glass-card p-5 border-2 border-danger-500/50 bg-danger-500/5">
+          <motion.div {...fadeUp} className="glass-card p-3.5 sm:p-5 border-2 border-danger-500/50 bg-danger-500/5">
             <div className="flex items-start gap-3">
               <Ban size={20} className="text-danger-500 shrink-0 mt-0.5" />
               <div className="flex-1">
@@ -1175,7 +1175,7 @@ function VideoModuleView({
 
         {/* Resultado si ya esta completado */}
         {mod.completed && (
-          <motion.div {...fadeUp} className="glass-card p-5">
+          <motion.div {...fadeUp} className="glass-card p-3.5 sm:p-5">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="w-14 h-14 rounded-xl bg-green-500/20 text-green-400 flex items-center justify-center shrink-0">
                 <CheckCircle size={26} />
@@ -1353,7 +1353,7 @@ function VideoModuleView({
 
         {/* Accion segun tipo de video */}
         {!mod.completed && !mod.blocked && !quizStarted && (
-          <motion.div {...fadeUp} className="glass-card p-5 space-y-3">
+          <motion.div {...fadeUp} className="glass-card p-3.5 sm:p-5 space-y-3">
             {mod.critical ? (
               <>
                 <h3 className="text-sm font-semibold text-surface-200 flex items-center gap-2">
@@ -1402,7 +1402,7 @@ function VideoModuleView({
 
         {/* Mini evaluacion en curso */}
         {quizStarted && !mod.blocked && (
-          <motion.div {...scaleIn} className="glass-card p-5 space-y-5">
+          <motion.div {...scaleIn} className="glass-card p-3.5 sm:p-5 space-y-3.5 sm:space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-surface-200 flex items-center gap-2">
                 <BookOpen size={16} className="text-accent-400" />
@@ -2338,7 +2338,7 @@ function CompletionScreen({
         </motion.div>
 
         {/* Employee Summary */}
-        <motion.div {...fadeUp} className="glass-card p-5">
+        <motion.div {...fadeUp} className="glass-card p-3.5 sm:p-5">
           <h3 className="text-sm font-semibold text-surface-200 flex items-center gap-2 mb-4">
             <User size={16} className="text-primary-400" />
             Datos del Colaborador
@@ -2367,7 +2367,7 @@ function CompletionScreen({
 
         {/* Quiz Scores Summary */}
         {quizModules.length > 0 && (
-          <motion.div {...fadeUp} className="glass-card p-5">
+          <motion.div {...fadeUp} className="glass-card p-3.5 sm:p-5">
             <h3 className="text-sm font-semibold text-surface-200 flex items-center gap-2 mb-4">
               <Star size={16} className="text-yellow-400" />
               Resumen de Quizzes
@@ -2404,7 +2404,7 @@ function CompletionScreen({
         )}
 
         {/* All Modules Summary */}
-        <motion.div {...fadeUp} className="glass-card p-5">
+        <motion.div {...fadeUp} className="glass-card p-3.5 sm:p-5">
           <h3 className="text-sm font-semibold text-surface-200 flex items-center gap-2 mb-4">
             <FileText size={16} className="text-accent-400" />
             Detalle de Modulos Completados
@@ -2521,7 +2521,7 @@ function VideotecaView({ onBack }: { onBack: () => void }) {
           </div>
           <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-bold text-surface-100">Videoteca</h1>
-            <p className="text-sm text-surface-400">
+            <p className="text-xs sm:text-sm text-surface-400">
               {items.length} videos del sistema — disponibles para verlos en cualquier momento
             </p>
           </div>
@@ -2543,7 +2543,7 @@ function VideotecaView({ onBack }: { onBack: () => void }) {
                 animate="animate"
                 type="button"
                 onClick={() => setSelected(item)}
-                className="glass-card p-4 text-left group hover:border-primary-500/30 transition-colors"
+                className="glass-card p-3 sm:p-4 text-left group hover:border-primary-500/30 transition-colors"
               >
                 <div className="flex items-start gap-3">
                   <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-500/20 to-accent-500/20 flex items-center justify-center shrink-0 group-hover:from-primary-500/30 group-hover:to-accent-500/30 transition-colors">

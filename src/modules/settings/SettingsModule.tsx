@@ -134,7 +134,7 @@ export default function SettingsModule() {
         </div>
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold text-surface-100">Configuracion del Sistema</h1>
-          <p className="text-surface-400 text-sm">Solo accesible para Direccion General</p>
+          <p className="text-surface-400 text-xs sm:text-sm">Solo accesible para Direccion General</p>
         </div>
       </div>
 
@@ -145,11 +145,11 @@ export default function SettingsModule() {
         transition={{ delay: 0.1 }}
         className="glass-card p-4 sm:p-6"
       >
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
           <Building className="w-5 h-5 text-primary-400" />
           <h2 className="text-lg font-semibold text-surface-100">Datos de la Empresa</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="block text-sm text-surface-400 mb-1">Nombre de la empresa</label>
             <input
@@ -200,11 +200,11 @@ export default function SettingsModule() {
         transition={{ delay: 0.2 }}
         className="glass-card p-4 sm:p-6"
       >
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
           <Sliders className="w-5 h-5 text-accent-400" />
           <h2 className="text-lg font-semibold text-surface-100">Umbrales de Evaluacion</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
           <div>
             <label className="block text-sm text-surface-400 mb-1">
               Umbral RECOMENDADO <span className="text-success-500">(verde)</span>
@@ -262,11 +262,11 @@ export default function SettingsModule() {
         transition={{ delay: 0.3 }}
         className="glass-card p-4 sm:p-6"
       >
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
           <Shield className="w-5 h-5 text-warning-500" />
           <h2 className="text-lg font-semibold text-surface-100">Seguridad</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="block text-sm text-surface-400 mb-1">PIN Supervisor</label>
             <input
@@ -308,7 +308,7 @@ export default function SettingsModule() {
           presionar &quot;Guardar Cambios&quot; al final.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <div>
             <p className="text-xs uppercase tracking-wider text-surface-500 mb-2">
               Tipos de horario ({schedules.length})
@@ -426,7 +426,7 @@ export default function SettingsModule() {
         transition={{ delay: 0.35 }}
         className="glass-card p-4 sm:p-6"
       >
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
           <Video className="w-5 h-5 text-primary-400" />
           <h2 className="text-lg font-semibold text-surface-100">Videos del Sistema</h2>
         </div>
@@ -442,7 +442,7 @@ export default function SettingsModule() {
         </p>
 
         {/* Recepcion */}
-        <div className="mb-6 space-y-2">
+        <div className="mb-4 sm:mb-6 space-y-2">
           <label className="block text-sm text-surface-300 font-medium">
             Recepcion — video informativo <span className="text-surface-500">(asi trabajamos aqui)</span>
           </label>
@@ -603,7 +603,7 @@ function ResetDataSection() {
         <AlertTriangle className="w-5 h-5 text-danger-400" />
         <h2 className="text-lg font-semibold text-surface-100">Empezar en Limpio</h2>
       </div>
-      <p className="text-sm text-surface-400 mb-4">
+      <p className="text-sm text-surface-400 mb-3 sm:mb-4">
         Borra las capturas de prueba para comenzar a registrar informacion real: candidatos,
         colaboradores y alertas. <strong className="text-surface-300">No</strong> se tocan la
         configuracion, los catalogos, el banco de preguntas ni la capacitacion. Con la sesion de la
@@ -716,7 +716,7 @@ function SupabaseSyncSection() {
         <h2 className="text-lg font-semibold text-surface-100">Base de Datos en la Nube</h2>
         <span className={`badge ml-0 sm:ml-2 ${badge}`}>{badgeText}</span>
       </div>
-      <p className="text-sm text-surface-400 mb-4">
+      <p className="text-sm text-surface-400 mb-3 sm:mb-4">
         Todos los datos se guardan en una base de datos real protegida por inicio de sesion, y se
         sincronizan solos entre todos los dispositivos con la sesion iniciada. (Las fotos y escaneos aun
         se quedan en cada dispositivo.)
@@ -813,7 +813,7 @@ function SyncSection() {
           </span>
         )}
       </div>
-      <p className="text-sm text-surface-400 mb-4">
+      <p className="text-sm text-surface-400 mb-3 sm:mb-4">
         La base de datos vive en este dispositivo. Al conectar la nube, la informacion viaja
         CIFRADA y se puede ver en las demas tablets o computadoras usando el mismo codigo.
         Las fotos, firmas y escaneos no viajan (se quedan donde se capturaron).

@@ -131,15 +131,15 @@ function InterviewListView({ onStart }: { onStart: (id: string) => void }) {
 
   return (
     <>
-      <div className="px-0 sm:px-6 pt-5 pb-3">
+      <div className="px-0 sm:px-6 pt-1 sm:pt-5 pb-3">
         <h1 className="text-xl sm:text-2xl font-bold gradient-text">Guia de Entrevista Interactiva</h1>
-        <p className="text-sm text-surface-400 mt-0.5">
+        <p className="text-xs sm:text-sm text-surface-400 mt-0.5">
           5 secciones · calificacion en tiempo real · diagnostico automatico · la decision final
           siempre es de Direccion
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-0 sm:px-6 pb-6 space-y-5">
+      <div className="flex-1 overflow-y-auto px-0 sm:px-6 pb-6 space-y-3.5 sm:space-y-5">
         {/* Pendientes */}
         <div>
           <h2 className="text-sm font-semibold text-surface-300 mb-2 flex items-center gap-2">
@@ -157,9 +157,9 @@ function InterviewListView({ onStart }: { onStart: (id: string) => void }) {
           ) : (
             <div className="space-y-2">
               {pending.map((c) => (
-                <motion.div key={c.id} {...fadeUp} className="glass-card p-4 flex flex-wrap items-center gap-3 sm:gap-4">
+                <motion.div key={c.id} {...fadeUp} className="glass-card p-3 sm:p-4 flex flex-wrap items-center gap-3 sm:gap-4">
                   <div
-                    className={`w-12 h-12 rounded-full bg-gradient-to-br ${getAvatarGradient(c.fullName)} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}
+                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br ${getAvatarGradient(c.fullName)} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}
                   >
                     {getInitials(c.fullName)}
                   </div>
@@ -204,7 +204,7 @@ function InterviewListView({ onStart }: { onStart: (id: string) => void }) {
                 const iv = c.interviewV2!;
                 const d = DIAGNOSTIC_LABELS[iv.diagnostico];
                 return (
-                  <div key={c.id} className="glass-card p-4 flex items-center gap-3 flex-wrap">
+                  <div key={c.id} className="glass-card p-3 sm:p-4 flex items-center gap-3 flex-wrap">
                     <div
                       className={`w-10 h-10 rounded-full bg-gradient-to-br ${getAvatarGradient(c.fullName)} flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}
                     >
@@ -410,7 +410,7 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
   return (
     <>
       {/* Header con stepper */}
-      <div className="px-0 sm:px-6 pt-5 pb-3">
+      <div className="px-0 sm:px-6 pt-1 sm:pt-5 pb-3">
         <div className="flex items-center gap-3 mb-3">
           <button className="p-3 sm:p-2 rounded-xl hover:bg-surface-800 transition-colors" onClick={onExit}>
             <ArrowLeft size={20} className="text-surface-300" />
@@ -456,7 +456,7 @@ function InterviewGuideFlow({ candidateId, onExit }: InterviewGuideFlowProps) {
           {/* ─── PASO 0: Seccion 1 — Datos del candidato ─── */}
           {step === 0 && (
             <motion.div key="s0" {...fadeUp} className="max-w-2xl mx-auto space-y-4">
-              <div className="glass-card p-4 border-l-4 border-l-primary-500">
+              <div className="glass-card p-3 sm:p-4 border-l-4 border-l-primary-500">
                 <p className="text-sm text-surface-300">
                   <span className="font-semibold text-surface-100">Seccion 1 — Datos del candidato.</span>{' '}
                   Confirma los datos de recepcion y captura el historial laboral. No se califica.
@@ -788,7 +788,7 @@ function SectionScreen({
 
   return (
     <motion.div {...fadeUp} className="max-w-2xl mx-auto space-y-4">
-      <div className="glass-card p-4 border-l-4 border-l-accent-500">
+      <div className="glass-card p-3 sm:p-4 border-l-4 border-l-accent-500">
         <h2 className="text-base font-bold text-surface-100">
           Seccion {section.numero} — {section.titulo}
         </h2>
@@ -932,7 +932,7 @@ function QuizGamesScreen({ items, answers, onAnswer, result, canContinue, onPrev
 
   return (
     <>
-      <div className="glass-card p-4 border-l-4 border-l-accent-500 flex flex-wrap items-center gap-3">
+      <div className="glass-card p-3 sm:p-4 border-l-4 border-l-accent-500 flex flex-wrap items-center gap-3">
         <Gamepad2 size={22} className="text-accent-400 flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <h2 className="text-base font-bold text-surface-100">2a mitad — Juegos</h2>

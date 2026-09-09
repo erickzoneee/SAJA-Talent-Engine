@@ -293,16 +293,19 @@ function CandidateListView({ onNewCandidate, onSelectCandidate }: CandidateListV
   return (
     <>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 px-0 sm:px-6 pt-5 pb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 px-0 sm:px-6 pt-1 sm:pt-5 pb-3">
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold gradient-text">Recepcion de Candidatos</h1>
-          <p className="text-sm text-surface-400 mt-0.5">
+          <p className="text-xs sm:text-sm text-surface-400 mt-0.5">
             Etapa 0 — filtro previo · {candidates.length} candidato{candidates.length !== 1 ? 's' : ''} registrado{candidates.length !== 1 ? 's' : ''}
           </p>
         </div>
         <button className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2" onClick={onNewCandidate}>
           <UserPlus size={18} />
-          Nueva Ficha (Tablet)
+          {/* v2.21: "(Tablet)" confundia en un telefono; el aviso del
+              dispositivo solo se muestra donde tiene sentido. */}
+          <span>Nueva Ficha</span>
+          <span className="hidden sm:inline">(Tablet)</span>
         </button>
       </div>
 
@@ -400,11 +403,11 @@ function CandidateListView({ onNewCandidate, onSelectCandidate }: CandidateListV
                     <img
                       src={c.photoUrl}
                       alt={c.fullName}
-                      className="w-12 h-12 rounded-full object-cover ring-2 ring-surface-700 flex-shrink-0"
+                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-surface-700 flex-shrink-0"
                     />
                   ) : (
                     <div
-                      className={`w-12 h-12 rounded-full bg-gradient-to-br ${getAvatarGradient(c.fullName)} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}
+                      className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br ${getAvatarGradient(c.fullName)} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}
                     >
                       {getInitials(c.fullName)}
                     </div>
@@ -430,7 +433,10 @@ function CandidateListView({ onNewCandidate, onSelectCandidate }: CandidateListV
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:flex-shrink-0">
+                  {/* v2.21: en celular las insignias bajan a su propio renglon;
+                      se sangran al ancho del avatar (40px) mas el gap (12px)
+                      para que la tarjeta se lea como un solo bloque. */}
+                  <div className="flex flex-wrap items-center gap-2 w-full pl-[3.25rem] sm:pl-0 sm:w-auto sm:flex-shrink-0">
                     {c.admissionExam && (
                       <span className="badge badge-blue">
                         <GraduationCap size={12} />
@@ -566,20 +572,20 @@ function FichaRecepcionView({ onBack, onCreated, onRejected }: FichaRecepcionVie
   return (
     <>
       {/* Header */}
-      <div className="flex items-start sm:items-center gap-2 sm:gap-3 px-0 sm:px-6 pt-5 pb-3">
+      <div className="flex items-start sm:items-center gap-2 sm:gap-3 px-0 sm:px-6 pt-1 sm:pt-5 pb-3">
         <button className="p-2.5 sm:p-2 shrink-0 rounded-xl hover:bg-surface-800 transition-colors" onClick={onBack}>
           <ArrowLeft size={20} className="text-surface-300" />
         </button>
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold gradient-text">Datos del candidato — Recepcion</h1>
-          <p className="text-sm text-surface-400 mt-0.5">Etapa 0 · el candidato ya vio el video y le interesa</p>
+          <p className="text-xs sm:text-sm text-surface-400 mt-0.5">Etapa 0 · el candidato ya vio el video y le interesa</p>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-0 sm:px-6 pb-6">
-        <motion.div {...fadeUp} className="space-y-5 max-w-2xl mx-auto">
+        <motion.div {...fadeUp} className="space-y-3.5 sm:space-y-5 max-w-2xl mx-auto">
           {/* Guion de recepcion */}
-          <div className="glass-card p-4 border-l-4 border-l-success-500">
+          <div className="glass-card p-3 sm:p-4 border-l-4 border-l-success-500">
             <p className="text-sm text-surface-300 italic">
               "Que bueno que te interesa. Ahora solo necesito unos datos para agendar tu entrevista."
             </p>
@@ -694,7 +700,7 @@ function FichaRecepcionView({ onBack, onCreated, onRejected }: FichaRecepcionVie
             <p className="text-xs text-surface-500 -mt-2">
               Preguntas simples de si o no. Si el candidato dice que NO en alguna, el proceso termina aqui.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="text-sm text-surface-300 mb-2 flex items-center gap-2">
                   <BookOpen size={15} className="text-primary-400" /> ¿Sabe leer? *
@@ -770,7 +776,7 @@ function FinRecepcionView({
             ? 'Entendido. Si mas adelante te interesa la vacante, con gusto te atendemos de nuevo.'
             : 'Por ahora el proceso no continua. Agradecemos tu visita.'}
         </p>
-        <button className="btn-primary w-full mt-6" onClick={onDone}>
+        <button className="btn-primary w-full mt-4 sm:mt-6" onClick={onDone}>
           Volver a recepcion
         </button>
       </motion.div>
@@ -880,7 +886,7 @@ function VideoInformativoView({ candidateId, onInterested, onDeclined, onBack }:
 
   return (
     <>
-      <div className="flex items-start sm:items-center gap-2 sm:gap-3 px-0 sm:px-6 pt-5 pb-3">
+      <div className="flex items-start sm:items-center gap-2 sm:gap-3 px-0 sm:px-6 pt-1 sm:pt-5 pb-3">
         {/* v2.5: salida de emergencia — sin este boton, si el audio fallaba la
             recepcion quedaba atrapada en esta pantalla sin poder regresar */}
         <button
@@ -1121,7 +1127,7 @@ function CitaView({ candidateId, onDone }: CitaViewProps) {
 
   return (
     <>
-      <div className="flex items-center gap-3 px-0 sm:px-6 pt-5 pb-3">
+      <div className="flex items-center gap-3 px-0 sm:px-6 pt-1 sm:pt-5 pb-3">
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold gradient-text">Agendar Cita de Entrevista</h1>
           <p className="text-sm text-surface-400 mt-0.5 break-words">{candidate.fullName}</p>
@@ -1221,7 +1227,7 @@ function CandidateDetail({ candidateId, onBack, onStartExam, onWatchVideo, onSch
 
   return (
     <>
-      <div className="flex items-center gap-2 sm:gap-3 px-0 sm:px-6 pt-5 pb-3">
+      <div className="flex items-center gap-2 sm:gap-3 px-0 sm:px-6 pt-1 sm:pt-5 pb-3">
         <button className="p-2.5 sm:p-2 shrink-0 rounded-xl hover:bg-surface-800 transition-colors" onClick={onBack}>
           <ArrowLeft size={20} className="text-surface-300" />
         </button>
@@ -1628,7 +1634,7 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
     const outcome = EXAM_OUTCOME_LABELS[exam.resultado];
     return (
       <>
-        <div className="flex items-center gap-2 sm:gap-3 px-0 sm:px-6 pt-5 pb-3">
+        <div className="flex items-center gap-2 sm:gap-3 px-0 sm:px-6 pt-1 sm:pt-5 pb-3">
           <button className="p-2.5 sm:p-2 shrink-0 rounded-xl hover:bg-surface-800 transition-colors" onClick={() => onBack(candidateId)}>
             <ArrowLeft size={20} className="text-surface-300" />
           </button>
@@ -1636,7 +1642,7 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-0 sm:px-6 pb-6">
-          <motion.div {...fadeUp} className="max-w-lg mx-auto space-y-5">
+          <motion.div {...fadeUp} className="max-w-lg mx-auto space-y-3.5 sm:space-y-5">
             <div className="glass-card p-5 sm:p-8 text-center">
               <motion.div
                 initial={{ scale: 0 }}
@@ -1720,7 +1726,7 @@ function AdmissionExamView({ candidateId, onBack }: AdmissionExamViewProps) {
 
   return (
     <>
-      <div className="px-0 sm:px-6 pt-5 pb-3">
+      <div className="px-0 sm:px-6 pt-1 sm:pt-5 pb-3">
         <div className="flex flex-wrap items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3">
           <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0">
             <button className="p-2.5 sm:p-2 shrink-0 rounded-xl hover:bg-surface-800 transition-colors" onClick={() => onBack(candidateId)}>

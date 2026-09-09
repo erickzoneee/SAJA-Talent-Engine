@@ -60,7 +60,7 @@ export function TrainingHeader({
         <Icon size={20} className="text-white" />
       </div>
       <div className="min-w-0 flex-1">
-        <h1 className="text-xl font-bold text-surface-100 break-words sm:truncate">{title}</h1>
+        <h1 className="text-lg sm:text-xl font-bold text-surface-100 break-words sm:truncate">{title}</h1>
         {subtitle && <p className="text-sm text-surface-400 break-words sm:truncate">{subtitle}</p>}
       </div>
       {right && <div className="w-full sm:w-auto shrink-0">{right}</div>}
@@ -130,7 +130,7 @@ export function ConfirmDialog({
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2, ease: 'easeOut' as const }}
           >
-            <div className="flex items-start gap-3 mb-4">
+            <div className="flex items-start gap-3 mb-3 sm:mb-4">
               <div
                 className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                   danger ? 'bg-danger-500/15 text-danger-500' : 'bg-primary-500/15 text-primary-400'
@@ -229,7 +229,7 @@ export function SinglePhotoPicker({
   }
 
   return (
-    <div className="glass-card p-4 flex flex-col items-center gap-3">
+    <div className="glass-card p-3 sm:p-4 flex flex-col items-center gap-3">
       <span className="text-xs font-medium text-surface-400 uppercase tracking-wider self-start">
         {label}
       </span>
@@ -358,7 +358,7 @@ export function VideoPicker({
   }
 
   return (
-    <div className={compact ? '' : 'glass-card p-4'}>
+    <div className={compact ? '' : 'glass-card p-3 sm:p-4'}>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
         <span className="text-sm font-semibold text-surface-300 flex items-center gap-1.5">
           <Video size={15} className="text-emerald-400" /> {label}

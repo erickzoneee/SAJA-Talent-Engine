@@ -286,7 +286,9 @@ export default function Layout() {
   const sidebarWidth = collapsed ? 72 : 280;
 
   return (
-    <div className="h-dvh w-screen flex overflow-hidden relative">
+    // v2.21: con viewport-fit=cover la app llega hasta los bordes fisicos;
+    // aqui se respetan los margenes seguros laterales (muesca en horizontal).
+    <div className="h-dvh w-screen flex overflow-hidden relative pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       <BackgroundOrbs />
 
       {/* Sidebar — oculto en celular (v2.20), identico al de siempre desde 768px */}
@@ -478,7 +480,7 @@ export default function Layout() {
       <div className="flex-1 flex flex-col min-w-0 relative">
         {/* Top bar */}
         <motion.header
-          className="glass-light h-14 flex items-center justify-between gap-2 px-4 md:px-6 shrink-0"
+          className="glass-light h-[calc(3.5rem_+_env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] flex items-center justify-between gap-2 px-4 md:px-6 shrink-0"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
@@ -498,7 +500,7 @@ export default function Layout() {
         </motion.header>
 
         {/* Scrollable content */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-6 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-6 pb-[calc(4.5rem_+_env(safe-area-inset-bottom))] md:pb-6">
           <motion.div
             key={location.pathname}
             initial={{ opacity: 0, y: 12 }}
@@ -513,7 +515,8 @@ export default function Layout() {
       {/* ── Barra de pestanas del celular (v2.20) ───────────────────────── */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-30 glass border-t border-white/[0.08]
-          flex items-stretch pb-[env(safe-area-inset-bottom)]"
+          flex items-stretch pb-[env(safe-area-inset-bottom)]
+          pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
         aria-label="Navegacion principal"
       >
         {mobileTabs.map((item) => {
@@ -567,7 +570,8 @@ export default function Layout() {
             />
             <div
               className="relative glass rounded-t-2xl border-t border-white/[0.1] max-h-[85dvh] flex flex-col
-                pb-[env(safe-area-inset-bottom)]"
+                pb-[env(safe-area-inset-bottom)]
+                pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] shrink-0">
                 <div className="flex items-center gap-2 min-w-0">

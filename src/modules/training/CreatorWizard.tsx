@@ -145,7 +145,7 @@ export default function CreatorWizard({ procesoId, creadoPor, onDone }: CreatorW
   }
 
   return (
-    <div className="flex flex-col gap-4 overflow-hidden h-full">
+    <div className="flex flex-col gap-3 sm:gap-4 overflow-hidden h-full">
       <TrainingHeader
         icon={Wrench}
         gradient="from-emerald-500 to-teal-600"
@@ -252,7 +252,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-4">
+    <div className="mb-3 sm:mb-4">
       <label className="block text-sm font-medium text-surface-300 mb-1.5">
         {label}
         {hint && <span className="text-surface-500 font-normal"> — {hint}</span>}
@@ -292,7 +292,7 @@ function StepDatos({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>) =>
   const tipos = catalogs.tipos.filter((a) => a.activo).map((a) => a.nombre);
 
   return (
-    <motion.div {...fadeUp} className="glass-card p-5 max-w-2xl">
+    <motion.div {...fadeUp} className="glass-card p-3.5 sm:p-5 max-w-2xl">
       <h2 className="text-lg font-semibold text-surface-100 flex items-center gap-2 mb-1">
         <ClipboardList size={18} className="text-emerald-400" /> Datos del proceso
       </h2>
@@ -371,7 +371,7 @@ function StepDatos({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>) =>
 function StepPortada({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>) => void }) {
   return (
     <motion.div {...fadeUp} className="space-y-4 max-w-3xl">
-      <div className="glass-card p-5">
+      <div className="glass-card p-3.5 sm:p-5">
         <h2 className="text-lg font-semibold text-surface-100 flex items-center gap-2 mb-1">
           <ImageIcon size={18} className="text-emerald-400" /> Portada del proceso
         </h2>
@@ -393,7 +393,7 @@ function StepPortada({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>) 
         </div>
       </div>
 
-      <div className="glass-card p-5">
+      <div className="glass-card p-3.5 sm:p-5">
         <VideoPicker
           compact
           label="Video del proceso completo"
@@ -403,7 +403,7 @@ function StepPortada({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>) 
         />
       </div>
 
-      <div className="glass-card p-5">
+      <div className="glass-card p-3.5 sm:p-5">
         <Field label="Narración de introducción" hint="2-3 frases que se leerán en voz alta">
           <textarea
             value={proc.portadaNarracion ?? ''}
@@ -503,7 +503,7 @@ function StepRecursos({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>)
 
   return (
     <motion.div {...fadeUp} className="space-y-4 max-w-2xl">
-      <div className="glass-card p-5">
+      <div className="glass-card p-3.5 sm:p-5">
         <h2 className="text-lg font-semibold text-surface-100 flex items-center gap-2 mb-1">
           <Package size={18} className="text-emerald-400" /> Recursos necesarios
         </h2>
@@ -535,7 +535,7 @@ function StepRecursos({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>)
         </div>
       </div>
 
-      <div className="glass-card p-5">
+      <div className="glass-card p-3.5 sm:p-5">
         <p className="text-sm font-semibold text-surface-300 mb-2">Materiales e insumos</p>
         <ChipListEditor
           items={proc.materiales}
@@ -545,7 +545,7 @@ function StepRecursos({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso>)
         />
       </div>
 
-      <div className="glass-card p-5">
+      <div className="glass-card p-3.5 sm:p-5">
         <p className="text-sm font-semibold text-surface-300 mb-2">Maquinaria y herramientas</p>
         <ChipListEditor
           items={proc.equipo}
@@ -604,7 +604,7 @@ function StepPasos({
 
   return (
     <motion.div {...fadeUp} className="space-y-3 max-w-2xl">
-      <div className="glass-card p-5">
+      <div className="glass-card p-3.5 sm:p-5">
         <h2 className="text-lg font-semibold text-surface-100 flex items-center gap-2 mb-1">
           <ListChecks size={18} className="text-emerald-400" /> Pasos del proceso
         </h2>
@@ -625,7 +625,7 @@ function StepPasos({
         const incompleto = !mp.nombre.trim() || !mp.narrativa.trim();
         return (
           <div key={mp.id} className="glass-card overflow-hidden">
-            <div className="flex flex-wrap items-center gap-3 p-4">
+            <div className="flex flex-wrap items-center gap-3 p-3 sm:p-4">
               <span className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm shrink-0">
                 {i + 1}
               </span>
@@ -667,7 +667,7 @@ function StepPasos({
                   transition={{ duration: 0.25 }}
                   className="border-t border-surface-700/30"
                 >
-                  <div className="p-4 space-y-4">
+                  <div className="p-3 sm:p-4 space-y-4">
                     <input
                       value={mp.nombre}
                       onChange={(e) => updPaso(mp.id, { nombre: e.target.value })}
@@ -884,7 +884,7 @@ function StepEvaluacion({ proc, upd }: { proc: Proceso; upd: (c: Partial<Proceso
 
   return (
     <motion.div {...fadeUp} className="space-y-3 max-w-2xl">
-      <div className="glass-card p-5">
+      <div className="glass-card p-3.5 sm:p-5">
         <h2 className="text-lg font-semibold text-surface-100 flex items-center gap-2 mb-1">
           <Sparkles size={18} className="text-emerald-400" /> Generar evaluación
         </h2>
@@ -955,7 +955,7 @@ function PreguntaCard({
 }) {
   const letras = ['A', 'B', 'C'];
   return (
-    <motion.div {...fadeUp} className="glass-card p-4">
+    <motion.div {...fadeUp} className="glass-card p-3 sm:p-4">
       <div className="flex items-start gap-2 mb-3">
         <span className="w-7 h-7 rounded-lg bg-surface-700/50 text-surface-300 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
           {index + 1}
@@ -1044,13 +1044,13 @@ function StepPublicar({
 
   return (
     <motion.div {...fadeUp} className="space-y-4 max-w-2xl">
-      <div className="glass-card p-5">
+      <div className="glass-card p-3.5 sm:p-5">
         <h2 className="text-lg font-semibold text-surface-100 flex items-center gap-2 mb-1">
           <Eye size={18} className="text-emerald-400" /> Vista previa y publicar
         </h2>
         <p className="text-sm text-surface-400 mb-4">Revisa que todo esté bien antes de publicar.</p>
 
-        <div className="flex items-start gap-3 mb-4">
+        <div className="flex items-start gap-3 mb-3 sm:mb-4">
           {proc.portadaInicio && (
             <MediaImage value={proc.portadaInicio} alt="" className="w-20 h-20 rounded-xl object-cover border border-surface-700/40" />
           )}
@@ -1072,7 +1072,7 @@ function StepPublicar({
         </div>
       </div>
 
-      <div className="glass-card p-5">
+      <div className="glass-card p-3.5 sm:p-5">
         <p className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
           <ListChecks size={16} className="text-emerald-400" /> Checklist de calidad
         </p>

@@ -155,7 +155,7 @@ function EmployeeCardsView({ onViewDossier }: { onViewDossier: (employeeId: stri
             </div>
             Expedientes de Empleados
           </h2>
-          <p className="text-surface-400 text-sm mt-1">
+          <p className="text-surface-400 text-xs sm:text-sm mt-1">
             {tab === 'bajas'
               ? `${bajasCount} ex-colaborador${bajasCount !== 1 ? 'es' : ''} dado${bajasCount !== 1 ? 's' : ''} de baja`
               : `${activosCount} colaborador${activosCount !== 1 ? 'es' : ''} registrado${activosCount !== 1 ? 's' : ''}`}
@@ -258,7 +258,7 @@ function EmployeeCardsView({ onViewDossier }: { onViewDossier: (employeeId: stri
             )}
           </motion.div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 pb-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 pb-2">
             {filteredEmployees.map((employee, i) => (
               <EmployeeCard
                 key={employee.id}
@@ -304,7 +304,7 @@ function EmployeeCard({
       initial="initial"
       animate="animate"
       onClick={onClick}
-      className="glass-card p-4 sm:p-5 text-left flex flex-col gap-4 cursor-pointer group w-full"
+      className="glass-card p-4 sm:p-5 text-left flex flex-col gap-3 sm:gap-4 cursor-pointer group w-full"
     >
       {/* Encabezado: foto + nombre + puesto */}
       <div className="flex items-start gap-3">

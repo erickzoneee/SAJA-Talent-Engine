@@ -275,7 +275,7 @@ export default function TrainingFlow({ onBack }: { onBack: () => void }) {
             </p>
 
             <div
-              className="rounded-xl p-4 my-5 border text-sm leading-relaxed"
+              className="rounded-xl p-3 sm:p-4 my-5 border text-sm leading-relaxed"
               style={{ background: `${cal.color}15`, borderColor: `${cal.color}40`, color: cal.color }}
             >
               {cal.msg}
@@ -352,9 +352,9 @@ function Biblioteca({
               initial="initial"
               animate="animate"
               onClick={() => onSelect(p)}
-              className="glass-card p-4 w-full text-left flex items-center gap-3 sm:gap-4 cursor-pointer group"
+              className="glass-card p-3 sm:p-4 w-full text-left flex items-center gap-3 sm:gap-4 cursor-pointer group"
             >
-              <div className="w-14 h-14 rounded-xl bg-surface-800/60 border border-surface-700/40 overflow-hidden flex items-center justify-center shrink-0">
+              <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl bg-surface-800/60 border border-surface-700/40 overflow-hidden flex items-center justify-center shrink-0">
                 {p.portadaInicio ? <MediaImage value={p.portadaInicio} alt="" className="w-full h-full object-cover" /> : <GraduationCap size={22} className="text-surface-500" />}
               </div>
               <div className="flex-1 min-w-0">
@@ -391,7 +391,7 @@ function PortadaProceso({ proc, onBack, onComenzar }: { proc: Proceso; onBack: (
     <div className="flex flex-col gap-5 overflow-hidden h-full">
       <TrainingHeader icon={Play} gradient="from-blue-500 to-indigo-600" title={proc.nombre} subtitle="Antes de empezar, observa el objetivo" onBack={onBack} />
       <div className="flex-1 overflow-y-auto pr-1 space-y-4">
-        <motion.div {...fadeUp} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <motion.div {...fadeUp} className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <PortadaFoto titulo="Así empezamos" src={proc.portadaInicio} onZoom={setZoom} />
           <PortadaFoto titulo="Así debe quedar" src={proc.portadaResultado} onZoom={setZoom} />
         </motion.div>
@@ -492,7 +492,7 @@ function Presentacion({
   // salida, mostrar un aviso navegable (volver o ir directo a la evaluación).
   if (!mp) {
     return (
-      <div className="flex flex-col gap-4 h-full">
+      <div className="flex flex-col gap-3 sm:gap-4 h-full">
         <TrainingHeader icon={Play} gradient="from-blue-500 to-indigo-600" title={proc.nombre} subtitle="Sin pasos" onBack={onBack} />
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-start sm:justify-center gap-5">
           <EmptyState icon={ShieldAlert} title="Este proceso todavía no tiene pasos" hint="Pídele a tu supervisor que agregue los pasos del proceso" />
@@ -511,7 +511,7 @@ function Presentacion({
   const texto = narrativaVisible(mp);
 
   return (
-    <div className="flex flex-col gap-4 overflow-hidden h-full">
+    <div className="flex flex-col gap-3 sm:gap-4 overflow-hidden h-full">
       <TrainingHeader icon={Play} gradient="from-blue-500 to-indigo-600" title={proc.nombre} subtitle={`Paso ${mpIdx + 1} de ${total}`} onBack={onBack} />
 
       {/* Progreso */}
@@ -657,7 +657,7 @@ function Evaluacion({
   }
 
   return (
-    <div className="flex flex-col gap-4 overflow-hidden h-full">
+    <div className="flex flex-col gap-3 sm:gap-4 overflow-hidden h-full">
       <div className="shrink-0">
         <h1 className="text-lg font-bold text-surface-100 flex items-center gap-2">
           <ClipboardCheck size={20} className="text-blue-400" /> Evaluación

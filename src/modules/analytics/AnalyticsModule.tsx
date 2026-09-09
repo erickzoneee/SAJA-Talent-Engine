@@ -350,7 +350,7 @@ function ReclutamientoTab({ candidates }: { candidates: Candidate[] }) {
   return (
     <motion.div variants={tabContent} initial="initial" animate="animate" exit="exit" key="reclutamiento">
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <StatCard label="Total Candidatos" value={totalCandidates} icon={<Users className="w-5 h-5" />} color="text-blue-400" index={0} />
         <StatCard
           label="Tasa de Conversion"
@@ -371,7 +371,7 @@ function ReclutamientoTab({ candidates }: { candidates: Candidate[] }) {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         <ChartCard title="Distribucion de Veredictos" index={3}>
           {interviewed.length > 0 ? (
             <Doughnut data={verdictData} options={doughnutOptions} />
@@ -523,7 +523,7 @@ function RetencionTab({ employees }: { employees: Employee[] }) {
   return (
     <motion.div variants={tabContent} initial="initial" animate="animate" exit="exit" key="retencion">
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <StatCard
           label="Antiguedad Promedio"
           value={`${Math.round(avgTenure)} meses`}
@@ -551,7 +551,7 @@ function RetencionTab({ employees }: { employees: Employee[] }) {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         <ChartCard title="Tendencia Altas / Bajas (12 meses)" index={3} className="lg:col-span-2">
           <Line data={trendData} options={barLineOptions} />
         </ChartCard>
@@ -689,7 +689,7 @@ function DesempenoTab({ employees }: { employees: Employee[] }) {
   return (
     <motion.div variants={tabContent} initial="initial" animate="animate" exit="exit" key="desempeno">
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <StatCard
           label="Score Promedio"
           value={Math.round(avgPerf * 100) / 100}
@@ -717,7 +717,7 @@ function DesempenoTab({ employees }: { employees: Employee[] }) {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         <ChartCard title="Perfil de Competencias (Promedio)" index={3} className="max-sm:[&>div]:h-80">
           <Radar data={radarData} options={radarOptions} />
         </ChartCard>
@@ -842,7 +842,7 @@ function OnboardingTab({ employees }: { employees: Employee[] }) {
   return (
     <motion.div variants={tabContent} initial="initial" animate="animate" exit="exit" key="onboarding">
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <StatCard
           label="Tasa de Completado"
           value={`${Math.round(avgCompletionRate)}%`}
@@ -870,7 +870,7 @@ function OnboardingTab({ employees }: { employees: Employee[] }) {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         <ChartCard title="Scores de Quiz por Modulo" index={3}>
           {allQuizScores.length > 0 ? (
             <Bar data={quizScoresData} options={barLineOptions} />
@@ -893,7 +893,7 @@ export default function AnalyticsModule() {
   const [activeTab, setActiveTab] = useState<TabKey>('reclutamiento');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -12 }}
@@ -904,7 +904,7 @@ export default function AnalyticsModule() {
           <BarChart3 className="w-7 h-7 shrink-0 text-blue-400" />
           Analitica e Inteligencia de Datos
         </h1>
-        <p className="text-sm text-slate-400 mt-1">
+        <p className="text-xs sm:text-sm text-slate-400 mt-1">
           Metricas clave, tendencias y visualizaciones del ciclo de talento
         </p>
       </motion.div>

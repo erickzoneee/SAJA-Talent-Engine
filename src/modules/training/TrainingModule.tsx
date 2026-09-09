@@ -156,13 +156,13 @@ export default function TrainingModule() {
           className="glass-card p-4 sm:p-6 relative overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-blue-500/5 to-fuchsia-500/10 pointer-events-none" />
-          <div className="relative z-10 flex flex-wrap items-center gap-4">
+          <div className="relative z-10 flex flex-wrap items-center gap-3 sm:gap-4">
             <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center font-black text-lg shrink-0" style={{ background: '#f5c518', color: '#1a5c3a' }}>
               JAC
             </div>
             <div className="flex-1 min-w-0">
               <h1 className="text-xl sm:text-2xl font-bold gradient-text">JAC Capacita</h1>
-              <p className="text-sm text-surface-400 mt-0.5 break-words">
+              <p className="text-xs sm:text-sm text-surface-400 mt-0.5 break-words">
                 Sistema de capacitación interna · {creadoPor}
                 <span className="flex sm:inline-flex items-center gap-1 mt-1 sm:mt-0 sm:ml-2 text-blue-400">
                   <ShieldCheck size={13} />

@@ -303,7 +303,7 @@ function CandidatesReadyView({ onHire, onViewEmployees, onDirectRegister }: Cand
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-0 mb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4 lg:gap-0 mb-4 sm:mb-6">
         <div className="min-w-0">
           <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500/20 to-accent-500/20 flex items-center justify-center shrink-0">
@@ -311,7 +311,7 @@ function CandidatesReadyView({ onHire, onViewEmployees, onDirectRegister }: Cand
             </div>
             Candidatos para Contratar
           </h2>
-          <p className="text-surface-400 text-sm mt-1">
+          <p className="text-surface-400 text-xs sm:text-sm mt-1">
             Candidatos con veredicto favorable listos para contratacion
           </p>
         </div>
@@ -335,7 +335,7 @@ function CandidatesReadyView({ onHire, onViewEmployees, onDirectRegister }: Cand
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-3 sm:mb-4">
         <div className="relative flex-1 min-w-0 max-w-md">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" />
           <input
@@ -385,10 +385,10 @@ function CandidatesReadyView({ onHire, onViewEmployees, onDirectRegister }: Cand
                 <img
                   src={candidate.photoUrl}
                   alt={candidate.fullName}
-                  className="w-12 h-12 rounded-xl object-cover border border-surface-600/30"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-surface-600/30"
                 />
               ) : (
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getAvatarGradient(candidate.fullName)} flex items-center justify-center text-white font-bold text-sm`}>
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${getAvatarGradient(candidate.fullName)} flex items-center justify-center text-white font-bold text-sm`}>
                   {getInitials(candidate.fullName)}
                 </div>
               )}
@@ -1074,7 +1074,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="flex flex-wrap items-center gap-4 mb-6 shrink-0">
+      <div className="flex flex-wrap items-center gap-4 mb-4 sm:mb-6 shrink-0">
         <button
           className="w-10 h-10 rounded-xl glass flex items-center justify-center text-surface-400 hover:text-white transition-colors cursor-pointer shrink-0"
           onClick={onBack}
@@ -1098,7 +1098,7 @@ function HiringFormView({ candidateId, onBack, onComplete }: HiringFormViewProps
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto space-y-6 pr-1">
+      <div className="flex-1 overflow-y-auto space-y-4 sm:space-y-6 pr-1">
         {/* Document Checklist Section */}
         <motion.section {...fadeUp} className="glass-card p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
@@ -1797,7 +1797,7 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-start sm:items-center gap-3 sm:gap-4 mb-6">
+      <div className="flex items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
         <button
           className="w-10 h-10 rounded-xl glass flex items-center justify-center text-surface-400 hover:text-white transition-colors cursor-pointer shrink-0"
           onClick={onBack}
@@ -1811,7 +1811,7 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
             </div>
             Registrar Colaborador Existente
           </h2>
-          <p className="text-surface-400 text-sm mt-1">
+          <p className="text-surface-400 text-xs sm:text-sm mt-1">
             Personal que YA trabaja en la empresa: entra directo al expediente con su fecha de ingreso
             real, sin pasar por recepcion, examen ni entrevista.
           </p>
@@ -1819,7 +1819,7 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
       </div>
 
       <div className="flex-1 overflow-y-auto pb-6">
-        <div className="max-w-2xl space-y-5">
+        <div className="max-w-2xl space-y-3.5 sm:space-y-5">
           <div className="glass-card p-4 sm:p-5 space-y-4">
             <h3 className="text-base font-semibold text-white">Datos del colaborador</h3>
 
@@ -1959,7 +1959,7 @@ function DirectRegistrationView({ onBack, onComplete }: DirectRegistrationViewPr
             </div>
           </div>
 
-          <div className="glass-card p-4 border-l-4 border-l-primary-500">
+          <div className="glass-card p-3 sm:p-4 border-l-4 border-l-primary-500">
             <p className="text-xs text-surface-400 leading-relaxed">
               El expediente se crea con el checklist de documentos y los documentos para firma vacios:
               RH puede irlos completando despues (subir INE, contrato firmado, etc.). El onboarding queda
@@ -2523,7 +2523,7 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
     <div className="space-y-4 pb-8">
       {/* v2.0: avisos del expediente */}
       {employee.seguimientoEspecial && (
-        <div className="glass-card p-4 border border-warning-500/40 bg-warning-500/5 flex items-start gap-3">
+        <div className="glass-card p-3 sm:p-4 border border-warning-500/40 bg-warning-500/5 flex items-start gap-3">
           <Eye size={18} className="text-warning-500 shrink-0 mt-0.5" />
           <div>
             <p className="text-warning-500 text-sm font-semibold">Seguimiento especial activo</p>
@@ -2534,7 +2534,7 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
         </div>
       )}
       {employee.contratacionAutorizada && (
-        <div className="glass-card p-4 border border-danger-500/40 bg-danger-500/5 flex items-start gap-3">
+        <div className="glass-card p-3 sm:p-4 border border-danger-500/40 bg-danger-500/5 flex items-start gap-3">
           <Shield size={18} className="text-danger-400 shrink-0 mt-0.5" />
           <div>
             <p className="text-danger-400 text-sm font-semibold">Contratacion con autorizacion expresa</p>
@@ -2548,7 +2548,7 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
       )}
 
       {/* Barra de guardado (arriba) */}
-      <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="glass-card p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-surface-400 flex items-center gap-1.5">
           <Info size={13} className="text-primary-400 shrink-0" />
           Expediente completo del colaborador. Edita cualquier campo y presiona <b className="text-surface-200">Guardar cambios</b>.
@@ -2873,7 +2873,7 @@ function DossierInfoTab({ employee }: { employee: Employee }) {
       </div>
 
       {/* Barra de guardado (abajo) */}
-      <div className="glass-card p-4 flex flex-wrap items-center justify-end">{SaveBar}</div>
+      <div className="glass-card p-3 sm:p-4 flex flex-wrap items-center justify-end">{SaveBar}</div>
 
       {/* v2.18: confirmacion obligatoria al dejar el expediente como inactivo */}
       <SajaBajaConfirmModal
@@ -3038,7 +3038,7 @@ function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee:
       <SignedDocsSection employee={employee} />
 
       {/* Progress */}
-      <div className="glass-card p-4">
+      <div className="glass-card p-3 sm:p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-surface-300 font-medium">Documentos obligatorios</span>
           <span className="text-sm font-bold text-primary-400">{docsCompleted}/{docsTotal}</span>
@@ -3057,7 +3057,7 @@ function DossierDocumentsTab({ employee, docsCompleted, docsTotal }: { employee:
       </div>
 
       {/* Document List — v2.7: editable (marcar / subir foto de cada documento) */}
-      <div className="glass-card p-4 space-y-2">
+      <div className="glass-card p-3 sm:p-4 space-y-2">
         <p className="text-xs text-surface-500 mb-1 flex items-start gap-1.5">
           <Info size={13} className="mt-0.5 shrink-0 text-primary-400" />
           Marca cada documento entregado y sube o toma una foto del original. RH puede completar estos
@@ -3139,7 +3139,7 @@ function DossierOnboardingTab({ employee, completed, total }: { employee: Employ
   return (
     <div className="space-y-4">
       {/* Progress */}
-      <div className="glass-card p-4">
+      <div className="glass-card p-3 sm:p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-surface-300 font-medium">Progreso de Onboarding</span>
           <span className="text-sm font-bold text-accent-400">{completed}/{total} modulos</span>
@@ -3164,7 +3164,7 @@ function DossierOnboardingTab({ employee, completed, total }: { employee: Employ
       </div>
 
       {/* Module List */}
-      <div className="glass-card p-4 space-y-2">
+      <div className="glass-card p-3 sm:p-4 space-y-2">
         {employee.onboardingProgress.modules.map((mod) => (
           <div
             key={mod.id}
@@ -3207,7 +3207,7 @@ function DossierOnboardingTab({ employee, completed, total }: { employee: Employ
 
       {/* Final quiz score */}
       {employee.onboardingProgress.finalQuizScore !== undefined && (
-        <div className="glass-card p-4 flex flex-wrap items-center gap-3">
+        <div className="glass-card p-3 sm:p-4 flex flex-wrap items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-500/20 to-primary-500/20 flex items-center justify-center shrink-0">
             <BadgeCheck size={20} className="text-accent-400" />
           </div>

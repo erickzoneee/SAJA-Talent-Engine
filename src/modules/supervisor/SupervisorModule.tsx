@@ -326,7 +326,7 @@ function DashboardView({
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -12 }}
@@ -337,7 +337,7 @@ function DashboardView({
           <LayoutDashboard size={24} className="shrink-0" />
           Panel del Supervisor
         </h1>
-        <p className="text-surface-400 text-sm mt-1">
+        <p className="text-surface-400 text-xs sm:text-sm mt-1">
           Vista general del estado del equipo y alertas importantes
         </p>
       </motion.div>
@@ -377,7 +377,7 @@ function DashboardView({
           className="glass-card p-4 sm:p-5"
           style={{ borderColor: 'rgba(245,158,11,0.3)' }}
         >
-          <h2 className="text-base font-semibold text-amber-400 flex items-center gap-2 mb-4">
+          <h2 className="text-base font-semibold text-amber-400 flex items-center gap-2 mb-3 sm:mb-4">
             <AlertTriangle size={18} />
             Alertas y Pendientes ({alerts.length})
           </h2>
@@ -414,7 +414,7 @@ function DashboardView({
         </motion.div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
         {/* Recent Interviews */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -422,7 +422,7 @@ function DashboardView({
           transition={{ duration: 0.4, delay: 0.3 }}
           className="glass-card p-4 sm:p-5 xl:col-span-1"
         >
-          <h2 className="text-base font-semibold text-surface-100 flex items-center gap-2 mb-4">
+          <h2 className="text-base font-semibold text-surface-100 flex items-center gap-2 mb-3 sm:mb-4">
             <ClipboardList size={18} className="text-primary-400" />
             Entrevistas Recientes
           </h2>
@@ -461,7 +461,7 @@ function DashboardView({
           transition={{ duration: 0.4, delay: 0.35 }}
           className="glass-card p-4 sm:p-5 xl:col-span-2"
         >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
             <h2 className="text-base font-semibold text-surface-100 flex items-center gap-2">
               <Users size={18} className="text-primary-400" />
               Colaboradores Activos
@@ -502,7 +502,7 @@ function DashboardView({
                     animate="animate"
                     whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
                     onClick={() => onSelectEmployee(emp.id)}
-                    className="glass-light p-4 rounded-xl cursor-pointer group hover:bg-white/[0.08] transition-all duration-200"
+                    className="glass-light p-3 sm:p-4 rounded-xl cursor-pointer group hover:bg-white/[0.08] transition-all duration-200"
                   >
                     <div className="flex items-center gap-3 mb-3">
                       <div
@@ -599,7 +599,7 @@ function DossierView({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
@@ -608,7 +608,7 @@ function DossierView({
           </button>
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold gradient-text break-words">Expediente del Colaborador</h1>
-            <p className="text-surface-400 text-sm mt-0.5">Dossier completo</p>
+            <p className="text-surface-400 text-xs sm:text-sm mt-0.5">Dossier completo</p>
           </div>
         </div>
         <button onClick={handlePrint} className="btn-secondary flex items-center justify-center gap-2 w-full sm:w-auto shrink-0 whitespace-nowrap">
@@ -762,7 +762,7 @@ function PersonalInfoTab({
   candidate?: Candidate;
 }) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
       <div className="glass-card p-4 sm:p-6 space-y-4">
         <h3 className="text-base font-semibold text-surface-100 flex items-center gap-2">
           <User size={16} className="text-primary-400" />
@@ -924,7 +924,7 @@ function OnboardingTab({ employee }: { employee: Employee }) {
               ) : (
                 <div className="w-4 h-4 rounded-full border-2 border-surface-600 shrink-0" />
               )}
-              <div className="flex-1 min-w-0 basis-[calc(100%-2rem)] sm:basis-0">
+              <div className="flex-1 min-w-0 basis-[calc(100%_-_2rem)] sm:basis-0">
                 <p className="text-sm text-surface-200 break-words sm:truncate">{mod.name}</p>
                 <p className="text-xs text-surface-500">
                   {mod.deliveredBy} &middot; {mod.duration}
@@ -1054,7 +1054,7 @@ function IncidentsTab({ employee }: { employee: Employee }) {
       </h3>
       <div className="space-y-2">
         {incidents.map((inc) => (
-          <div key={inc.id} className="glass-light p-4 rounded-xl">
+          <div key={inc.id} className="glass-light p-3 sm:p-4 rounded-xl">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
               <span className={`badge ${typeColorMap[inc.type] ?? 'badge-yellow'} text-xs shrink-0`}>
                 {INCIDENT_LABELS[inc.type] ?? inc.type}
@@ -1111,11 +1111,11 @@ function BonusesTab({ employee }: { employee: Employee }) {
       {/* List */}
       <div className="glass-card p-4 sm:p-6 space-y-3">
         {bonuses.map((bonus) => (
-          <div key={bonus.id} className="glass-light p-4 rounded-xl flex flex-wrap items-center gap-3 sm:gap-4">
+          <div key={bonus.id} className="glass-light p-3 sm:p-4 rounded-xl flex flex-wrap items-center gap-3 sm:gap-4">
             <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
               <DollarSign size={18} className="text-emerald-400" />
             </div>
-            <div className="flex-1 min-w-0 basis-[calc(100%-3.75rem)] sm:basis-0">
+            <div className="flex-1 min-w-0 basis-[calc(100%_-_3.75rem)] sm:basis-0">
               <p className="text-sm font-semibold text-surface-200 break-words">{bonus.period}</p>
               <p className="text-xs text-surface-500 break-words">{bonus.criteria}</p>
             </div>

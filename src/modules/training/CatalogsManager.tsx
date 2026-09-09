@@ -84,7 +84,7 @@ export default function CatalogsManager({ onBack }: { onBack: () => void }) {
 
       <div className="flex-1 overflow-y-auto pr-1 space-y-4">
         {/* Add row */}
-        <motion.div {...fadeUp} className="glass-card p-4">
+        <motion.div {...fadeUp} className="glass-card p-3 sm:p-4">
           <p className="text-sm sm:text-xs text-surface-400 mb-3">Agregar opción a «{meta.label}» — {meta.hint}</p>
           <div className="flex flex-wrap gap-2">
             {meta.conIcono && (

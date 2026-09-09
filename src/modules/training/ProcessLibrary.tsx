@@ -195,9 +195,9 @@ export default function ProcessLibrary({ isAdmin, creadoPor, onBack, onEdit, onN
             const meta = ESTADO_META[p.estado];
             const editable = p.estado === 'borrador' || p.estado === 'publicado';
             return (
-              <motion.div key={p.id} custom={i} variants={listItem} initial="initial" animate="animate" className="glass-card p-4">
+              <motion.div key={p.id} custom={i} variants={listItem} initial="initial" animate="animate" className="glass-card p-3 sm:p-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-surface-800/60 border border-surface-700/40 flex items-center justify-center overflow-hidden shrink-0">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-surface-800/60 border border-surface-700/40 flex items-center justify-center overflow-hidden shrink-0">
                     {p.portadaInicio ? (
                       <MediaImage value={p.portadaInicio} alt="" className="w-full h-full object-cover" />
                     ) : (

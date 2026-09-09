@@ -102,7 +102,7 @@ export default function ResultsDashboard({ isAdmin, onBack }: { isAdmin: boolean
               <Metric icon={Zap} value={registros.length ? `${tasa}%` : '—'} label="Tasa aprobación" color="text-amber-400" />
             </div>
 
-            <motion.div {...fadeUp} className="glass-card p-5">
+            <motion.div {...fadeUp} className="glass-card p-3.5 sm:p-5">
               <h3 className="text-sm font-semibold text-surface-200 mb-3">Últimas capacitaciones</h3>
               {recientes.length === 0 ? (
                 <p className="text-sm text-surface-500 py-4 text-center">Aún no hay registros.</p>
@@ -142,7 +142,7 @@ export default function ResultsDashboard({ isAdmin, onBack }: { isAdmin: boolean
               porTrab.map((t, i) => {
                 const ap = t.regs.filter((r) => r.pasa).length;
                 return (
-                  <motion.div key={t.numero} custom={i} variants={listItem} initial="initial" animate="animate" className="glass-card p-4">
+                  <motion.div key={t.numero} custom={i} variants={listItem} initial="initial" animate="animate" className="glass-card p-3 sm:p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                       <div className="w-full sm:w-auto min-w-0">
                         <p className="text-sm font-semibold text-surface-100 truncate">{t.nombre}</p>
@@ -178,7 +178,7 @@ export default function ResultsDashboard({ isAdmin, onBack }: { isAdmin: boolean
             <p className="text-center text-surface-500 text-sm py-8">No hay procesos publicados aún.</p>
           ) : (
             porProc.map((x, i) => (
-              <motion.div key={x.proc.id} custom={i} variants={listItem} initial="initial" animate="animate" className="glass-card p-4">
+              <motion.div key={x.proc.id} custom={i} variants={listItem} initial="initial" animate="animate" className="glass-card p-3 sm:p-4">
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   <h3 className="text-sm font-semibold text-surface-100 min-w-0 break-words">{x.proc.nombre}</h3>
                   <span className="badge badge-green text-[10px] shrink-0 whitespace-nowrap">{x.proc.area}</span>
@@ -202,7 +202,7 @@ export default function ResultsDashboard({ isAdmin, onBack }: { isAdmin: boolean
         {/* ALERTAS */}
         {tab === 'alertas' && (
           <>
-            <div className="glass-card p-4 flex items-start gap-3">
+            <div className="glass-card p-3 sm:p-4 flex items-start gap-3">
               <Clock size={18} className="text-amber-400 shrink-0 mt-0.5" />
               <p className="text-sm text-surface-400">
                 Evaluaciones completadas en menos de {formatDuracion(90)} se marcan como sospechosamente rápidas:
@@ -216,7 +216,7 @@ export default function ResultsDashboard({ isAdmin, onBack }: { isAdmin: boolean
                 .slice()
                 .reverse()
                 .map((r, i) => (
-                  <motion.div key={r.id} custom={i} variants={listItem} initial="initial" animate="animate" className="glass-card p-4 flex items-center gap-2 sm:gap-3 border-amber-500/20">
+                  <motion.div key={r.id} custom={i} variants={listItem} initial="initial" animate="animate" className="glass-card p-3 sm:p-4 flex items-center gap-2 sm:gap-3 border-amber-500/20">
                     <TriangleAlert size={18} className="text-amber-400 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-surface-200 truncate">{r.empleadoNombre}</p>
@@ -238,7 +238,7 @@ export default function ResultsDashboard({ isAdmin, onBack }: { isAdmin: boolean
 
 function Metric({ icon: Icon, value, label, color }: { icon: React.ElementType; value: number | string; label: string; color: string }) {
   return (
-    <motion.div {...fadeUp} className="glass-card p-4 text-center">
+    <motion.div {...fadeUp} className="glass-card p-3 sm:p-4 text-center">
       <Icon size={20} className={`mx-auto mb-1.5 ${color}`} />
       <div className="text-2xl font-bold text-surface-100">{value}</div>
       <div className="text-xs text-surface-500 mt-0.5">{label}</div>
