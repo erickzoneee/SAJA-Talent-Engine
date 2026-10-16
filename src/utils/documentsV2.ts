@@ -72,7 +72,7 @@ export function buildDocuments(employee: Employee, settings: AppSettings): DocTe
       titulo: 'Contrato Individual de Trabajo',
       cuando: 'Dia 1',
       tantos: '2 tantos',
-      descripcion: 'Autollenado con los datos capturados (empresa, trabajador, puesto, sueldo diario/semanal, horario, vigencia) y EDITABLE antes de imprimir.',
+      descripcion: 'Formato oficial autollenado con los datos capturados (empresa, trabajador, puesto, sueldo diario/semanal, horario, vigencia). El texto NO se puede modificar: se rearma con la informacion vigente del expediente.',
       parrafos: [
         `Contrato individual de trabajo por periodo de prueba que celebran, por una parte, ${empresa}, con domicilio en ${settings.companyAddress}${settings.companyRfc ? ` y RFC ${settings.companyRfc}` : ''}, en adelante "LA EMPRESA", y por otra parte ${nombre}, en adelante "EL TRABAJADOR".`,
         `PUESTO: EL TRABAJADOR prestara sus servicios en el puesto de ${puesto}, reportando directamente a ${jefe}.`,

@@ -32,6 +32,7 @@ import {
   getInitials,
 } from '../../utils/helpers';
 import { escapeHtml, printHtmlDocument, printSignedDocument } from '../../utils/printDoc';
+import ModalPortal from '../../components/ModalPortal';
 import { buildDocuments } from '../../utils/documentsV2';
 import StarRating from '../../components/StarRating';
 import { SajaBajaBanner, SajaBajaConfirmModal } from '../../components/SajaBajaAviso';
@@ -733,6 +734,7 @@ function ExitRegistrationView({
           )}
 
           {/* Modal de vista previa de la renuncia (sin membrete) */}
+          <ModalPortal>
           <AnimatePresence>
             {renunciaPreview && renunciaDoc && (
               <motion.div
@@ -749,20 +751,25 @@ function ExitRegistrationView({
                   className="glass-card w-full max-w-2xl max-h-[85dvh] flex flex-col"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="p-4 sm:p-5 border-b border-white/[0.06] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold text-white">{renunciaDoc.titulo}</h3>
+                  {/* v2.22: mismo arreglo que en Documentos — los botones de la
+                      barra no se comprimen (shrink-0) y el titulo cede el ancho. */}
+                  <div className="shrink-0 p-4 sm:p-5 border-b border-white/[0.06] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-bold text-white break-words">{renunciaDoc.titulo}</h3>
                       <p className="text-xs text-surface-500">Sin logo ni datos de la empresa · autollenada</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center">
+                    <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center shrink-0">
                       <button
-                        className="btn-primary text-sm flex items-center gap-2"
+                        className="btn-primary text-sm inline-flex items-center justify-center gap-2 whitespace-nowrap"
                         onClick={() => printSignedDocument(renunciaDoc, settings.companyName)}
                       >
                         <Printer size={15} />
                         Imprimir
                       </button>
-                      <button className="btn-secondary text-sm" onClick={() => setRenunciaPreview(false)}>
+                      <button
+                        className="btn-secondary text-sm whitespace-nowrap"
+                        onClick={() => setRenunciaPreview(false)}
+                      >
                         Cerrar
                       </button>
                     </div>
@@ -798,6 +805,7 @@ function ExitRegistrationView({
               </motion.div>
             )}
           </AnimatePresence>
+          </ModalPortal>
 
           {/* Letter Type Selection */}
           <div className="glass-card p-4 sm:p-6 space-y-4">

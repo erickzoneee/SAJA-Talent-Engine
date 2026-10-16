@@ -4,14 +4,19 @@ import { calcAge, cantidadEnLetra } from './helpers';
 import { escapeHtml, printHtmlDocument } from './printDoc';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// CONTRATO INDIVIDUAL DE TRABAJO — v2.16
+// CONTRATO INDIVIDUAL DE TRABAJO — v2.16 / v2.22
 // Dos formatos oficiales de la empresa, autollenados con la informacion del
 // colaborador capturada en el sistema:
 //   • contractType 'eventual'   → CONTRATO POR PERIODO DE PRUEBA (15 dias, art. 39-A LFT)
 //   • contractType 'indefinido' → CONTRATO POR TIEMPO INDETERMINADO (arts. 35 y 36 LFT)
-// El texto resultante es EDITABLE por RH antes de imprimir (se guarda en
-// employee.contractText). Los datos que el sistema no captura quedan con la
-// linea ______ para completarse a mano o editando el texto.
+//
+// v2.22: el texto del contrato NO es editable. Es un documento legal: si RH
+// pudiera reescribir una clausula, el contrato impreso dejaria de ser el
+// formato oficial de la empresa. Se arma SIEMPRE con los datos actuales del
+// colaborador (se guarda en employee.contractText solo como registro de lo que
+// se imprimio). Lo que el sistema aun no captura sale como linea ______ para
+// llenarse a mano — o mejor, capturando el dato en el expediente: por eso
+// `missingContractData` avisa que falta antes de imprimir.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const BLANK = '____________________';
@@ -44,6 +49,24 @@ function domicilioTrabajador(employee: Employee): string {
   const partes = [calle, x.colonia, x.codigoPostal && `C.P. ${x.codigoPostal}`, x.municipio || x.ciudad, x.estado]
     .filter((p) => p && String(p).trim() !== '');
   return partes.length ? partes.join(', ').toUpperCase() : BLANK;
+}
+
+/** Datos del contrato que el expediente aun no tiene: se imprimirian como
+ *  linea ______. Se avisa en pantalla para que RH los capture en el expediente
+ *  en lugar de llenarlos a mano (el texto ya no se puede editar). */
+export function missingContractData(employee: Employee): string[] {
+  const x = employee.expediente ?? {};
+  const faltan: string[] = [];
+  if (!employee.fullName?.trim()) faltan.push('nombre completo');
+  if (calcAge(x.fechaNacimiento) === null) faltan.push('fecha de nacimiento (edad)');
+  if (!x.estadoCivil?.trim()) faltan.push('estado civil');
+  if (!employee.rfc?.trim()) faltan.push('RFC');
+  if (!x.curp?.trim()) faltan.push('CURP');
+  if (domicilioTrabajador(employee) === BLANK) faltan.push('domicilio');
+  if (!employee.hireDate) faltan.push('fecha de ingreso');
+  const diario = employee.dailySalary ?? (employee.salary ? employee.salary / 7 : 0);
+  if (!diario || diario <= 0) faltan.push('sueldo diario');
+  return faltan;
 }
 
 export function buildContractText(employee: Employee, settings: AppSettings): string {
@@ -177,48 +200,88 @@ export function buildContractText(employee: Employee, settings: AppSettings): st
   ].join('\n\n');
 }
 
-// ─── Impresion (sin popups, via iframe oculto) ─────────────────────────────
+// ─── Estructura del documento (compartida pantalla / impresion) ─────────────
+// La vista de solo lectura del modal y la hoja impresa salen de la MISMA
+// clasificacion de bloques: asi lo que RH ve en pantalla es lo que sale en la
+// impresora, sin dos maneras distintas de interpretar el mismo texto.
 
 const HEADERS = new Set(['antecedentes', 'cláusulas', 'clausulas']);
 
-function renderBloque(p: string): string {
-  const plano = p.trim();
-  const key = plano.toLowerCase();
+export type ContractBlockKind = 'titulo' | 'seccion' | 'firma' | 'parrafo';
+export interface ContractBlock {
+  kind: ContractBlockKind;
+  text: string;
+}
 
-  // Titulo del contrato → centrado y en negrita
-  if (/^contrato individual de trabajo por /i.test(plano)) {
-    return `<h1>${escapeHtml(plano)}</h1>`;
+export function splitContractBlocks(text: string): ContractBlock[] {
+  return text
+    .split(/\n{2,}/)
+    .map((raw) => raw.trim())
+    .filter((plano) => plano !== '')
+    .map((plano): ContractBlock => {
+      // Titulo del contrato → centrado y en negrita
+      if (/^contrato individual de trabajo por /i.test(plano)) return { kind: 'titulo', text: plano };
+      // Encabezados de seccion (Antecedentes / Clausulas)
+      if (HEADERS.has(plano.toLowerCase())) return { kind: 'seccion', text: plano };
+      // Bloques de firma ("LA EMPRESA" / "EL TRABAJADOR")
+      if (plano.startsWith('"LA EMPRESA"') || plano.startsWith('"EL TRABAJADOR"')) {
+        return { kind: 'firma', text: plano };
+      }
+      return { kind: 'parrafo', text: plano };
+    });
+}
+
+/** Separa el rotulo inicial del parrafo ("PRIMERA:", "1.-") para imprimirlo en
+ *  negrita. Se evalua primero el rotulo con dos puntos y luego el numerado,
+ *  igual que antes. */
+export function splitRotulo(p: string): { rotulo: string; resto: string } {
+  const m = p.match(/^([A-ZÁÉÍÓÚÑÜ0-9()°.\s—-]{2,70}?:)/) ?? p.match(/^(\d+\.-)/);
+  return m ? { rotulo: m[1], resto: p.slice(m[1].length) } : { rotulo: '', resto: p };
+}
+
+// ─── Impresion (sin popups, via iframe oculto) ─────────────────────────────
+
+function renderBloque(b: ContractBlock): string {
+  if (b.kind === 'titulo') return `<h1>${escapeHtml(b.text)}</h1>`;
+  if (b.kind === 'seccion') return `<h2>${escapeHtml(b.text)}</h2>`;
+  if (b.kind === 'firma') {
+    return `<div class="firmas">${escapeHtml(b.text).replace(/\n/g, '<br/>')}</div>`;
   }
-  // Encabezados de seccion (Antecedentes / Clausulas) → centrado en negrita
-  if (HEADERS.has(key)) {
-    return `<h2>${escapeHtml(plano)}</h2>`;
-  }
-  // Bloques de firma ("LA EMPRESA" / "EL TRABAJADOR") → centrado, respetando
-  // saltos de linea.
-  if (plano.startsWith('"LA EMPRESA"') || plano.startsWith('"EL TRABAJADOR"')) {
-    return `<div class="firmas">${escapeHtml(plano).replace(/\n/g, '<br/>')}</div>`;
-  }
-  // Parrafo normal: se pone en negrita el rotulo inicial ("PRIMERA:", "1.-", etc.)
-  let html = escapeHtml(plano).replace(/\n/g, '<br/>');
-  html = html.replace(/^([A-ZÁÉÍÓÚÑÜ0-9()°.\s—-]{2,70}?:)/, '<strong>$1</strong>');
-  html = html.replace(/^(\d+\.-)/, '<strong>$1</strong>');
+  const { rotulo, resto } = splitRotulo(b.text);
+  const cuerpo = escapeHtml(resto).replace(/\n/g, '<br/>');
+  const html = rotulo ? `<strong>${escapeHtml(rotulo)}</strong>${cuerpo}` : cuerpo;
   return `<p>${html}</p>`;
 }
 
-/** Imprime el texto (editable) del contrato via iframe oculto (sin popups). */
-export function printContractText(text: string, companyName: string): void {
-  const bloques = text.split(/\n{2,}/).map(renderBloque).join('');
-  printHtmlDocument(`<!doctype html><html><head><meta charset="utf-8"><title>Contrato Individual de Trabajo</title>
+/** Hoja del contrato tal cual sale impresa.
+ *  v2.22: hoja carta con margenes de 2 cm y cuerpo en ARIAL 11 pt — la
+ *  tipografia del formato oficial de la empresa. `@page` fija el tamano y los
+ *  margenes reales de la hoja (antes se usaba un margen en px del body, que el
+ *  navegador sumaba a sus propios margenes de impresion).
+ *  Se construye aparte de la impresion para poder revisarla sin abrir el
+ *  dialogo del navegador. */
+export function buildContractHtml(text: string, companyName: string): string {
+  const bloques = splitContractBlocks(text).map(renderBloque).join('');
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Contrato Individual de Trabajo</title>
   <style>
-    body { font-family: Georgia, 'Times New Roman', serif; margin: 48px; color: #111; }
-    .empresa { text-align: center; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #555; margin-bottom: 6px; }
-    h1 { text-align: center; font-size: 15px; text-transform: uppercase; margin: 4px 0 18px; }
-    h2 { text-align: center; font-size: 13px; letter-spacing: 3px; text-transform: uppercase; margin: 22px 0 10px; }
-    p { font-size: 12px; line-height: 1.7; text-align: justify; margin: 9px 0; white-space: pre-wrap; }
-    .firmas { text-align: center; font-size: 12px; line-height: 1.9; margin-top: 40px; white-space: pre-wrap; }
+    @page { size: letter; margin: 2.2cm 2cm; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.3; color: #000; margin: 0; }
+    .empresa { text-align: center; font-size: 8.5pt; letter-spacing: 1px; text-transform: uppercase; color: #333; margin-bottom: 4px; }
+    h1 { text-align: center; font-size: 12pt; text-transform: uppercase; margin: 2px 0 16px; }
+    h2 { text-align: center; font-size: 11pt; letter-spacing: 2px; text-transform: uppercase; margin: 18px 0 8px; }
+    /* Interlineado 1.3 y parrafos juntos: con Arial 11 pt el contrato cabe en
+       ~6 hojas y media por tanto (con 1.45 se iba a mas de 7). */
+    p { font-size: 11pt; line-height: 1.3; text-align: justify; margin: 6px 0; white-space: pre-wrap; orphans: 2; widows: 2; }
+    /* El bloque de firmas nunca se parte entre dos hojas */
+    .firmas { text-align: center; font-size: 11pt; line-height: 1.8; margin-top: 34px; white-space: pre-wrap; break-inside: avoid; page-break-inside: avoid; }
     strong { font-weight: bold; }
   </style></head><body>
     <div class="empresa">${escapeHtml(companyName)}</div>
     ${bloques}
-  </body></html>`);
+  </body></html>`;
+}
+
+/** Imprime el contrato via iframe oculto (sin popups). */
+export function printContractText(text: string, companyName: string): void {
+  printHtmlDocument(buildContractHtml(text, companyName));
 }
